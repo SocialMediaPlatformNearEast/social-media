@@ -175,4 +175,15 @@ document.addEventListener('DOMContentLoaded', () => {
         div.textContent = str;
         return div.innerHTML;
     }
+
+    // Auto-focus composer if URL has compose=1
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('compose') === '1') {
+        const composerTextarea = document.querySelector('.composer textarea');
+        if (composerTextarea) {
+            composerTextarea.focus();
+            // Scroll to top to ensure it's visible
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
 });

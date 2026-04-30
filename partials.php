@@ -51,9 +51,8 @@ function render_shell_start(array $viewer, string $active = 'home'): void
           <a class="<?= $active === 'messages' ? 'active' : '' ?>" href="messages.php"><span>M</span> <span class="nav-label">Messages</span></a>
           <a class="<?= $active === 'notifications' ? 'active' : '' ?>" href="notifications.php"><span>N</span> <span class="nav-label">Alerts</span></a>
           <a class="<?= $active === 'profile' ? 'active' : '' ?>" href="profile.php?u=<?= h($viewer['username']) ?>"><span>P</span> <span class="nav-label">Profile</span></a>
-          <a class="<?= $active === 'settings' ? 'active' : '' ?>" href="settings.php"><span>E</span> <span class="nav-label">Edit Profile</span></a>
         </nav>
-        <a class="compose-link" href="#composer">Post</a>
+        <a class="compose-link" href="index.php?compose=1">Post</a>
         <a class="mini-profile" href="profile.php?u=<?= h($viewer['username']) ?>">
           <span class="avatar small" style="--avatar: <?= h($viewer['avatar_color']) ?>"><?= h(strtoupper(substr($viewer['display_name'], 0, 1))) ?></span>
           <div>
