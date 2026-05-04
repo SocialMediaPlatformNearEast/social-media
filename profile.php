@@ -37,10 +37,10 @@ render_head($profile['display_name']);
 render_shell_start($viewer, 'profile');
 ?>
 <section class="profile-header">
-  <div class="profile-banner" style="background-color: <?= h($profile['avatar_color']) ?>; opacity: 0.3;"></div>
+  <div class="profile-banner" data-guide-target="cover-photo-area" style="background-color: <?= h($profile['avatar_color']) ?>; opacity: 0.3;"></div>
   <div class="profile-info-container">
     <div class="profile-top-row">
-      <span class="avatar profile-avatar-large" style="--avatar: <?= h($profile['avatar_color']) ?>"><?= h(strtoupper(substr($profile['display_name'], 0, 1))) ?></span>
+      <span class="avatar profile-avatar-large" data-guide-target="profile-picture-area" style="--avatar: <?= h($profile['avatar_color']) ?>"><?= h(strtoupper(substr($profile['display_name'], 0, 1))) ?></span>
       <div class="profile-actions">
         <?php if ($isOwnProfile): ?>
           <a class="outline-button" href="settings.php">Edit profile</a>
@@ -63,12 +63,14 @@ render_shell_start($viewer, 'profile');
     </div>
     
     <div class="profile-names">
-      <h1><?= h($profile['display_name']) ?></h1>
-      <p class="handle">@<?= h($profile['username']) ?></p>
+      <h1><?= h($profile['display_name']) ?> <?php render_level_badge($profile); ?></h1>
+      <p class="handle" data-guide-target="username-area">@<?= h($profile['username']) ?></p>
     </div>
 
     <?php if (!empty($profile['bio'])): ?>
-      <p class="bio"><?= nl2br(h($profile['bio'])) ?></p>
+      <p class="bio" data-guide-target="bio-area"><?= nl2br(h($profile['bio'])) ?></p>
+    <?php else: ?>
+      <p class="bio empty-bio" data-guide-target="bio-area">No bio yet.</p>
     <?php endif; ?>
 
     <div class="profile-meta-grid">
@@ -89,6 +91,7 @@ render_shell_start($viewer, 'profile');
       <a href="#"><strong><?= (int) $stats['followers'] ?></strong> Followers</a>
       <a href="#"><strong><?= (int) $stats['friends'] ?></strong> Friends</a>
     </div>
+    <?php render_profile_xp_panel($profile); ?>
   </div>
 
   <div class="segmented">

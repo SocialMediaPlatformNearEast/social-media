@@ -34,7 +34,7 @@ render_shell_start($viewer, 'settings');
           </label>
         </div>
         
-        <label class="form-group">
+        <label class="form-group" data-guide-target="username-area">
           <span>Username / Nickname</span>
           <div class="input-prefix-wrapper">
             <span class="input-prefix">@</span>
@@ -43,7 +43,7 @@ render_shell_start($viewer, 'settings');
           <small>3-24 characters, lowercase, numbers, underscores.</small>
         </label>
 
-        <label class="form-group">
+        <label class="form-group" data-guide-target="bio-area">
           <span>Bio</span>
           <textarea name="bio" maxlength="180" rows="3" placeholder="Tell us about yourself..."><?= h($viewer['bio']) ?></textarea>
           <div class="char-counter">0 / 180</div>
@@ -83,7 +83,7 @@ render_shell_start($viewer, 'settings');
 
       <div class="form-section">
         <h3>Appearance</h3>
-        <label class="form-group">
+        <label class="form-group" data-guide-target="profile-picture-area">
           <span>Profile Theme Color</span>
           <div class="color-picker-wrapper">
             <input type="color" name="profile_pic" value="<?= h($viewer['avatar_color'] ?? '#1d9bf0') ?>">

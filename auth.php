@@ -11,6 +11,7 @@ render_head('Login');
 ?>
 <main class="auth-layout">
   <?php render_flash(); ?>
+  <?php render_xp_toasts(); ?>
   <section class="auth-hero">
     <div class="brand-lockup">
       <span class="brand-mark large">X</span>
@@ -36,7 +37,7 @@ render_head('Login');
         Nickname or email
         <input name="identity" autocomplete="username" required>
       </label>
-      <label>
+      <label data-guide-target="password-reset-area">
         Password
         <input type="password" name="password" autocomplete="current-password" required>
       </label>
@@ -81,5 +82,6 @@ render_head('Login');
     </form>
   </section>
 </main>
+<?php render_support_chat_widget(); ?>
 </body>
 </html>

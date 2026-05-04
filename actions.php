@@ -84,6 +84,7 @@ try {
         ensure_profile((int) $user['id'], $user['display_name'] ?: $user['username'], $user['avatar_color'] ?: '#111111');
         $_SESSION['user_id'] = (int) $user['id'];
         session_regenerate_id(true);
+        award_xp((int) $user['id'], 'daily_login', 5, date('Y-m-d'));
         flash('Logged in successfully.', 'success');
         redirect('index.php');
     }
@@ -106,6 +107,8 @@ try {
 
         $stmt = db()->prepare('INSERT INTO posts (user_id, content, image_url) VALUES (?, ?, ?)');
         $stmt->execute([(int) $viewer['id'], $content, $imageUrl ?: null]);
+        $contentKey = sha1(mb_strtolower(trim(preg_replace('/\s+/', ' ', $content))));
+        award_xp((int) $viewer['id'], 'post_created', 10, $contentKey);
         flash('Post published.', 'success');
         redirect($_SERVER['HTTP_REFERER'] ?? 'index.php');
     }
@@ -121,10 +124,15 @@ try {
 
         $stmt = db()->prepare('INSERT INTO comments (post_id, user_id, comment) VALUES (?, ?, ?)');
         $stmt->execute([$postId, (int) $viewer['id'], $comment]);
+        $commentId = (int) db()->lastInsertId();
+        award_xp((int) $viewer['id'], 'comment_created', 6, (string) $commentId);
 
         $ownerId = post_owner_id($postId);
         if ($ownerId !== null) {
             notify_user($ownerId, (int) $viewer['id'], 'comment', $postId);
+            if ($ownerId !== (int) $viewer['id']) {
+                award_xp($ownerId, 'comment_received', 4, (string) $commentId);
+            }
         }
 
         flash('Comment posted.', 'success');
@@ -149,6 +157,10 @@ try {
             $ownerId = post_owner_id($postId);
             if ($ownerId !== null) {
                 notify_user($ownerId, (int) $viewer['id'], 'like', $postId);
+                if ($ownerId !== (int) $viewer['id']) {
+                    award_xp((int) $viewer['id'], 'like_given', 1, (string) $postId);
+                    award_xp($ownerId, 'like_received', 2, $postId . ':' . (int) $viewer['id']);
+                }
             }
             $liked = true;
         }
@@ -159,7 +171,7 @@ try {
             $count = (int) $countStmt->fetchColumn();
             
             header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'liked' => $liked, 'count' => $count]);
+            echo json_encode(['success' => true, 'liked' => $liked, 'count' => $count, 'xp_toasts' => take_xp_toasts()]);
             exit;
         }
 
@@ -302,6 +314,21 @@ try {
 
         $userStmt = db()->prepare('UPDATE users SET first_name = ?, last_name = ?, nickname = ?, username = ?, display_name = ?, bio = ?, avatar_color = ?, gender = ?, age = ?, birthday = ?, location = ?, website = ? WHERE id = ?');
         $userStmt->execute([$firstName, $lastName, $nickname, $nickname, $displayName, $bio, $color, $gender ?: null, $age, $birthday ?: null, $location, $website, (int) $viewer['id']]);
+
+        $profileData = [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'nickname' => $nickname,
+            'bio' => $bio,
+            'avatar_color' => $color,
+        ];
+        if (is_profile_complete($profileData)) {
+            $xpResult = award_xp((int) $viewer['id'], 'profile_completed', 30, 'complete_profile');
+            if (($xpResult['awarded'] ?? 0) > 0) {
+                $completeStmt = db()->prepare('UPDATE users SET profile_completed_at = COALESCE(profile_completed_at, NOW()) WHERE id = ?');
+                $completeStmt->execute([(int) $viewer['id']]);
+            }
+        }
 
         flash('Profile updated.', 'success');
         redirect('profile.php?u=' . urlencode($nickname));

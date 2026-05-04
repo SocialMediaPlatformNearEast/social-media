@@ -49,11 +49,221 @@ function require_valid_csrf(): void
     }
 }
 
+function ensure_gamification_schema(): void
+{
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+
+    $pdo = db();
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_xp INT UNSIGNED NOT NULL DEFAULT 0 AFTER avatar_color");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS level INT UNSIGNED NOT NULL DEFAULT 1 AFTER total_xp");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS xp_today INT UNSIGNED NOT NULL DEFAULT 0 AFTER level");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_xp_reward_date DATE NULL AFTER xp_today");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS badge_color CHAR(7) NOT NULL DEFAULT '#71767B' AFTER last_xp_reward_date");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS activity_title VARCHAR(40) NOT NULL DEFAULT 'New User' AFTER badge_color");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_completed_at TIMESTAMP NULL AFTER activity_title");
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS xp_events (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            event_type VARCHAR(40) NOT NULL,
+            event_key VARCHAR(120) NOT NULL,
+            points INT UNSIGNED NOT NULL,
+            reward_date DATE NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_xp_events_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE KEY uq_xp_event_once (user_id, event_type, event_key),
+            INDEX idx_xp_events_daily (user_id, event_type, reward_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $ready = true;
+}
+
+function xp_required_for_level(int $level): int
+{
+    $level = max(1, $level);
+    $earlyLevels = [
+        1 => 0,
+        2 => 50,
+        3 => 120,
+        4 => 250,
+        5 => 500,
+        6 => 700,
+        7 => 900,
+        8 => 1100,
+        9 => 1300,
+        10 => 1500,
+    ];
+
+    if (isset($earlyLevels[$level])) {
+        return $earlyLevels[$level];
+    }
+
+    return 1500 + (($level - 10) * ($level - 10) * 50);
+}
+
+function level_for_xp(int $totalXp): int
+{
+    $level = 1;
+    while ($totalXp >= xp_required_for_level($level + 1)) {
+        $level++;
+    }
+
+    return $level;
+}
+
+function badge_color_for_level(int $level): string
+{
+    if ($level >= 30) {
+        return '#F5C542';
+    }
+    if ($level >= 20) {
+        return '#F97316';
+    }
+    if ($level >= 10) {
+        return '#8B5CF6';
+    }
+    if ($level >= 5) {
+        return '#1D9BF0';
+    }
+
+    return '#71767B';
+}
+
+function activity_title_for_level(int $level): string
+{
+    if ($level >= 30) {
+        return 'Platform Legend';
+    }
+    if ($level >= 20) {
+        return 'Community Star';
+    }
+    if ($level >= 10) {
+        return 'Popular User';
+    }
+    if ($level >= 5) {
+        return 'Active User';
+    }
+
+    return 'New User';
+}
+
+function push_xp_toast(int $points, int $newLevel, bool $leveledUp): void
+{
+    $_SESSION['xp_toasts'] ??= [];
+    $_SESSION['xp_toasts'][] = [
+        'message' => '+' . $points . ' XP',
+        'type' => 'xp',
+    ];
+
+    if ($leveledUp) {
+        $_SESSION['xp_toasts'][] = [
+            'message' => 'Level Up! You reached Level ' . $newLevel,
+            'type' => 'level',
+        ];
+    }
+}
+
+function take_xp_toasts(): array
+{
+    $toasts = $_SESSION['xp_toasts'] ?? [];
+    unset($_SESSION['xp_toasts']);
+    return $toasts;
+}
+
+function award_xp(int $userId, string $eventType, int $points, string $eventKey = ''): array
+{
+    ensure_gamification_schema();
+
+    if ($userId <= 0 || $points <= 0) {
+        return ['awarded' => 0, 'level_up' => false, 'level' => 1];
+    }
+
+    $eventKey = $eventKey !== '' ? mb_substr($eventKey, 0, 120) : date('Y-m-d');
+    $today = date('Y-m-d');
+    $dailyCaps = [
+        'post_created' => 10,
+        'comment_created' => 30,
+        'like_given' => 100,
+    ];
+
+    if (isset($dailyCaps[$eventType])) {
+        $capStmt = db()->prepare('SELECT COUNT(*) FROM xp_events WHERE user_id = ? AND event_type = ? AND reward_date = ?');
+        $capStmt->execute([$userId, $eventType, $today]);
+        if ((int) $capStmt->fetchColumn() >= $dailyCaps[$eventType]) {
+            return ['awarded' => 0, 'level_up' => false, 'level' => 1];
+        }
+    }
+
+    try {
+        $eventStmt = db()->prepare('INSERT INTO xp_events (user_id, event_type, event_key, points, reward_date) VALUES (?, ?, ?, ?, ?)');
+        $eventStmt->execute([$userId, $eventType, $eventKey, $points, $today]);
+    } catch (PDOException $exception) {
+        if ($exception->getCode() === '23000') {
+            return ['awarded' => 0, 'level_up' => false, 'level' => 1];
+        }
+
+        throw $exception;
+    }
+
+    $beforeStmt = db()->prepare('SELECT total_xp, level FROM users WHERE id = ?');
+    $beforeStmt->execute([$userId]);
+    $before = $beforeStmt->fetch() ?: ['total_xp' => 0, 'level' => 1];
+    $oldLevel = (int) $before['level'];
+    $newTotal = (int) $before['total_xp'] + $points;
+    $newLevel = level_for_xp($newTotal);
+    $badgeColor = badge_color_for_level($newLevel);
+    $activityTitle = activity_title_for_level($newLevel);
+
+    $updateStmt = db()->prepare(
+        'UPDATE users
+         SET total_xp = ?,
+             level = ?,
+             xp_today = IF(last_xp_reward_date = ?, xp_today + ?, ?),
+             last_xp_reward_date = ?,
+             badge_color = ?,
+             activity_title = ?
+         WHERE id = ?'
+    );
+    $updateStmt->execute([$newTotal, $newLevel, $today, $points, $points, $today, $badgeColor, $activityTitle, $userId]);
+
+    $leveledUp = $newLevel > $oldLevel;
+    if ((int) ($_SESSION['user_id'] ?? 0) === $userId) {
+        push_xp_toast($points, $newLevel, $leveledUp);
+    }
+
+    return [
+        'awarded' => $points,
+        'level_up' => $leveledUp,
+        'level' => $newLevel,
+        'total_xp' => $newTotal,
+        'badge_color' => $badgeColor,
+        'activity_title' => $activityTitle,
+    ];
+}
+
+function is_profile_complete(array $profile): bool
+{
+    return trim((string) ($profile['first_name'] ?? '')) !== ''
+        && trim((string) ($profile['last_name'] ?? '')) !== ''
+        && trim((string) ($profile['nickname'] ?? $profile['username'] ?? '')) !== ''
+        && trim((string) ($profile['bio'] ?? '')) !== ''
+        && preg_match('/^#[0-9a-fA-F]{6}$/', (string) ($profile['avatar_color'] ?? '#111111')) === 1;
+}
+
 function current_user(): ?array
 {
     if (empty($_SESSION['user_id'])) {
         return null;
     }
+
+    ensure_gamification_schema();
+
+    $dailyReset = db()->prepare('UPDATE users SET xp_today = 0 WHERE id = ? AND (last_xp_reward_date IS NULL OR last_xp_reward_date <> CURDATE())');
+    $dailyReset->execute([(int) $_SESSION['user_id']]);
 
     static $user = null;
     if ($user !== null && (int) $user['id'] === (int) $_SESSION['user_id']) {
@@ -66,6 +276,13 @@ function current_user(): ?array
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.bio, u.bio, "") AS bio,
             COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            u.total_xp,
+            u.level,
+            u.xp_today,
+            u.last_xp_reward_date,
+            u.badge_color,
+            u.activity_title,
+            u.profile_completed_at,
             COALESCE(pr.updated_at, u.updated_at) AS profile_updated_at
          FROM users u
          LEFT JOIN profiles pr ON pr.user_id = u.id
@@ -166,6 +383,47 @@ function app_metrics(): array
     return $stmt->fetch() ?: [];
 }
 
+function render_level_badge(array $user): void
+{
+    $level = max(1, (int) ($user['level'] ?? 1));
+    $badgeColor = (string) ($user['badge_color'] ?? badge_color_for_level($level));
+    $activityTitle = (string) ($user['activity_title'] ?? activity_title_for_level($level));
+    ?>
+    <span class="level-badge" style="--badge-color: <?= h($badgeColor) ?>" title="<?= h($activityTitle) ?>">LVL <?= $level ?></span>
+    <?php
+}
+
+function render_profile_xp_panel(array $profile): void
+{
+    $level = max(1, (int) ($profile['level'] ?? 1));
+    $totalXp = max(0, (int) ($profile['total_xp'] ?? 0));
+    $currentLevelXp = xp_required_for_level($level);
+    $nextLevel = $level + 1;
+    $nextLevelXp = xp_required_for_level($nextLevel);
+    $span = max(1, $nextLevelXp - $currentLevelXp);
+    $progress = min(100, max(0, (($totalXp - $currentLevelXp) / $span) * 100));
+    $needed = max(0, $nextLevelXp - $totalXp);
+    $activityTitle = (string) ($profile['activity_title'] ?? activity_title_for_level($level));
+    ?>
+    <section class="profile-xp-card" aria-label="User gamification status">
+      <div class="profile-xp-main">
+        <div>
+          <span class="xp-kicker"><?= h($activityTitle) ?></span>
+          <strong>Level <?= $level ?></strong>
+        </div>
+        <div class="profile-xp-total">
+          <strong><?= $totalXp ?></strong>
+          <span>Total XP</span>
+        </div>
+      </div>
+      <div class="xp-progress-track" aria-label="<?= h((string) round($progress)) ?>% progress to next level">
+        <span style="width: <?= h((string) $progress) ?>%"></span>
+      </div>
+      <p><?= $needed ?> XP needed for Level <?= $nextLevel ?></p>
+    </section>
+    <?php
+}
+
 function fetch_posts(int $viewerId, string $mode = 'all', ?int $profileId = null, string $search = ''): array
 {
     $where = ['p.deleted_at IS NULL'];
@@ -200,6 +458,10 @@ function fetch_posts(int $viewerId, string $mode = 'all', ?int $profileId = null
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.profile_pic, u.avatar_color, '#111111') AS avatar_color,
             COALESCE(pr.bio, u.bio, '') AS bio,
+            u.total_xp,
+            u.level,
+            u.badge_color,
+            u.activity_title,
             rp.content AS repost_content,
             ru.username AS repost_username,
             COALESCE(rpr.display_name, ru.display_name, ru.username) AS repost_display_name,
@@ -241,6 +503,10 @@ function fetch_post(int $viewerId, int $postId): ?array
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
             COALESCE(pr.bio, u.bio, "") AS bio,
+            u.total_xp,
+            u.level,
+            u.badge_color,
+            u.activity_title,
             rp.content AS repost_content,
             ru.username AS repost_username,
             COALESCE(rpr.display_name, ru.display_name, ru.username) AS repost_display_name,
@@ -269,7 +535,11 @@ function fetch_comments(int $postId): array
             c.*,
             u.username,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color
+            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            u.total_xp,
+            u.level,
+            u.badge_color,
+            u.activity_title
          FROM comments c
          INNER JOIN users u ON u.id = c.user_id
          LEFT JOIN profiles pr ON pr.user_id = u.id
@@ -288,6 +558,13 @@ function fetch_user_by_username(string $username): ?array
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.bio, u.bio, "") AS bio,
             COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            u.total_xp,
+            u.level,
+            u.xp_today,
+            u.last_xp_reward_date,
+            u.badge_color,
+            u.activity_title,
+            u.profile_completed_at,
             pr.updated_at AS profile_updated_at
          FROM users u
          LEFT JOIN profiles pr ON pr.user_id = u.id
@@ -327,9 +604,10 @@ function render_post(array $post, array $viewer): void
           <div class="post-user-info">
             <a class="name" href="profile.php?u=<?= h($post['username']) ?>"><?= h($post['display_name']) ?></a>
             <a class="handle" href="profile.php?u=<?= h($post['username']) ?>">@<?= h($post['username']) ?></a>
+            <?php render_level_badge($post); ?>
             <a class="time" href="post.php?id=<?= (int) $post['id'] ?>"><?= h(time_ago($post['created_at'])) ?></a>
           </div>
-          <button class="more-actions-btn">
+          <button class="more-actions-btn" data-guide-target="post-actions-area">
             <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="currentColor"><g><path d="M3 12c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm9 2c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 0c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path></g></svg>
           </button>
         </header>
@@ -396,6 +674,7 @@ function render_comment(array $comment): void
         <header class="post-header">
           <a class="name" href="profile.php?u=<?= h($comment['username']) ?>"><?= h($comment['display_name']) ?></a>
           <a class="handle" href="profile.php?u=<?= h($comment['username']) ?>">@<?= h($comment['username']) ?></a>
+          <?php render_level_badge($comment); ?>
           <span class="time"><?= h(time_ago($comment['created_at'])) ?></span>
         </header>
         <p class="post-copy"><?= nl2br(h($comment['comment'])) ?></p>

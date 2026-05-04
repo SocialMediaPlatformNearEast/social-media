@@ -30,6 +30,17 @@ function render_flash(): void
     <?php
 }
 
+function render_xp_toasts(): void
+{
+    $toasts = take_xp_toasts();
+    if (!$toasts) {
+        return;
+    }
+    ?>
+    <script type="application/json" id="xp-toast-data"><?= json_encode($toasts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
+    <?php
+}
+
 function render_shell_start(array $viewer, string $active = 'home'): void
 {
     $stats = user_stats((int) $viewer['id']);
@@ -57,13 +68,45 @@ function render_shell_start(array $viewer, string $active = 'home'): void
           <span class="avatar small" style="--avatar: <?= h($viewer['avatar_color']) ?>"><?= h(strtoupper(substr($viewer['display_name'], 0, 1))) ?></span>
           <div>
             <strong><?= h($viewer['display_name']) ?></strong>
-            <span>@<?= h($viewer['username']) ?></span>
+            <span>@<?= h($viewer['username']) ?> <?php render_level_badge($viewer); ?></span>
           </div>
         </a>
         <a class="logout-link" href="logout.php">Log out</a>
       </aside>
       <main class="timeline">
         <?php render_flash(); ?>
+        <?php render_xp_toasts(); ?>
+    <?php
+}
+
+function render_support_chat_widget(): void
+{
+    ?>
+    <section class="support-chat" aria-label="Live support chat">
+      <button class="support-chat-toggle" type="button" aria-label="Open support chat" aria-expanded="false">
+        <span aria-hidden="true">?</span>
+      </button>
+      <div class="support-chat-window" aria-live="polite" hidden>
+        <header class="support-chat-header">
+          <div>
+            <strong>Support chat</strong>
+            <span>Quick answers</span>
+          </div>
+          <button class="support-chat-close" type="button" aria-label="Close support chat">x</button>
+        </header>
+        <div class="support-chat-body">
+          <div class="support-message bot">
+            Hi. Pick a question and I will show you the steps.
+          </div>
+          <div class="support-question-list" aria-label="Common support questions"></div>
+          <div class="support-answer-list" aria-label="Support chat answers"></div>
+        </div>
+        <footer class="support-chat-footer">
+          <button class="support-contact-button" type="button">Still need help?</button>
+        </footer>
+      </div>
+    </section>
+    <div class="guide-tooltip" role="status" hidden></div>
     <?php
 }
 
@@ -74,10 +117,10 @@ function render_shell_end(array $viewer): void
     ?>
       </main>
       <aside class="right-rail">
-        <form class="search-box" action="search.php" method="get">
+        <form class="search-box" action="search.php" method="get" data-guide-target="search-area">
           <input type="search" name="q" placeholder="Search posts and people" value="<?= h($_GET['q'] ?? '') ?>">
         </form>
-        <section class="side-panel">
+        <section class="side-panel" data-guide-target="account-area">
           <h2>Your account</h2>
           <div class="metric-row"><span>Posts</span><strong><?= (int) $stats['posts'] ?></strong></div>
           <div class="metric-row"><span>Comments</span><strong><?= (int) $stats['comments'] ?></strong></div>
@@ -98,6 +141,7 @@ function render_shell_end(array $viewer): void
         </section>
       </aside>
     </div>
+    <?php render_support_chat_widget(); ?>
     </body>
     </html>
     <?php
@@ -116,7 +160,7 @@ function render_composer(array $viewer): void
       </div>
       <div class="composer-main">
         <textarea name="content" maxlength="280" placeholder="What's happening?" required></textarea>
-        <div class="composer-options">
+        <div class="composer-options" data-guide-target="photo-upload-area">
           <input type="url" name="image_url" placeholder="Image URL (optional)" class="image-url-input">
         </div>
         <div class="composer-footer">
