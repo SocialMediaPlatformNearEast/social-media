@@ -1,0 +1,121 @@
+.avatar {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background-color: var(--avatar, #333333);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.avatar:hover {
+  text-decoration: none;
+}
+
+.avatar.small {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+
+.avatar.large {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.avatar-image .avatar-initial {
+  display: none;
+}
+
+.gender-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 0;
+}
+
+.gender-field legend {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.gender-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gender-option {
+  position: relative;
+}
+
+.gender-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gender-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border: 1px solid #333639;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.gender-option input:checked + span {
+  border-color: var(--accent-color);
+  background-color: rgba(29, 155, 240, 0.12);
+}
+
+.gender-option input:focus-visible + span {
+  border-color: var(--accent-color);
+}
+
+.gender-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gender-preview[hidden] {
+  display: none;
+}
+
+.gender-preview img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #ffffff;
+}
+
+.gender-preview span {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background-color: var(--preview-color, var(--accent-color));
+}

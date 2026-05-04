@@ -12,6 +12,8 @@ require_valid_csrf();
 $action = $_POST['action'] ?? '';
 
 try {
+    ensure_profile_defaults_schema();
+
     if ($action === 'register') {
         $firstName = trim((string) ($_POST['first_name'] ?? ''));
         $lastName = trim((string) ($_POST['last_name'] ?? ''));
@@ -21,12 +23,18 @@ try {
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
         $gender = trim((string) ($_POST['gender'] ?? ''));
+        $profileDefaults = profile_defaults_for_gender($gender);
         $birthday = trim((string) ($_POST['birthday'] ?? ''));
         $ageInput = trim((string) ($_POST['age'] ?? ''));
         $age = $ageInput !== '' ? (int) $ageInput : ($birthday !== '' ? max(0, (int) floor((time() - strtotime($birthday)) / 31557600)) : null);
 
         if ($firstName === '' || $lastName === '' || $nickname === '' || $email === '' || strlen($password) < 8) {
             flash('Use first name, last name, nickname, email, age, and an 8+ character password.', 'error');
+            redirect('auth.php');
+        }
+
+        if ($profileDefaults === null) {
+            flash('Please choose Male or Female for gender.', 'error');
             redirect('auth.php');
         }
 
@@ -40,10 +48,12 @@ try {
             redirect('auth.php');
         }
 
-        $avatarColor = '#' . substr(hash('sha256', $username), 0, 6);
+        $profilePhotoUrl = $profileDefaults['profile_photo_url'];
+        $themeColor = $profileDefaults['theme_color'];
+        $avatarColor = $themeColor;
         $stmt = db()->prepare(
-            'INSERT INTO users (first_name, last_name, nickname, username, display_name, email, password_hash, gender, age, birthday, avatar_color)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO users (first_name, last_name, nickname, username, display_name, email, password_hash, gender, profile_photo_url, theme_color, age, birthday, avatar_color)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $firstName,
@@ -53,14 +63,16 @@ try {
             $displayName,
             $email,
             password_hash($password, PASSWORD_DEFAULT),
-            $gender ?: null,
+            $gender,
+            $profilePhotoUrl,
+            $themeColor,
             $age,
             $birthday ?: null,
             $avatarColor,
         ]);
 
         $userId = (int) db()->lastInsertId();
-        ensure_profile($userId, $displayName, $avatarColor);
+        ensure_profile($userId, $displayName, $avatarColor, $profilePhotoUrl);
 
         $_SESSION['user_id'] = $userId;
         session_regenerate_id(true);
@@ -81,7 +93,12 @@ try {
             redirect('auth.php');
         }
 
-        ensure_profile((int) $user['id'], $user['display_name'] ?: $user['username'], $user['avatar_color'] ?: '#111111');
+        ensure_profile(
+            (int) $user['id'],
+            $user['display_name'] ?: $user['username'],
+            $user['avatar_color'] ?: ($user['theme_color'] ?? '#111111'),
+            $user['profile_photo_url'] ?? ''
+        );
         $_SESSION['user_id'] = (int) $user['id'];
         session_regenerate_id(true);
         award_xp((int) $user['id'], 'daily_login', 5, date('Y-m-d'));
@@ -299,21 +316,26 @@ try {
             redirect('settings.php');
         }
 
+        if (profile_defaults_for_gender($gender) === null) {
+            flash('Please choose Male or Female for gender.', 'error');
+            redirect('settings.php');
+        }
+
         if ($profilePic !== '' && !preg_match('/^#[0-9a-fA-F]{6}$/', $profilePic)) {
             flash('Profile color must be a hex color like #1d9bf0.', 'error');
             redirect('settings.php');
         }
 
-        $color = $profilePic ?: ($viewer['avatar_color'] ?: '#111111');
+        $color = $profilePic ?: ($viewer['theme_color'] ?? $viewer['avatar_color'] ?? '#111111');
         $stmt = db()->prepare(
-            'INSERT INTO profiles (user_id, display_name, bio, profile_pic)
-             VALUES (?, ?, ?, ?)
+            'INSERT INTO profiles (user_id, display_name, bio, profile_pic, profile_photo_url)
+             VALUES (?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), bio = VALUES(bio), profile_pic = VALUES(profile_pic), updated_at = CURRENT_TIMESTAMP'
         );
-        $stmt->execute([(int) $viewer['id'], $displayName, $bio, $color]);
+        $stmt->execute([(int) $viewer['id'], $displayName, $bio, $color, $viewer['profile_photo_url'] ?? null]);
 
-        $userStmt = db()->prepare('UPDATE users SET first_name = ?, last_name = ?, nickname = ?, username = ?, display_name = ?, bio = ?, avatar_color = ?, gender = ?, age = ?, birthday = ?, location = ?, website = ? WHERE id = ?');
-        $userStmt->execute([$firstName, $lastName, $nickname, $nickname, $displayName, $bio, $color, $gender ?: null, $age, $birthday ?: null, $location, $website, (int) $viewer['id']]);
+        $userStmt = db()->prepare('UPDATE users SET first_name = ?, last_name = ?, nickname = ?, username = ?, display_name = ?, bio = ?, avatar_color = ?, theme_color = ?, gender = ?, age = ?, birthday = ?, location = ?, website = ? WHERE id = ?');
+        $userStmt->execute([$firstName, $lastName, $nickname, $nickname, $displayName, $bio, $color, $color, $gender, $age, $birthday ?: null, $location, $website, (int) $viewer['id']]);
 
         $profileData = [
             'first_name' => $firstName,

@@ -31,7 +31,7 @@ render_shell_start($viewer, 'messages');
       <?php endif; ?>
       <?php foreach ($conversations as $conv): ?>
         <a href="messages.php?u=<?= h($conv['username']) ?>" class="conversation-item <?= $targetUsername === $conv['username'] ? 'active' : '' ?> <?= !$conv['is_read'] && $conv['id'] !== $viewer['id'] ? 'unread' : '' ?>">
-          <span class="avatar" style="--avatar: <?= h($conv['avatar_color']) ?>"><?= h(strtoupper(substr($conv['display_name'], 0, 1))) ?></span>
+          <?php render_avatar($conv); ?>
           <div class="conv-info">
             <div class="conv-header">
               <strong><?= h($conv['display_name']) ?></strong>
@@ -48,7 +48,7 @@ render_shell_start($viewer, 'messages');
     <?php if ($targetUser): ?>
       <header class="chat-header">
         <a href="profile.php?u=<?= h($targetUser['username']) ?>" class="chat-user-info">
-          <span class="avatar small" style="--avatar: <?= h($targetUser['avatar_color']) ?>"><?= h(strtoupper(substr($targetUser['display_name'], 0, 1))) ?></span>
+          <?php render_avatar($targetUser, 'small'); ?>
           <div>
             <strong><?= h($targetUser['display_name']) ?></strong>
             <p>@<?= h($targetUser['username']) ?></p>
@@ -59,7 +59,7 @@ render_shell_start($viewer, 'messages');
       <div class="messages-feed" id="messages-feed">
         <?php if (!$messages): ?>
           <div class="chat-empty-state">
-            <span class="avatar large" style="--avatar: <?= h($targetUser['avatar_color']) ?>"><?= h(strtoupper(substr($targetUser['display_name'], 0, 1))) ?></span>
+            <?php render_avatar($targetUser, 'large'); ?>
             <h3><?= h($targetUser['display_name']) ?></h3>
             <p>@<?= h($targetUser['username']) ?></p>
             <p class="hint">This is the beginning of your direct message history with @<?= h($targetUser['username']) ?>.</p>
@@ -101,7 +101,7 @@ render_shell_start($viewer, 'messages');
             foreach ($allUsers as $u): 
             ?>
               <a href="messages.php?u=<?= h($u['username']) ?>" class="user-select-item">
-                <span class="avatar small" style="--avatar: <?= h($u['avatar_color'] ?? '#333') ?>"><?= h(strtoupper(substr($u['display_name'], 0, 1))) ?></span>
+                <?php render_avatar($u, 'small'); ?>
                 <div class="user-select-info">
                   <strong><?= h($u['display_name']) ?></strong>
                   <span>@<?= h($u['username']) ?></span>

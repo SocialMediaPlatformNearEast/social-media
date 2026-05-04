@@ -13,6 +13,7 @@ function render_head(string $title): void
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title><?= h($title) ?> - <?= h(APP_NAME) ?></title>
       <link rel="stylesheet" href="styles.css">
+      <link rel="stylesheet" href="gender.css">
       <script src="script.js" defer></script>
     </head>
     <body>
@@ -65,7 +66,7 @@ function render_shell_start(array $viewer, string $active = 'home'): void
         </nav>
         <a class="compose-link" href="index.php?compose=1">Post</a>
         <a class="mini-profile" href="profile.php?u=<?= h($viewer['username']) ?>">
-          <span class="avatar small" style="--avatar: <?= h($viewer['avatar_color']) ?>"><?= h(strtoupper(substr($viewer['display_name'], 0, 1))) ?></span>
+          <?php render_avatar($viewer, 'small'); ?>
           <div>
             <strong><?= h($viewer['display_name']) ?></strong>
             <span>@<?= h($viewer['username']) ?> <?php render_level_badge($viewer); ?></span>
@@ -154,9 +155,7 @@ function render_composer(array $viewer): void
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="create_post">
       <div class="composer-avatar-column">
-        <a class="avatar" style="--avatar: <?= h($viewer['avatar_color']) ?>" href="profile.php?u=<?= h($viewer['username']) ?>">
-          <?= h(strtoupper(substr($viewer['display_name'], 0, 1))) ?>
-        </a>
+        <?php render_avatar($viewer, '', 'profile.php?u=' . urlencode((string) $viewer['username'])); ?>
       </div>
       <div class="composer-main">
         <textarea name="content" maxlength="280" placeholder="What's happening?" required></textarea>
@@ -184,7 +183,7 @@ function render_comment_form(array $viewer, int $postId): void
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="add_comment">
       <input type="hidden" name="post_id" value="<?= $postId ?>">
-      <span class="avatar" style="--avatar: <?= h($viewer['avatar_color']) ?>"><?= h(strtoupper(substr($viewer['display_name'], 0, 1))) ?></span>
+      <?php render_avatar($viewer); ?>
       <div class="composer-fields">
         <textarea name="comment" maxlength="280" rows="4" placeholder="Write a comment" required></textarea>
         <div class="composer-actions">

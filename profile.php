@@ -40,7 +40,9 @@ render_shell_start($viewer, 'profile');
   <div class="profile-banner" data-guide-target="cover-photo-area" style="background-color: <?= h($profile['avatar_color']) ?>; opacity: 0.3;"></div>
   <div class="profile-info-container">
     <div class="profile-top-row">
-      <span class="avatar profile-avatar-large" data-guide-target="profile-picture-area" style="--avatar: <?= h($profile['avatar_color']) ?>"><?= h(strtoupper(substr($profile['display_name'], 0, 1))) ?></span>
+      <div data-guide-target="profile-picture-area">
+        <?php render_avatar($profile, 'profile-avatar-large'); ?>
+      </div>
       <div class="profile-actions">
         <?php if ($isOwnProfile): ?>
           <a class="outline-button" href="settings.php">Edit profile</a>

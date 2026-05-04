@@ -66,12 +66,9 @@ render_shell_start($viewer, 'settings');
         <div class="form-grid">
           <label class="form-group">
             <span>Gender</span>
-            <select name="gender">
-              <option value="Not specified" <?= ($viewer['gender'] ?? '') === 'Not specified' ? 'selected' : '' ?>>Not specified</option>
+            <select name="gender" required>
               <option value="Male" <?= ($viewer['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
               <option value="Female" <?= ($viewer['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-              <option value="Non-binary" <?= ($viewer['gender'] ?? '') === 'Non-binary' ? 'selected' : '' ?>>Non-binary</option>
-              <option value="Other" <?= ($viewer['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
             </select>
           </label>
           <label class="form-group">
@@ -86,8 +83,8 @@ render_shell_start($viewer, 'settings');
         <label class="form-group" data-guide-target="profile-picture-area">
           <span>Profile Theme Color</span>
           <div class="color-picker-wrapper">
-            <input type="color" name="profile_pic" value="<?= h($viewer['avatar_color'] ?? '#1d9bf0') ?>">
-            <input type="text" class="hex-value" value="<?= h($viewer['avatar_color'] ?? '#1d9bf0') ?>" maxlength="7">
+            <input type="color" name="profile_pic" value="<?= h($viewer['theme_color'] ?? $viewer['avatar_color'] ?? '#1d9bf0') ?>">
+            <input type="text" class="hex-value" value="<?= h($viewer['theme_color'] ?? $viewer['avatar_color'] ?? '#1d9bf0') ?>" maxlength="7">
           </div>
         </label>
       </div>

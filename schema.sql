@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(160) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   gender VARCHAR(40) NULL,
+  profile_photo_url VARCHAR(600) NULL,
+  theme_color CHAR(7) NOT NULL DEFAULT '#1D9BF0',
   age INT UNSIGNED NULL,
   birthday DATE NULL,
   bio VARCHAR(180) DEFAULT '',
@@ -32,7 +34,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(60) NOT NULL DEFAU
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(60) NOT NULL DEFAULT '' AFTER first_name;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(24) NULL AFTER last_name;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(40) NULL AFTER password_hash;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS age INT UNSIGNED NULL AFTER gender;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url VARCHAR(600) NULL AFTER gender;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_color CHAR(7) NOT NULL DEFAULT '#1D9BF0' AFTER profile_photo_url;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS age INT UNSIGNED NULL AFTER theme_color;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE NULL AFTER age;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(80) NOT NULL DEFAULT '' AFTER username;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(180) DEFAULT '' AFTER birthday;
@@ -68,10 +72,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   user_id INT UNSIGNED NOT NULL UNIQUE,
   display_name VARCHAR(80) NOT NULL,
   bio VARCHAR(180) DEFAULT '',
+  profile_photo_url VARCHAR(600) NULL,
   profile_pic CHAR(7) NOT NULL DEFAULT '#111111',
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo_url VARCHAR(600) NULL AFTER bio;
 
 CREATE TABLE IF NOT EXISTS posts (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -182,20 +188,23 @@ CREATE TABLE IF NOT EXISTS friendships (
   CONSTRAINT fk_friendships_action FOREIGN KEY (action_user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO users (first_name, last_name, nickname, username, display_name, email, password_hash, gender, age, birthday, bio, avatar_color)
+INSERT INTO users (first_name, last_name, nickname, username, display_name, email, password_hash, gender, profile_photo_url, theme_color, age, birthday, bio, avatar_color)
 VALUES
-  ('Demo', 'User', 'demo', 'demo', 'Demo User', 'demo@example.com', '$2y$10$lSbMGgQsoi/J02bDB40NM.sq4JEe9CTurh8jrOdzCZg1CfmTB5MdW', 'Not specified', 21, NULL, 'Local XApp demo account. Password: password123', '#111111')
+  ('Demo', 'User', 'demo', 'demo', 'Demo User', 'demo@example.com', '$2y$10$lSbMGgQsoi/J02bDB40NM.sq4JEe9CTurh8jrOdzCZg1CfmTB5MdW', 'Male', 'assets/default-male-avatar.svg', '#1D9BF0', 21, NULL, 'Local XApp demo account. Password: password123', '#1D9BF0')
 ON DUPLICATE KEY UPDATE
   first_name = IF(first_name = '', VALUES(first_name), first_name),
   last_name = IF(last_name = '', VALUES(last_name), last_name),
-  nickname = IF(nickname IS NULL OR nickname = '', VALUES(nickname), nickname);
+  nickname = IF(nickname IS NULL OR nickname = '', VALUES(nickname), nickname),
+  profile_photo_url = IF(profile_photo_url IS NULL OR profile_photo_url = '', VALUES(profile_photo_url), profile_photo_url),
+  theme_color = IF(theme_color = '#111111', VALUES(theme_color), theme_color);
 
-INSERT INTO profiles (user_id, display_name, bio, profile_pic)
-SELECT id, COALESCE(NULLIF(display_name, ''), username), COALESCE(bio, ''), COALESCE(avatar_color, '#111111')
+INSERT INTO profiles (user_id, display_name, bio, profile_photo_url, profile_pic)
+SELECT id, COALESCE(NULLIF(display_name, ''), username), COALESCE(bio, ''), profile_photo_url, COALESCE(avatar_color, theme_color, '#111111')
 FROM users
 ON DUPLICATE KEY UPDATE
   display_name = VALUES(display_name),
   bio = VALUES(bio),
+  profile_photo_url = COALESCE(profiles.profile_photo_url, VALUES(profile_photo_url)),
   profile_pic = VALUES(profile_pic);
 
 INSERT INTO posts (user_id, content)

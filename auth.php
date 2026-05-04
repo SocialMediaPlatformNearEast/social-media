@@ -66,10 +66,28 @@ render_head('Login');
         Age
         <input type="number" name="age" min="13" max="120" required>
       </label>
-      <label>
-        Gender
-        <input name="gender" maxlength="40">
-      </label>
+      <fieldset class="gender-field">
+        <legend>Gender</legend>
+        <div class="gender-options">
+          <?php foreach (GENDER_PROFILE_DEFAULTS as $genderName => $defaults): ?>
+            <label class="gender-option">
+              <input
+                type="radio"
+                name="gender"
+                value="<?= h($genderName) ?>"
+                data-avatar-url="<?= h($defaults['profile_photo_url']) ?>"
+                data-theme-color="<?= h($defaults['theme_color']) ?>"
+                required
+              >
+              <span><?= h($genderName) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <div class="gender-preview" data-gender-preview hidden>
+          <img data-gender-avatar src="" alt="">
+          <span data-gender-swatch></span>
+        </div>
+      </fieldset>
       <label>
         Birthday
         <input type="date" name="birthday">

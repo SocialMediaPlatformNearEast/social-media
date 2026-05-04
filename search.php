@@ -20,7 +20,8 @@ if ($query !== '') {
         $stmt = db()->prepare(
             'SELECT u.*, 
                     COALESCE(pr.display_name, u.display_name, u.username) AS display_name, 
-                    COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+                    COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+                    COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
                     COALESCE(pr.bio, u.bio, "") AS bio,
                     EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = u.id) AS is_following
              FROM users u
@@ -71,9 +72,7 @@ render_shell_start($viewer, 'search');
           <?php endif; ?>
           <?php foreach ($users as $user): ?>
             <div class="user-result-card">
-              <a href="profile.php?u=<?= h($user['username']) ?>" class="avatar" style="--avatar: <?= h($user['avatar_color']) ?>">
-                <?= h(strtoupper(substr($user['display_name'], 0, 1))) ?>
-              </a>
+              <?php render_avatar($user, '', 'profile.php?u=' . urlencode((string) $user['username'])); ?>
               <div class="user-result-info">
                 <div class="user-result-header">
                   <div class="user-names">

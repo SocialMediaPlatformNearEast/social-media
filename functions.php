@@ -3,6 +3,22 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
 
+const GENDER_PROFILE_DEFAULTS = [
+    'Male' => [
+        'profile_photo_url' => 'assets/default-male-avatar.svg',
+        'theme_color' => '#1D9BF0',
+    ],
+    'Female' => [
+        'profile_photo_url' => 'assets/default-female-avatar.svg',
+        'theme_color' => '#F91880',
+    ],
+];
+
+function profile_defaults_for_gender(string $gender): ?array
+{
+    return GENDER_PROFILE_DEFAULTS[$gender] ?? null;
+}
+
 function h(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -49,12 +65,29 @@ function require_valid_csrf(): void
     }
 }
 
+function ensure_profile_defaults_schema(): void
+{
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+
+    $pdo = db();
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url VARCHAR(600) NULL AFTER gender");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_color CHAR(7) NOT NULL DEFAULT '#1D9BF0' AFTER profile_photo_url");
+    $pdo->exec("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS profile_photo_url VARCHAR(600) NULL AFTER bio");
+
+    $ready = true;
+}
+
 function ensure_gamification_schema(): void
 {
     static $ready = false;
     if ($ready) {
         return;
     }
+
+    ensure_profile_defaults_schema();
 
     $pdo = db();
     $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS total_xp INT UNSIGNED NOT NULL DEFAULT 0 AFTER avatar_color");
@@ -275,7 +308,8 @@ function current_user(): ?array
             u.*,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.bio, u.bio, "") AS bio,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
             u.total_xp,
             u.level,
             u.xp_today,
@@ -326,10 +360,49 @@ function time_ago(string $datetime): string
     return $seconds . 's';
 }
 
-function ensure_profile(int $userId, string $displayName, string $avatarColor): void
+function profile_theme_color(array $user): string
 {
-    $stmt = db()->prepare('INSERT IGNORE INTO profiles (user_id, display_name, profile_pic) VALUES (?, ?, ?)');
-    $stmt->execute([$userId, $displayName, $avatarColor]);
+    $color = (string) ($user['avatar_color'] ?? $user['theme_color'] ?? '#111111');
+
+    if (preg_match('/^#[0-9a-fA-F]{6}$/', $color) !== 1) {
+        return '#111111';
+    }
+
+    return $color;
+}
+
+function render_avatar(array $user, string $class = '', ?string $href = null): void
+{
+    $displayName = trim((string) ($user['display_name'] ?? $user['username'] ?? ''));
+    $initial = $displayName !== '' ? strtoupper(substr($displayName, 0, 1)) : '?';
+    $photoUrl = trim((string) ($user['profile_photo_url'] ?? ''));
+    $classes = trim('avatar ' . $class . ($photoUrl !== '' ? ' avatar-image' : ''));
+    $style = '--avatar: ' . profile_theme_color($user) . ';';
+
+    if ($href !== null) {
+        ?>
+        <a class="<?= h($classes) ?>" style="<?= h($style) ?>" href="<?= h($href) ?>">
+          <?php if ($photoUrl !== ''): ?><img src="<?= h($photoUrl) ?>" alt=""><?php endif; ?>
+          <span class="avatar-initial"><?= h($initial) ?></span>
+        </a>
+        <?php
+        return;
+    }
+
+    ?>
+    <span class="<?= h($classes) ?>" style="<?= h($style) ?>">
+      <?php if ($photoUrl !== ''): ?><img src="<?= h($photoUrl) ?>" alt=""><?php endif; ?>
+      <span class="avatar-initial"><?= h($initial) ?></span>
+    </span>
+    <?php
+}
+
+function ensure_profile(int $userId, string $displayName, string $avatarColor, string $profilePhotoUrl = ''): void
+{
+    ensure_profile_defaults_schema();
+
+    $stmt = db()->prepare('INSERT IGNORE INTO profiles (user_id, display_name, profile_pic, profile_photo_url) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$userId, $displayName, $avatarColor, $profilePhotoUrl ?: null]);
 }
 
 function notify_user(int $userId, int $actorId, string $type, ?int $postId = null, ?int $messageId = null): void
@@ -456,7 +529,8 @@ function fetch_posts(int $viewerId, string $mode = 'all', ?int $profileId = null
             p.*,
             u.username,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-            COALESCE(pr.profile_pic, u.avatar_color, '#111111') AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, '#111111') AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, '') AS profile_photo_url,
             COALESCE(pr.bio, u.bio, '') AS bio,
             u.total_xp,
             u.level,
@@ -501,7 +575,8 @@ function fetch_post(int $viewerId, int $postId): ?array
             p.*,
             u.username,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
             COALESCE(pr.bio, u.bio, "") AS bio,
             u.total_xp,
             u.level,
@@ -535,7 +610,8 @@ function fetch_comments(int $postId): array
             c.*,
             u.username,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
             u.total_xp,
             u.level,
             u.badge_color,
@@ -557,7 +633,8 @@ function fetch_user_by_username(string $username): ?array
             u.*,
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
             COALESCE(pr.bio, u.bio, "") AS bio,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
             u.total_xp,
             u.level,
             u.xp_today,
@@ -579,7 +656,8 @@ function fetch_users_for_message(int $viewerId): array
 {
     $stmt = db()->prepare(
         'SELECT u.id, u.username, COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-                COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color
+                COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+                COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url
          FROM users u
          LEFT JOIN profiles pr ON pr.user_id = u.id
          WHERE u.id <> ?
@@ -595,9 +673,7 @@ function render_post(array $post, array $viewer): void
     ?>
     <article class="post" data-post-id="<?= (int) $post['id'] ?>">
       <div class="post-avatar-col">
-        <a class="avatar" style="--avatar: <?= h($post['avatar_color']) ?>" href="profile.php?u=<?= h($post['username']) ?>">
-          <?= h(strtoupper(substr($post['display_name'], 0, 1))) ?>
-        </a>
+        <?php render_avatar($post, '', 'profile.php?u=' . urlencode((string) $post['username'])); ?>
       </div>
       <div class="post-body">
         <header class="post-header">
@@ -667,9 +743,7 @@ function render_comment(array $comment): void
 {
     ?>
     <article class="comment">
-      <a class="avatar small" style="--avatar: <?= h($comment['avatar_color']) ?>" href="profile.php?u=<?= h($comment['username']) ?>">
-        <?= h(strtoupper(substr($comment['display_name'], 0, 1))) ?>
-      </a>
+      <?php render_avatar($comment, 'small', 'profile.php?u=' . urlencode((string) $comment['username'])); ?>
       <div>
         <header class="post-header">
           <a class="name" href="profile.php?u=<?= h($comment['username']) ?>"><?= h($comment['display_name']) ?></a>
@@ -689,7 +763,8 @@ function fetch_conversations(int $viewerId): array
             u.id, 
             u.username, 
             COALESCE(pr.display_name, u.display_name, u.username) AS display_name,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url,
             m.content as last_message,
             m.created_at as last_message_at,
             m.is_read
@@ -717,7 +792,8 @@ function fetch_messages_between(int $viewerId, int $otherId): array
             m.*,
             u.username as sender_username,
             COALESCE(pr.display_name, u.display_name, u.username) AS sender_name,
-            COALESCE(pr.profile_pic, u.avatar_color, "#111111") AS avatar_color
+            COALESCE(pr.profile_pic, u.theme_color, u.avatar_color, "#111111") AS avatar_color,
+            COALESCE(pr.profile_photo_url, u.profile_photo_url, "") AS profile_photo_url
          FROM messages m
          INNER JOIN users u ON u.id = m.sender_id
          LEFT JOIN profiles pr ON pr.user_id = u.id
