@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 import bcrypt
 import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from app_utils import birthday_date_limits, normalize_username, profile_banner_for_level, validate_birthday
 
@@ -679,6 +682,69 @@ def index():
     return render_template('index.html', viewer=viewer, posts=posts, mode=feed_mode, highlights=highlights, page=page, has_next=len(posts) == POSTS_PER_PAGE)
 
 
+def send_verification_email(to_email, first_name, token):
+    sender_email = os.getenv("MAIL_USERNAME")
+    sender_password = os.getenv("MAIL_PASSWORD")
+    
+    if not sender_email or not sender_password:
+        app.logger.warning("Email credentials missing. Cannot send verification email.")
+        return False
+        
+    try:
+        verify_url = url_for('verify_email', token=token, _external=True)
+    except Exception:
+        verify_url = f"http://127.0.0.1:5000/verify/{token}"
+    
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = to_email
+    msg['Subject'] = "Welcome to LvL! Verify your email to start leveling up"
+    
+    html_body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px; text-align: center;">
+      <h1 style="color: #1D9BF0;">Welcome to LvL, {first_name}!</h1>
+      <p style="font-size: 16px;">We're excited to have you. To start earning XP and connecting with the community, please verify your email address by clicking the button below:</p>
+      <div style="margin: 30px 0;">
+        <a href="{verify_url}" style="background-color: #1D9BF0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Verify My Email</a>
+      </div>
+      <p style="font-size: 12px; color: #71767B;">If you did not create this account, please ignore this email.</p>
+    </body>
+    </html>
+    """
+    
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, to_email, msg.as_string())
+        server.quit()
+        app.logger.info(f"Verification email sent to {to_email}")
+        return True
+    except Exception as e:
+        app.logger.error(f"Email verification failed to send to {to_email}: {e}")
+        return False
+
+@app.route('/verify/<token>')
+def verify_email(token):
+    try:
+        res = supabase.table('users').select('*').eq('verification_token', token).execute()
+        if res.data:
+            user_id = res.data[0]['id']
+            supabase.table('users').update({
+                'is_verified': True,
+                'verification_token': None
+            }).eq('id', user_id).execute()
+            flash("Your email has been successfully verified! You can now log in and start leveling up.", "success")
+        else:
+            flash("Invalid or expired verification link. Please request a new one.", "error")
+    except Exception as e:
+        flash("An error occurred during verification.", "error")
+        
+    return redirect(url_for('auth'))
+
 @app.route('/auth', methods=['GET', 'POST'])
 def auth():
     if request.method == 'POST':
@@ -706,6 +772,10 @@ def auth():
                 if res.data:
                     user = res.data[0]
                     if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                        if not user.get('is_verified', True):
+                            flash("Please check your inbox and verify your email address before logging in.", "error")
+                            return render_template('auth.html')
+
                         session['user_id'] = user['id']
                         clear_login_failures(username)
                         award_xp(user['id'], 'daily_login', 5)
@@ -743,6 +813,7 @@ def auth():
             
             hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             defaults = gender_defaults(gender)
+            verification_token = secrets.token_urlsafe(32)
             
             try:
                 new_user = supabase.table('users').insert({
@@ -757,13 +828,15 @@ def auth():
                     'birthday': birthday_value.isoformat(),
                     'profile_photo_url': url_for('static', filename=defaults['avatar']),
                     'theme_color': defaults['theme_color'],
-                    'avatar_color': defaults['theme_color']
+                    'avatar_color': defaults['theme_color'],
+                    'is_verified': False,
+                    'verification_token': verification_token
                 }).execute()
                 
                 if new_user.data:
-                    session['user_id'] = new_user.data[0]['id']
-                    flash("Account created successfully!", "success")
-                    return redirect(url_for('onboarding'))
+                    send_verification_email(email, first_name, verification_token)
+                    flash("Account created! Please check your email inbox to verify your account before logging in.", "success")
+                    return redirect(url_for('auth'))
             except Exception as e:
                 flash(handle_db_error(e), "error")
     
