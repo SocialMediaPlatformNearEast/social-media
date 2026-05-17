@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+{% set active_page = "notifications" %}
+{% set show_highlights = True %}
+{% set title = "Notifications" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Notifications</h1>
+    <p>Alerts generated from likes, reposts, comments, follows, friend requests, and messages.</p>
+  </div>
+  <form action="{{ url_for('mark_notifications_read') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="outline-button" type="submit">Mark read</button>
+  </form>
+</header>
+
+<section class="feed" data-guide-target="notifications-area">
+  {% if not notifications %}
+    <div class="empty-state">
+      <h2>No notifications yet</h2>
+      <p>When people interact with you or your posts, you'll see it here.</p>
+    </div>
+  {% endif %}
+  
+  {% for notification in notifications %}
+    <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+      <div class="notification-icon type-{{ notification.type }}">
+        {% if notification.type == 'like' %}❤️{% endif %}
+        {% if notification.type == 'follow' %}👤{% endif %}
+        {% if notification.type == 'repost' %}🔁{% endif %}
+        {% if notification.type == 'comment' %}💬{% endif %}
+        {% if notification.type == 'message' %}✉️{% endif %}
+        {% if notification.type == 'friend_request' %}🤝{% endif %}
+        {% if notification.type == 'friend_accept' %}✓{% endif %}
+      </div>
+      <div class="notification-body">
+        <div class="notification-header">
+          <a href="{{ url_for('profile', username=notification.actor_username) }}" class="actor-link">
+            <strong>{{ notification.actor_name }}</strong>
+          </a>
+          <span class="notification-text">
+            {% if notification.type == 'like' %}liked your post
+            {% elif notification.type == 'repost' %}reposted your post
+            {% elif notification.type == 'comment' %}commented on your post
+            {% elif notification.type == 'follow' %}followed you
+            {% elif notification.type == 'friend_request' %}sent you a friend request
+            {% elif notification.type == 'friend_accept' %}accepted your friend request
+            {% elif notification.type == 'message' %}sent you a message
+            {% else %}{{ notification.type }}
+            {% endif %}
+          </span>
+          <span class="time">· {{ notification.created_at[:10] }}</span>
+        </div>
+        
+        {% if notification.post_id %}
+          <a href="{{ url_for('post', id=notification.post_id) }}" class="notification-preview">
+            {{ notification.post_content[:140] }}{% if notification.post_content|length > 140 %}...{% endif %}
+          </a>
+        {% elif notification.type == 'message' %}
+          <a href="{{ url_for('messages', u=notification.actor_username) }}" class="notification-action">View message</a>
+        {% elif notification.type == 'friend_request' and notification.friendship_status == 'pending' and notification.friendship_action_user_id != viewer.id %}
+          <div class="notification-actions">
+            <form action="{{ url_for('respond_friend_request') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_id" value="{{ notification.actor_id }}">
+              <input type="hidden" name="decision" value="accept">
+              <button type="submit" class="primary-button small">Accept</button>
+            </form>
+            <form action="{{ url_for('respond_friend_request') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_id" value="{{ notification.actor_id }}">
+              <input type="hidden" name="decision" value="decline">
+              <button type="submit" class="outline-button small">Decline</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

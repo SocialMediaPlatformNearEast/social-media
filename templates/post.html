@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% set active_page = "home" %}
+{% set show_highlights = True %}
+{% set title = "Post" %}
+
+{% block content %}
+{% if not post %}
+  <div class="empty-state">
+    <h1>Post not found</h1>
+    <p>The post was deleted or never existed.</p>
+  </div>
+{% else %}
+  <header class="page-header compact">
+    <div>
+      <h1>Post</h1>
+      <p>Make someone's day better by positivity</p>
+    </div>
+  </header>
+  
+  <section class="feed thread-root">
+    <article class="post">
+      <div class="post-avatar">
+        <a href="{{ url_for('profile', username=post.user.username) }}">
+          <img class="avatar" src="{{ post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+        </a>
+      </div>
+      <div class="post-content">
+        <div class="post-header">
+          <a href="{{ url_for('profile', username=post.user.username) }}">
+            <strong>{{ post.user.display_name }}</strong>
+          </a>
+          <span>@{{ post.user.username }}</span>
+          <span class="time">· {{ post.created_at[:10] }}</span>
+        </div>
+        <div class="post-body">
+          {{ post.content | linkify_mentions }}
+        </div>
+        {% include "_post_media.html" %}
+        {% if post.user_id != viewer.id %}
+          <form class="inline-report-form" action="{{ url_for('safety_action') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target_user_id" value="{{ post.user_id }}">
+            <input type="hidden" name="post_id" value="{{ post.id }}">
+            <input type="hidden" name="action_type" value="report">
+            <button type="submit">Report post</button>
+          </form>
+        {% endif %}
+      </div>
+    </article>
+  </section>
+  
+  <form id="composer" class="composer" action="{{ url_for('add_comment') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="post_id" value="{{ post.id }}">
+    <div class="composer-avatar-column">
+      <img class="avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+    </div>
+    <div class="composer-fields">
+      <textarea name="comment" maxlength="280" rows="4" placeholder="Write a comment" required></textarea>
+      <div class="composer-actions">
+        <span class="char-count">280 left</span>
+        <button type="submit" class="post-submit-btn">Comment</button>
+      </div>
+    </div>
+  </form>
+  
+  <section class="feed">
+    {% if not comments %}
+      <div class="empty-state">
+        <h2>No comments yet</h2>
+        <p>Dont forget to be nice to everyone</p>
+      </div>
+    {% endif %}
+    {% for comment in comments %}
+      <article class="post comment">
+        <div class="post-avatar">
+          <a href="{{ url_for('profile', username=comment.user.username) }}">
+            <img class="avatar small-avatar" src="{{ comment.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+          </a>
+        </div>
+        <div class="post-content">
+          <div class="post-header">
+            <a href="{{ url_for('profile', username=comment.user.username) }}">
+              <strong>{{ comment.user.display_name }}</strong>
+            </a>
+            <span>@{{ comment.user.username }}</span>
+            <span class="time">· {{ comment.created_at[:10] }}</span>
+          </div>
+          <div class="post-body">
+            {{ comment.comment | linkify_mentions }}
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+{% endblock %}

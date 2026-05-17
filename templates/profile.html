@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+{% set active_page = "profile" %}
+{% set show_highlights = True %}
+{% set title = profile.display_name %}
+
+{% block content %}
+<section class="profile-header">
+  <div class="profile-banner {{ profile_banner_class }}" data-guide-target="cover-photo-area" style="--profile-color: {{ profile.theme_color or profile.avatar_color or '#1D9BF0' }};">
+    <div class="profile-banner-content">
+      <div class="profile-banner-level-card">
+        <span>{{ profile_banner.label }}</span>
+        <div>
+          <strong>LvL {{ profile.level or 1 }}</strong>
+          <b>{{ profile_xp_progress|round(0)|int }}%</b>
+        </div>
+        <div class="banner-xp-track" aria-hidden="true">
+          <i style="width: {{ profile_xp_progress }}%;"></i>
+        </div>
+        <small>{{ profile_banner.description }}</small>
+      </div>
+    </div>
+  </div>
+  <div class="profile-info-container">
+    <div class="profile-top-row">
+      <div data-guide-target="profile-picture-area">
+        <img class="avatar profile-avatar-large" src="{{ profile.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+      </div>
+      <div class="profile-actions">
+        {% if is_own_profile %}
+          <a class="outline-button" href="{{ url_for('settings') }}">Edit profile</a>
+        {% else %}
+          <form action="{{ url_for('toggle_follow') }}" method="post" class="ajax-action-form" data-action="follow">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target_id" value="{{ profile.id }}">
+            <button class="outline-button {% if is_following %}active{% endif %}" type="submit">
+              {{ 'Unfollow' if is_following else 'Follow' }}
+            </button>
+          </form>
+          <a class="outline-button" href="{{ url_for('messages', u=profile.username) }}">Message</a>
+          <form action="{{ url_for('safety_action') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target_user_id" value="{{ profile.id }}">
+            <input type="hidden" name="action_type" value="mute">
+            <button class="outline-button {% if safety_state.muted %}active{% endif %}" type="submit">{{ 'Muted' if safety_state.muted else 'Mute' }}</button>
+          </form>
+          <form action="{{ url_for('safety_action') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target_user_id" value="{{ profile.id }}">
+            <input type="hidden" name="action_type" value="block">
+            <button class="outline-button danger-action {% if safety_state.blocked %}active{% endif %}" type="submit">{{ 'Blocked' if safety_state.blocked else 'Block' }}</button>
+          </form>
+          <form action="{{ url_for('request_friend') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="target_id" value="{{ profile.id }}">
+            <button class="outline-button {% if friend_status %}active{% endif %}" type="submit">
+              {% if friend_status == 'accepted' %}
+                Friend
+              {% elif friend_status == 'pending' %}
+                {% if friend_action_user_id == viewer.id %}Requested{% else %}Accept friend{% endif %}
+              {% else %}
+                Add friend
+              {% endif %}
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+    
+    <div class="profile-names">
+      <h1>
+        <span class="profile-display-name">{{ profile.display_name }}</span>
+        <span class="level-badge" style="--badge-color: {{ profile.badge_color or '#71767B' }};" title="{{ level_title(profile.level or 1) }}">LvL {{ profile.level or 1 }}</span>
+      </h1>
+      <p class="handle" data-guide-target="username-area">@{{ profile.username }}</p>
+    </div>
+
+    {% if profile.bio %}
+      <p class="bio" data-guide-target="bio-area">{{ profile.bio }}</p>
+    {% else %}
+      <p class="bio empty-bio" data-guide-target="bio-area">No bio yet.</p>
+    {% endif %}
+
+    <div class="profile-meta-grid">
+      {% if profile.location %}
+        <span title="Location">📍 {{ profile.location }}</span>
+      {% endif %}
+      {% if profile.website %}
+        <span title="Website">🔗 <a href="{{ profile.website }}" target="_blank" rel="nofollow noreferrer">{{ profile.website }}</a></span>
+      {% endif %}
+      {% if profile.gender %}
+        <span class="profile-gender {{ 'female' if profile.gender == 'Female' else 'male' }}" title="Gender">
+          {{ '♀' if profile.gender == 'Female' else '♂' }} {{ profile.gender }}
+        </span>
+      {% endif %}
+      <span>📅 Joined {{ profile.created_at[:7] }}</span>
+    </div>
+
+    <div class="profile-stats">
+      <a href="{{ url_for('profile_social_list', username=profile.username, list_type='following') }}"><strong>{{ stats.following }}</strong> Following</a>
+      <a href="{{ url_for('profile_social_list', username=profile.username, list_type='followers') }}"><strong>{{ stats.followers }}</strong> Followers</a>
+      <a href="{{ url_for('profile_social_list', username=profile.username, list_type='friends') }}"><strong>{{ stats.friends }}</strong> Friends</a>
+    </div>
+    
+    <section class="profile-account-card" aria-label="Profile activity stats">
+      <div><span>Posts</span><strong>{{ stats.posts }}</strong></div>
+      <div><span>Comments</span><strong>{{ stats.comments }}</strong></div>
+      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='friends') }}"><span>Friends</span><strong>{{ stats.friends }}</strong></a>
+      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='following') }}"><span>Following</span><strong>{{ stats.following }}</strong></a>
+      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='followers') }}"><span>Followers</span><strong>{{ stats.followers }}</strong></a>
+    </section>
+
+    <section class="profile-xp-card" aria-label="Profile XP summary">
+      <div class="profile-xp-main">
+        <div>
+          <span class="xp-kicker">{{ level_title(profile.level or 1) }}</span>
+          <strong>LvL {{ profile.level }}</strong>
+        </div>
+        <div class="profile-xp-total">
+          <strong>{{ profile.total_xp }}</strong>
+          <span>Total XP</span>
+        </div>
+      </div>
+      <div class="xp-progress-track" aria-label="XP progress to next level">
+        <span style="width: {{ profile_xp_progress }}%;"></span>
+      </div>
+      <p>{{ profile_xp_needed }} XP needed for LvL {{ profile.level + 1 }}</p>
+    </section>
+  </div>
+
+  <div class="segmented">
+    <a href="{{ url_for('profile', username=profile.username, m='posts') }}" class="{% if mode == 'posts' %}active{% endif %}">Posts</a>
+    <a href="{{ url_for('profile', username=profile.username, m='liked') }}" class="{% if mode == 'liked' %}active{% endif %}">Likes</a>
+  </div>
+</section>
+
+<section class="feed">
+  {% if not posts %}
+    <div class="empty-state">
+      <h2>No {{ 'liked posts' if mode == 'liked' else 'posts' }}</h2>
+      <p>{{ "This user hasn't liked any posts yet." if mode == 'liked' else 'This profile has not posted yet.' }}</p>
+    </div>
+  {% else %}
+    {% for post in posts %}
+      {% include "_post_card.html" %}
+    {% endfor %}
+  {% endif %}
+</section>
+<nav class="pagination-controls" aria-label="Profile post pagination">
+  {% if page > 1 %}
+    <a class="outline-button" href="{{ url_for('profile', username=profile.username, m=mode, page=page-1) }}">Previous</a>
+  {% endif %}
+  {% if has_next %}
+    <a class="outline-button" href="{{ url_for('profile', username=profile.username, m=mode, page=page+1) }}">More</a>
+  {% endif %}
+</nav>
+{% endblock %}

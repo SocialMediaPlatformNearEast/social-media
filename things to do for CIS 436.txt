@@ -1,0 +1,68 @@
+ 1. PWA Integration
+
+Please integrate full **PWA support** into the project.
+
+* The website should work smoothly on mobile devices like a real app.
+* There should be no overflowing, layout breaking, shifting, or disproportionate elements on phone screens.
+* Users should be able to add the website to their phone’s home screen.
+* The required manifest file, icons, and service worker structure should be configured properly.
+* The mobile experience should feel professional, fast, responsive, and stable.
+
+## 2. Profile Banner System
+
+When a user reaches **Level 1** or **Level 2**, the background banner in the profile section should change.
+
+* The banner system should work dynamically based on the user’s level.
+* As the user levels up, the profile banner should become more special, visually appealing, and suitable for the project theme.
+* The design should be modern, professional, and consistent with the overall color palette of the application.
+* I am open to different banner ideas; creative but not exaggerated suggestions can be added if they fit the project.
+* While adding this feature, the current profile layout must not be broken.
+
+## 3. Birthday / Date of Birth Validation
+
+The birthday field must be fixed both during registration and after registration in the profile edit section.
+
+* Users should not be able to enter unrealistic or invalid dates such as `02.02.3333`.
+* Future dates should not be accepted.
+* Extremely old or illogical years should not be accepted.
+* A reasonable year limit should be added for the date of birth.
+* If the user enters an invalid format, incomplete date, or impossible date, a clear warning message should be shown.
+* The date format should be user-friendly and easy to understand.
+* The same validation system should work both on the registration page and in the edit profile section.
+
+## 4. Website / App Icon
+
+A professional **icon/favicon** should be added to the project.
+
+* The icon should appear correctly in the browser tab.
+* When the website is added to a phone’s home screen through PWA, the same icon should work as the app icon.
+* The icon should match the application name and overall theme.
+* If needed, create a simple, modern, and professional icon design that fits the app identity.
+* The required icon sizes should be properly defined inside the manifest file.
+
+## 5. Professional File and Code Structure Refactoring
+
+The current codebase is too messy and difficult to maintain. Some files are extremely long, reaching around **4000 lines**. This structure needs to be refactored into a professional and maintainable project structure.
+
+* The code should be reorganized into a cleaner, more readable, and more scalable file structure.
+* Very long files should be divided into logical parts such as components, pages, layouts, hooks, utilities, services, and other suitable folders.
+* Repeated or unnecessary code should be identified and cleaned up carefully.
+* However, no working feature should be broken.
+* The logical structure and existing functionality of the project must be preserved.
+* The refactoring should focus on file organization, readability, and maintainability.
+* Do not randomly remove code, change business logic, or rewrite working systems without a clear reason.
+* Import and export paths must be updated correctly after restructuring.
+* The project must run without errors after the refactor.
+* Both desktop and mobile layouts must continue to work properly.
+* The final file structure should follow professional front-end project standards.
+
+## General Rules
+
+While making these changes:
+
+* Do not break any existing working system.
+* Keep the general theme, color harmony, and layout style of the project.
+* Improve the project in a controlled and professional way.
+* Do not randomly delete code or change the structure in a way that damages existing features.
+* Every change should be tested carefully.
+* In the final version, the project must work smoothly, stably, and professionally on both desktop and mobile devices.

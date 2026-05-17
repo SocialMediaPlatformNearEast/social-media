@@ -1,0 +1,131 @@
+{% extends "layout.html" %}
+{% set active_page = "search" %}
+{% set show_highlights = True %}
+{% set title = "Search" %}
+
+{% block content %}
+<div class="search-page-container">
+  <header class="page-header search-header">
+    <div class="search-input-wrapper">
+      <form action="{{ url_for('search') }}" method="get" class="search-page-form">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="search-icon"><g><path d="M10.25 3.75c-3.59 0-6.5 2.91-6.5 6.5s2.91 6.5 6.5 6.5c1.795 0 3.419-.726 4.596-1.904 1.178-1.177 1.904-2.801 1.904-4.596 0-3.59-2.91-6.5-6.5-6.5zm-8.5 6.5c0-4.694 3.806-8.5 8.5-8.5s8.5 3.806 8.5 8.5c0 1.986-.682 3.815-1.824 5.262l4.781 4.781-1.414 1.414-4.781-4.781c-1.447 1.142-3.276 1.824-5.262 1.824-4.694 0-8.5-3.806-8.5-8.5z"></path></g></svg>
+        <input type="hidden" name="f" value="{{ tab }}">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search LvL" autofocus>
+      </form>
+    </div>
+    <div class="segmented search-tabs">
+      <a class="{% if tab == 'top' %}active{% endif %}" href="{{ url_for('search', q=query, f='top') }}">Top</a>
+      <a class="{% if tab == 'latest' %}active{% endif %}" href="{{ url_for('search', q=query, f='latest') }}">Latest</a>
+      <a class="{% if tab == 'people' %}active{% endif %}" href="{{ url_for('search', q=query, f='people') }}">People</a>
+    </div>
+  </header>
+
+  {% if query == '' %}
+    <div class="search-empty-state">
+      <h2>Search for anything</h2>
+      <p>Find people, posts, and more on LvL.</p>
+    </div>
+    {% if suggested_users %}
+      <section class="search-discovery">
+        <h3>People to discover</h3>
+        {% for user in suggested_users %}
+          <div class="user-result-card">
+            <a href="{{ url_for('profile', username=user.username) }}">
+              <img class="avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+            </a>
+            <div class="user-result-info">
+              <div class="user-result-header">
+                <div class="user-names">
+                  <a href="{{ url_for('profile', username=user.username) }}"><strong>{{ user.display_name }}</strong></a>
+                  <span>@{{ user.username }}</span>
+                </div>
+                <form action="{{ url_for('toggle_follow') }}" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="target_id" value="{{ user.id }}">
+                  <button class="outline-button {% if user.is_following %}active{% endif %}" type="submit">
+                    {{ 'Unfollow' if user.is_following else 'Follow' }}
+                  </button>
+                </form>
+              </div>
+              <p class="user-result-bio">{{ user.bio or 'New to LvL.' }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      </section>
+    {% endif %}
+    
+    {% if recent_posts %}
+      <section class="search-discovery feed">
+        <h3>Recent posts</h3>
+        {% for post in recent_posts %}
+          {% include "_post_card.html" %}
+        {% endfor %}
+      </section>
+    {% endif %}
+  {% else %}
+    <section class="search-results">
+      {% if tab == 'people' %}
+        <div class="people-results">
+          {% if not users %}
+            <div class="empty-state">
+              <p>No results for "{{ query }}"</p>
+            </div>
+          {% endif %}
+          {% for user in users %}
+            <div class="user-result-card">
+              <a href="{{ url_for('profile', username=user.username) }}">
+                <img class="avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+              </a>
+              <div class="user-result-info">
+                <div class="user-result-header">
+                  <div class="user-names">
+                    <a href="{{ url_for('profile', username=user.username) }}"><strong>{{ user.display_name }}</strong></a>
+                    <span>@{{ user.username }}</span>
+                  </div>
+                  {% if user.id != viewer.id %}
+                    <form action="{{ url_for('toggle_follow') }}" method="post">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="target_id" value="{{ user.id }}">
+                      <button class="outline-button {% if user.is_following %}active{% endif %}" type="submit">
+                        {{ 'Unfollow' if user.is_following else 'Follow' }}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+                <p class="user-result-bio">{{ user.bio }}</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <nav class="pagination-controls" aria-label="People search pagination">
+          {% if page > 1 %}
+            <a class="outline-button" href="{{ url_for('search', q=query, f=tab, page=page-1) }}">Previous</a>
+          {% endif %}
+          {% if has_next %}
+            <a class="outline-button" href="{{ url_for('search', q=query, f=tab, page=page+1) }}">More people</a>
+          {% endif %}
+        </nav>
+      {% else %}
+        <div class="post-results feed">
+          {% if not posts %}
+            <div class="empty-state">
+              <p>No results for "{{ query }}"</p>
+            </div>
+          {% endif %}
+          {% for post in posts %}
+            {% include "_post_card.html" %}
+          {% endfor %}
+        </div>
+        <nav class="pagination-controls" aria-label="Search pagination">
+          {% if page > 1 %}
+            <a class="outline-button" href="{{ url_for('search', q=query, f=tab, page=page-1) }}">Previous</a>
+          {% endif %}
+          {% if has_next %}
+            <a class="outline-button" href="{{ url_for('search', q=query, f=tab, page=page+1) }}">More results</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+{% endblock %}

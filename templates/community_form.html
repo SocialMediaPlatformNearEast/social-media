@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% set active_page = "community" %}
+{% set show_highlights = True %}
+
+{% block content %}
+<header class="page-header community-header">
+  <div>
+    <h1>{{ title }}</h1>
+    <p>Build a focused space for people, posts, and short videos.</p>
+  </div>
+</header>
+
+<section class="community-form-shell">
+  <form class="premium-form community-form" action="{{ form_action }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-group">
+      <span>Name</span>
+      <input name="name" maxlength="80" value="{{ community.name if community else '' }}" required>
+    </label>
+
+    {% if not community %}
+      <label class="form-group">
+        <span>URL slug</span>
+        <input name="slug" maxlength="48" pattern="[a-z0-9-]{3,48}" placeholder="design-lab">
+        <small>Lowercase letters, numbers, and hyphens. Leave blank to generate from the name.</small>
+      </label>
+    {% endif %}
+
+    <label class="form-group">
+      <span>Description</span>
+      <textarea name="description" maxlength="240" rows="4">{{ community.description if community else '' }}</textarea>
+    </label>
+
+    <label class="form-group">
+      <span>Accent color</span>
+      <div class="color-picker-wrapper">
+        <input type="color" name="accent_color" value="{{ community.accent_color if community else (viewer.theme_color or '#1D9BF0') }}">
+        <input type="text" class="hex-value" value="{{ community.accent_color if community else (viewer.theme_color or '#1D9BF0') }}" maxlength="7">
+      </div>
+    </label>
+
+    <div class="form-actions">
+      <a class="outline-button" href="{{ url_for('community') }}">Cancel</a>
+      <button class="primary-button" type="submit">{{ 'Save changes' if community else 'Create community' }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

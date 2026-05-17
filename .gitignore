@@ -1,0 +1,10 @@
+.DS_Store
+.git.galactacians-backup-*/
+.vercel
+.env*.local
+.env
+.tmp*
+__pycache__/
+*.pyc
+.venv/
+static/uploads/

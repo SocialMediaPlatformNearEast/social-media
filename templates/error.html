@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ title }} - LvL</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <main class="empty-state app-error-state">
+    <h1>Something went wrong</h1>
+    <p>The app hit a problem while loading this page. Try again in a moment.</p>
+    <a class="primary-button" href="{{ url_for('index') }}">Back home</a>
+  </main>
+</body>
+</html>

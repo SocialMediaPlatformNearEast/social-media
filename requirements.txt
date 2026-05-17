@@ -1,0 +1,6 @@
+supabase
+python-dotenv
+flask
+flask-session
+bcrypt
+gunicorn
