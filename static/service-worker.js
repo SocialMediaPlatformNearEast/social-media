@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'lvl-static-v19';
+const STATIC_CACHE = 'lvl-static-v20';
 const STATIC_ASSETS = [
   '/static/css/styles.css',
   '/static/js/script.js',
