@@ -989,7 +989,7 @@ def share_post(post_id):
                 flash(handle_db_error(e, "Could not share post."), "error")
                 
     try:
-        all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').execute()
+        all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
         users = all_users_res.data if all_users_res.data else []
     except Exception:
         users = []
@@ -1682,7 +1682,7 @@ def messages():
                     messages_list = attach_shared_posts(messages_list)
                     supabase.table('messages').update({'is_read': True}).eq('sender_id', target_user['id']).eq('receiver_id', viewer['id']).execute()
                 
-        all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').execute()
+        all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
         all_users = all_users_res.data if all_users_res.data else []
         all_users_by_id = {user['id']: user for user in all_users}
 

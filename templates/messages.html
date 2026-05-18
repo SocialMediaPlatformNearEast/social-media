@@ -34,6 +34,9 @@
   <main class="chat-window">
     {% if target_user %}
       <header class="chat-header" style="--chat-color: {{ target_user.theme_color }}">
+        <a href="{{ url_for('messages') }}" class="chat-back-link" aria-label="Back to people">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="currentColor"><path d="M20 11v2H7.83l5.59 5.59L12 20 4 12l8-8 1.42 1.41L7.83 11H20Z"/></svg>
+        </a>
         <a href="{{ url_for('profile', username=target_user.username) }}" class="chat-user-info">
           <img class="avatar small-avatar" src="{{ target_user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
           <div>
@@ -125,7 +128,7 @@
           <div class="message-discovery-panel">
             <h3>People to follow</h3>
             {% for user in message_people %}
-              <a class="mini-user-row" href="{{ url_for('profile', username=user.username) }}">
+              <a class="mini-user-row" href="{{ url_for('messages', u=user.username) }}">
                 <img class="avatar small-avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
                 <span>
                   <strong>{{ user.display_name }}</strong>
