@@ -1,6 +1,7 @@
-const STATIC_CACHE = 'lvl-static-v20';
+const STATIC_CACHE = 'lvl-static-v21';
 const STATIC_ASSETS = [
   '/static/css/styles.css',
+  '/static/css/gender.css',
   '/static/js/script.js',
   '/static/manifest.json',
   '/static/assets/default-male-avatar.svg',

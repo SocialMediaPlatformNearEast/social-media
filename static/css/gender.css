@@ -1,14 +1,14 @@
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: var(--control-lg);
+  height: var(--control-lg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 50%;
-  background-color: var(--avatar, #333333);
-  color: #ffffff;
+  border-radius: var(--radius-round);
+  background-color: var(--avatar, var(--lvl-border-strong));
+  color: var(--lvl-white);
   font-size: 18px;
   font-weight: 800;
   line-height: 1;
@@ -20,8 +20,8 @@
 }
 
 .avatar.small {
-  width: 40px;
-  height: 40px;
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
   font-size: 15px;
 }
 
@@ -76,9 +76,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 52px;
-  border: 1px solid #333639;
-  border-radius: 4px;
+  min-height: var(--control-xl);
+  border: 1px solid var(--lvl-border-strong);
+  border-radius: var(--radius-xs);
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 700;
@@ -90,39 +90,39 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border-radius: var(--radius-round);
   font-size: 18px;
   line-height: 1;
 }
 
 .male-option span b {
-  color: #1D9BF0;
-  background-color: rgba(29, 155, 240, 0.14);
+  color: var(--lvl-primary);
+  background-color: color-mix(in srgb, var(--lvl-primary) 14%, transparent);
 }
 
 .female-option span b {
-  color: #F91880;
-  background-color: rgba(249, 24, 128, 0.14);
+  color: var(--lvl-female);
+  background-color: color-mix(in srgb, var(--lvl-female) 14%, transparent);
 }
 
 .male-option input:checked + span {
-  border-color: #1D9BF0;
-  background-color: rgba(29, 155, 240, 0.12);
+  border-color: var(--lvl-primary);
+  background-color: color-mix(in srgb, var(--lvl-primary) 12%, transparent);
 }
 
 .female-option input:checked + span {
-  border-color: #F91880;
-  background-color: rgba(249, 24, 128, 0.12);
+  border-color: var(--lvl-female);
+  background-color: color-mix(in srgb, var(--lvl-female) 12%, transparent);
 }
 
 .male-option input:focus-visible + span {
-  border-color: #1D9BF0;
+  border-color: var(--lvl-primary);
 }
 
 .female-option input:focus-visible + span {
-  border-color: #F91880;
+  border-color: var(--lvl-female);
 }
 
 .gender-preview {
@@ -136,17 +136,17 @@
 }
 
 .gender-preview img {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-round);
   object-fit: cover;
-  background-color: #ffffff;
+  background-color: var(--lvl-white);
 }
 
 .gender-preview span {
-  width: 32px;
-  height: 32px;
+  width: var(--swatch-md);
+  height: var(--swatch-md);
   border: 1px solid var(--border-color);
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   background-color: var(--preview-color, var(--accent-color));
 }

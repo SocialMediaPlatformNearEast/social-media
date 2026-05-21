@@ -4,154 +4,108 @@
 {% set title = "Community" %}
 
 {% block content %}
-<header class="page-header community-header explore-header">
+<header class="page-header community-header community-timeline-header">
   <div>
     <h1>Community</h1>
-    <p>Explore trends, groups, short videos, and active people across LvL.</p>
+    <p>Move between followers, following, and group threads without leaving the LvL feed.</p>
   </div>
   <a class="primary-button compact-action" href="{{ url_for('create_community') }}">Create group</a>
 </header>
 
-<section class="community-page explore-page">
-  <section class="explore-hero">
+<section class="community-page community-hub" data-community-hub data-active-tab="{{ active_tab }}">
+  <section class="community-hub-hero">
     <div>
-      <span class="panel-kicker">Explore</span>
-      <h2>Discover what is moving on LvL</h2>
-      <p>{{ metrics.users }} members, {{ metrics.posts }} posts, and {{ metrics.communities }} communities.</p>
+      <span class="panel-kicker">Timeline hub</span>
+      <h2>Choose whose posts shape your LvL</h2>
+      <p>{{ metrics.users }} members, {{ metrics.posts }} posts, and {{ metrics.communities }} communities are feeding these timelines.</p>
     </div>
-    <div class="explore-hero-metrics" aria-label="Community stats">
-      <article><span>Posts</span><strong>{{ metrics.posts }}</strong></article>
-      <article><span>Likes</span><strong>{{ metrics.likes }}</strong></article>
-      <article><span>Follows</span><strong>{{ metrics.follows }}</strong></article>
+    <div class="community-timeline-summary" aria-label="Community timeline counts">
+      {% for tab in community_tabs %}
+        <article>
+          <span>{{ tab.label }}</span>
+          <strong>{{ timeline_counts.get(tab.key, 0) }}</strong>
+        </article>
+      {% endfor %}
     </div>
   </section>
 
-  <section class="short-video-section" aria-label="Short video feed">
-    <div class="section-heading">
-      <div>
-        <span class="panel-kicker">Shorts</span>
-        <h3>Community video feed</h3>
-      </div>
-    </div>
-    {% if short_videos %}
-      <div class="short-video-feed">
-        {% for video in short_videos %}
-          <article class="short-video-card">
-            <video controls preload="metadata" playsinline src="{{ video.video_url }}"></video>
-            <div class="short-video-overlay">
-              <a href="{{ url_for('profile', username=video.author.username) }}" class="short-video-author">
-                <img class="avatar small-avatar" src="{{ video.author.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-                <span>
-                  <strong>{{ video.author.display_name }}</strong>
-                  <small>@{{ video.author.username }}</small>
-                </span>
-              </a>
-              <p>{{ video.caption or 'Shared a community short.' }}</p>
-              {% if video.community %}
-                <a class="community-chip" href="{{ url_for('community_detail', slug=video.community.slug) }}">{{ video.community.name }}</a>
+  <nav class="community-timeline-tabs" aria-label="Community timelines">
+    {% for tab in community_tabs %}
+      <a id="community-tab-{{ tab.key }}"
+         class="{% if active_tab == tab.key %}active{% endif %}"
+         href="{{ url_for('community', tab=tab.key) }}"
+         data-community-tab="{{ tab.key }}">
+        <span>{{ tab.label }}</span>
+        <strong>{{ timeline_counts.get(tab.key, 0) }}</strong>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <section class="community-timeline-shell" aria-label="LvL community feeds">
+    <div class="community-timeline-track" data-community-track>
+      {% for tab in community_tabs %}
+        {% set posts = timeline_feeds.get(tab.key, []) %}
+        <section class="community-timeline-pane {% if active_tab == tab.key %}active{% endif %}"
+                 data-community-pane="{{ tab.key }}"
+                 aria-labelledby="community-tab-{{ tab.key }}">
+          <div class="community-feed-header">
+            <div>
+              <span class="panel-kicker">{{ tab.eyebrow }}</span>
+              <h2>{{ tab.title }}</h2>
+              <p>{{ tab.description }}</p>
+            </div>
+          </div>
+
+          {% if posts %}
+            <section class="feed community-timeline-feed">
+              {% for post in posts %}
+                {% if tab.key == 'community' and post.community %}
+                  <a class="community-context-chip" href="{{ url_for('community_detail', slug=post.community.slug) }}" style="--community-color: {{ post.community.accent_color or theme_colors.primary }};">
+                    <span>{{ (post.community.name or 'C')[:1] }}</span>
+                    <strong>{{ post.community.name or 'Community' }}</strong>
+                  </a>
+                {% endif %}
+                {% include "_post_card.html" %}
+              {% endfor %}
+            </section>
+          {% else %}
+            <div class="empty-state community-empty-state">
+              <h2>{{ tab.empty_title }}</h2>
+              <p>{{ tab.empty_text }}</p>
+              {% if tab.key == 'following' %}
+                <a class="outline-button" href="{{ url_for('search') }}">Find people</a>
+              {% elif tab.key == 'community' %}
+                <a class="outline-button" href="{{ url_for('create_community') }}">Create group</a>
               {% endif %}
             </div>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="video-empty-state">
-        <h4>No community videos yet</h4>
-        <p>Create or join a group, then share a video URL to start the feed.</p>
-      </div>
-    {% endif %}
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
   </section>
 
-  <div class="explore-grid">
-    <section class="explore-panel">
-      <div class="section-heading">
-        <h3>Trending posts</h3>
-      </div>
-      {% if trending_posts %}
-        {% for post in trending_posts %}
-          <a class="compact-post-card" href="{{ url_for('post', id=post.id) }}">
-            <img class="avatar small-avatar" src="{{ post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-            <span>
-              <strong>{{ post.user.display_name }}</strong>
-              <small>{{ post.content }}</small>
-            </span>
-          </a>
-        {% endfor %}
-      {% else %}
-        <p class="muted-copy">No trending posts yet.</p>
-      {% endif %}
-    </section>
-
-    <section class="explore-panel">
-      <div class="section-heading">
-        <h3>Communities</h3>
-        <a href="{{ url_for('create_community') }}">New</a>
-      </div>
-      {% if communities %}
-        <div class="community-card-list">
-          {% for item in communities %}
-            <a class="community-card" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or '#1D9BF0' }};">
-              <span class="community-card-mark">{{ item.name[:1] }}</span>
-              <span>
-                <strong>{{ item.name }}</strong>
-                <small>{{ item.description or 'A community on LvL.' }}</small>
-              </span>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted-copy">No groups yet. Create the first community.</p>
-      {% endif %}
-    </section>
-
-    <section class="explore-panel">
-      <div class="section-heading">
-        <h3>Popular users</h3>
-      </div>
-      {% for user in popular_users %}
-        <a class="mini-user-row" href="{{ url_for('profile', username=user.username) }}">
-          <img class="avatar small-avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-          <span>
-            <strong>{{ user.display_name }}</strong>
-            <small>@{{ user.username }} · LvL {{ user.level or 1 }}</small>
-          </span>
-        </a>
-      {% endfor %}
-    </section>
-
-    <section class="explore-panel compact-members-panel">
-      <div class="section-heading">
-        <h3>New members</h3>
-      </div>
-      <div class="compact-member-scroll">
-        {% for member in recent_members %}
-          <a class="compact-member" href="{{ url_for('profile', username=member.username) }}">
-            <img class="avatar small-avatar" src="{{ member.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-            <span>
-              <strong>{{ member.display_name }}</strong>
-              <small>@{{ member.username }}</small>
-            </span>
-          </a>
-        {% endfor %}
-      </div>
-    </section>
-  </div>
-
-  <section class="explore-panel activity-panel">
+  <section class="community-space-strip" aria-label="Communities to join">
     <div class="section-heading">
-      <h3>Recent activity</h3>
+      <div>
+        <span class="panel-kicker">Spaces</span>
+        <h3>Community rooms</h3>
+      </div>
+      <a href="{{ url_for('create_community') }}">New</a>
     </div>
-    {% if activity_items %}
-      <div class="activity-list">
-        {% for item in activity_items %}
-          <a href="{{ item.url }}" class="activity-item">
-            <span>{{ item.label }}</span>
-            <strong>{{ item.text }}</strong>
+    {% if communities %}
+      <div class="community-space-scroll">
+        {% for item in communities %}
+          <a class="community-space-card" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or theme_colors.primary }};">
+            <span class="community-card-mark">{{ item.name[:1] }}</span>
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small>{{ item.description or 'A community on LvL.' }}</small>
+            </span>
           </a>
         {% endfor %}
       </div>
     {% else %}
-      <p class="muted-copy">Community activity will appear here as members post and join.</p>
+      <p class="muted-copy">No groups yet. Create the first community.</p>
     {% endif %}
   </section>
 </section>

@@ -16,6 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app_utils import birthday_date_limits, normalize_username, profile_banner_for_level, validate_birthday
+from app_theme import GENDER_THEME, THEME_COLORS, level_color_for_level
 
 load_dotenv()
 
@@ -35,6 +36,7 @@ LOGIN_ATTEMPTS = {}
 LOGIN_WINDOW = timedelta(minutes=10)
 LOGIN_MAX_ATTEMPTS = 5
 POSTS_PER_PAGE = 10
+POST_SELECT_QUERY = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
 MAX_IMAGE_BYTES = 50 * 1024 * 1024
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "lvl-media")
@@ -47,16 +49,37 @@ IMAGE_CONTENT_TYPES = {
     'webp': 'image/webp',
 }
 
-GENDER_OPTIONS = {
-    'Male': {
-        'theme_color': '#1D9BF0',
-        'avatar': 'assets/default-male-avatar.svg'
+GENDER_OPTIONS = GENDER_THEME
+COMMUNITY_DEFAULT_TAB = 'following'
+COMMUNITY_TIMELINE_TABS = [
+    {
+        'key': 'followers',
+        'label': 'Followers',
+        'eyebrow': 'They follow you',
+        'title': 'Posts from people who follow you',
+        'description': 'See what the people already connected to you are sharing.',
+        'empty_title': 'No follower posts yet',
+        'empty_text': 'When someone who follows you posts, it will appear here.'
     },
-    'Female': {
-        'theme_color': '#F91880',
-        'avatar': 'assets/default-female-avatar.svg'
+    {
+        'key': 'following',
+        'label': 'Following',
+        'eyebrow': 'Your picks',
+        'title': 'Posts from people you follow',
+        'description': 'Your main community timeline, focused on accounts you chose.',
+        'empty_title': 'Follow people to fill this timeline',
+        'empty_text': 'Search for members or open profiles and follow them to build this feed.'
+    },
+    {
+        'key': 'community',
+        'label': 'Community',
+        'eyebrow': 'Groups and threads',
+        'title': 'Community threads across LvL',
+        'description': 'Group posts and public threads ranked by activity and relevance.',
+        'empty_title': 'No community threads yet',
+        'empty_text': 'Join or create a community, then start a thread.'
     }
-}
+]
 
 @app.before_request
 def check_supabase():
@@ -80,6 +103,7 @@ def inject_helpers():
         'csrf_token': get_csrf_token,
         'level_title': activity_title_for_level,
         'birthday_limits': birthday_date_limits,
+        'theme_colors': THEME_COLORS,
     }
 
 import markupsafe
@@ -170,11 +194,7 @@ def level_for_xp(total_xp):
     return level
 
 def badge_color_for_level(level):
-    if level >= 30: return '#F5C542'
-    if level >= 20: return '#F97316'
-    if level >= 10: return '#8B5CF6'
-    if level >= 5: return '#1D9BF0'
-    return '#71767B'
+    return level_color_for_level(level)
 
 def activity_title_for_level(level):
     if level >= 30: return 'Mythic Legend'
@@ -182,6 +202,73 @@ def activity_title_for_level(level):
     if level >= 10: return 'Rising Hero'
     if level >= 5: return 'Quest Regular'
     return 'New Adventurer'
+
+XP_REWARD_RULES = [
+    {'label': 'Daily login', 'points': 5, 'description': 'Open LvL once per day.'},
+    {'label': 'Create a post', 'points': 10, 'description': 'Share a normal profile post.'},
+    {'label': 'Create a community post', 'points': 8, 'description': 'Start a post inside a community.'},
+    {'label': 'Write a comment', 'points': 6, 'description': 'Reply to another post.'},
+    {'label': 'Receive a comment', 'points': 4, 'description': 'Someone comments on your post.'},
+    {'label': 'Give a like', 'points': 1, 'description': 'Like another post.'},
+    {'label': 'Receive a like', 'points': 2, 'description': 'Someone likes your post.'},
+    {'label': 'Repost', 'points': 5, 'description': 'Share another post again.'},
+]
+
+LEVEL_REWARD_TIERS = [
+    {'level': 2, 'label': 'Neon Climb', 'description': 'First upgraded profile banner.'},
+    {'level': 5, 'label': 'Quest Regular', 'description': 'Blue badge color, new title, and Rising Charge banner.'},
+    {'level': 10, 'label': 'Rising Hero', 'description': 'Purple badge color and Hero Pulse banner.'},
+    {'level': 20, 'label': 'Elite Champion', 'description': 'Orange badge color and Mythic Circuit banner.'},
+    {'level': 30, 'label': 'Mythic Legend', 'description': 'Gold badge color and top public title.'},
+]
+
+ACHIEVEMENT_DEFINITIONS = [
+    {'id': 'first_post', 'name': 'First Post', 'description': 'Share your first post.', 'metric': 'posts', 'target': 1},
+    {'id': 'active_poster', 'name': 'Active Poster', 'description': 'Share 5 posts.', 'metric': 'posts', 'target': 5},
+    {'id': 'conversation_starter', 'name': 'Conversation Starter', 'description': 'Write 10 comments.', 'metric': 'comments', 'target': 10},
+    {'id': 'known_member', 'name': 'Known Member', 'description': 'Reach 5 followers.', 'metric': 'followers', 'target': 5},
+    {'id': 'squad_builder', 'name': 'Squad Builder', 'description': 'Connect with 3 friends.', 'metric': 'friends', 'target': 3},
+    {'id': 'xp_collector', 'name': 'XP Collector', 'description': 'Earn 1,000 total XP.', 'metric': 'total_xp', 'target': 1000},
+    {'id': 'rising_member', 'name': 'Rising Member', 'description': 'Reach LvL 5.', 'metric': 'level', 'target': 5},
+    {'id': 'hero_status', 'name': 'Hero Status', 'description': 'Reach LvL 10.', 'metric': 'level', 'target': 10},
+    {'id': 'elite_champion', 'name': 'Elite Champion', 'description': 'Reach LvL 20.', 'metric': 'level', 'target': 20},
+    {'id': 'mythic_legend', 'name': 'Mythic Legend', 'description': 'Reach LvL 30.', 'metric': 'level', 'target': 30},
+]
+
+def next_level_reward_for_level(level):
+    for reward in LEVEL_REWARD_TIERS:
+        if level < reward['level']:
+            return reward
+    return {'level': level, 'label': 'Max prestige track', 'description': 'Keep earning XP to hold a top community position.'}
+
+def profile_achievements(profile, stats):
+    metric_values = {
+        'posts': stats.get('posts', 0),
+        'comments': stats.get('comments', 0),
+        'followers': stats.get('followers', 0),
+        'friends': stats.get('friends', 0),
+        'level': profile.get('level', 1),
+        'total_xp': profile.get('total_xp', 0),
+    }
+    achievements = []
+    for item in ACHIEVEMENT_DEFINITIONS:
+        current = max(0, int(metric_values.get(item['metric']) or 0))
+        target = max(1, int(item['target']))
+        capped_current = min(current, target)
+        achievements.append({
+            **item,
+            'current': current,
+            'progress': min(100, (capped_current / target) * 100),
+            'progress_label': f"{capped_current} / {target}",
+            'unlocked': current >= target,
+        })
+    return achievements
+
+def achievement_summary(achievements):
+    return {
+        'unlocked': sum(1 for item in achievements if item['unlocked']),
+        'total': len(achievements),
+    }
 
 def award_xp(user_id, event_type, points, event_key=''):
     try:
@@ -251,7 +338,7 @@ def normalize_gender(value):
 def gender_defaults(gender):
     return GENDER_OPTIONS.get(gender, GENDER_OPTIONS['Male'])
 
-def normalize_hex_color(value, fallback='#1D9BF0'):
+def normalize_hex_color(value, fallback=THEME_COLORS['primary']):
     value = (value or '').strip()
     return value.upper() if re.match(r'^#[0-9A-Fa-f]{6}$', value) else fallback
 
@@ -443,16 +530,14 @@ def get_following_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     following_ids = [f['following_id'] for f in follows_res.data] if follows_res and follows_res.data else []
     if not following_ids:
         return []
-    select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
     offset = (page - 1) * limit
-    posts_res = supabase.table('posts').select(select_query).in_('user_id', following_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+    posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('user_id', following_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
     posts = posts_res.data if posts_res and posts_res.data else []
-    return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+    return rank_timeline_posts(enrich_posts(visible_post_filter(posts, viewer_id), viewer_id), relationship_user_ids=following_ids)[:limit]
 
 def get_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
-    select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
     offset = (page - 1) * limit
-    posts_res = supabase.table('posts').select(select_query).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+    posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
     direct_posts = posts_res.data if posts_res and posts_res.data else []
 
     reposts_res = supabase.table('reposts').select('user_id, post_id, created_at').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
@@ -462,7 +547,7 @@ def get_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
 
     repost_posts_by_id = {}
     if repost_post_ids:
-        repost_posts_res = supabase.table('posts').select(select_query).in_('id', repost_post_ids).is_('deleted_at', 'null').execute()
+        repost_posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('id', repost_post_ids).is_('deleted_at', 'null').execute()
         repost_posts = repost_posts_res.data if repost_posts_res and repost_posts_res.data else []
         repost_posts_by_id = {post['id']: post for post in repost_posts}
 
@@ -492,9 +577,8 @@ def get_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     return enrich_posts(visible_post_filter(timeline[:limit], viewer_id), viewer_id)
 
 def get_profile_posts(profile_user, viewer_id, limit=POSTS_PER_PAGE, page=1):
-    select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
     offset = (page - 1) * limit
-    posts_res = supabase.table('posts').select(select_query).eq('user_id', profile_user['id']).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
+    posts_res = supabase.table('posts').select(POST_SELECT_QUERY).eq('user_id', profile_user['id']).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
     direct_posts = posts_res.data if posts_res and posts_res.data else []
 
     reposts_res = supabase.table('reposts').select('post_id, created_at').eq('user_id', profile_user['id']).order('created_at', desc=True).range(offset, offset + limit - 1).execute()
@@ -503,7 +587,7 @@ def get_profile_posts(profile_user, viewer_id, limit=POSTS_PER_PAGE, page=1):
 
     repost_posts_by_id = {}
     if repost_post_ids:
-        repost_posts_res = supabase.table('posts').select(select_query).in_('id', repost_post_ids).is_('deleted_at', 'null').execute()
+        repost_posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('id', repost_post_ids).is_('deleted_at', 'null').execute()
         repost_posts = repost_posts_res.data if repost_posts_res and repost_posts_res.data else []
         repost_posts_by_id = {post['id']: post for post in repost_posts}
 
@@ -525,6 +609,59 @@ def get_profile_posts(profile_user, viewer_id, limit=POSTS_PER_PAGE, page=1):
 
     timeline.sort(key=lambda post: post.get('timeline_created_at') or post.get('created_at') or '', reverse=True)
     return enrich_posts(visible_post_filter(timeline[:limit], viewer_id), viewer_id)
+
+def timeline_timestamp(value):
+    if not value:
+        return 0
+    if isinstance(value, datetime):
+        return value.timestamp()
+    try:
+        normalized = str(value).replace('Z', '+00:00')
+        return datetime.fromisoformat(normalized).timestamp()
+    except (TypeError, ValueError):
+        return 0
+
+def nested_count(value):
+    if isinstance(value, list) and value:
+        first = value[0]
+        if isinstance(first, dict):
+            return parse_int(first.get('count')) or 0
+    return parse_int(value) or 0
+
+def post_engagement_score(post):
+    return (
+        nested_count(post.get('likes')) * 3
+        + nested_count(post.get('comments')) * 4
+        + nested_count(post.get('reposts')) * 5
+        + (parse_int(post.get('reply_count')) or 0) * 4
+        + (parse_int(post.get('like_count')) or 0) * 3
+        + (parse_int(post.get('repost_count')) or 0) * 5
+    )
+
+def rank_timeline_posts(posts, relationship_user_ids=None, joined_community_ids=None):
+    relationship_user_ids = set(relationship_user_ids or [])
+    joined_community_ids = set(joined_community_ids or [])
+
+    def score(post):
+        author = post.get('user') or {}
+        author_id = post.get('user_id') or author.get('id')
+        community = post.get('community') or {}
+        community_id = post.get('community_id') or community.get('id')
+        recency = timeline_timestamp(post.get('timeline_created_at') or post.get('created_at'))
+        relationship_boost = 900 if author_id in relationship_user_ids else 0
+        community_boost = 700 if community_id in joined_community_ids else 0
+        author_level = parse_int(author.get('level')) or 1
+        return recency + (post_engagement_score(post) * 240) + relationship_boost + community_boost + (author_level * 35)
+
+    return sorted(posts, key=score, reverse=True)
+
+def unique_ids(rows, key):
+    values = []
+    for row in rows or []:
+        value = row.get(key)
+        if value and value not in values:
+            values.append(value)
+    return values
 
 def get_community_highlights():
     try:
@@ -562,8 +699,7 @@ def get_short_videos(limit=8, community_id=None):
 
 def get_trending_posts(viewer_id, limit=5):
     try:
-        select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
-        posts_res = supabase.table('posts').select(select_query).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
         posts = posts_res.data if posts_res and posts_res.data else []
         return enrich_posts(posts, viewer_id)
     except Exception:
@@ -583,8 +719,7 @@ def get_community_posts(community_id, viewer_id, limit=20):
         post_ids = [row['post_id'] for row in link_res.data] if link_res and link_res.data else []
         if not post_ids:
             return []
-        select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
-        posts_res = supabase.table('posts').select(select_query).in_('id', post_ids).is_('deleted_at', 'null').execute()
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('id', post_ids).is_('deleted_at', 'null').execute()
         posts = posts_res.data if posts_res and posts_res.data else []
         posts_by_id = {post['id']: post for post in posts}
         ordered_posts = [posts_by_id[post_id] for post_id in post_ids if post_id in posts_by_id]
@@ -606,14 +741,86 @@ def get_viewer_membership(community_id, viewer_id):
     except Exception:
         return None
 
+def get_followers_feed_posts(viewer_id, limit=POSTS_PER_PAGE):
+    try:
+        follows_res = supabase.table('follows').select('follower_id').eq('following_id', viewer_id).execute()
+        follower_ids = unique_ids(follows_res.data if follows_res else [], 'follower_id')
+        if not follower_ids:
+            return []
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('user_id', follower_ids).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit * 2).execute()
+        posts = posts_res.data if posts_res and posts_res.data else []
+        enriched = enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+        return rank_timeline_posts(enriched, relationship_user_ids=follower_ids)[:limit]
+    except Exception:
+        return []
+
+def get_joined_community_ids(viewer_id):
+    try:
+        res = supabase.table('community_members').select('community_id').eq('user_id', viewer_id).execute()
+        return unique_ids(res.data if res else [], 'community_id')
+    except Exception:
+        return []
+
+def get_community_timeline_posts(viewer_id, limit=POSTS_PER_PAGE):
+    try:
+        joined_ids = get_joined_community_ids(viewer_id)
+        link_res = supabase.table('community_posts').select('community_id,post_id,created_at').order('created_at', desc=True).limit(limit * 4).execute()
+        links = link_res.data if link_res and link_res.data else []
+        post_ids = unique_ids(links, 'post_id')
+        community_ids = unique_ids(links, 'community_id')
+        if not post_ids:
+            return []
+
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('id', post_ids).is_('deleted_at', 'null').execute()
+        posts = posts_res.data if posts_res and posts_res.data else []
+        posts_by_id = {post['id']: post for post in posts}
+
+        communities_by_id = {}
+        if community_ids:
+            communities_res = supabase.table('communities').select('id,name,slug,accent_color').in_('id', community_ids).execute()
+            communities = communities_res.data if communities_res and communities_res.data else []
+            communities_by_id = {item['id']: item for item in communities}
+
+        timeline = []
+        seen = set()
+        for link in links:
+            post_id = link.get('post_id')
+            if not post_id or post_id in seen or post_id not in posts_by_id:
+                continue
+            post = dict(posts_by_id[post_id])
+            community_id = link.get('community_id')
+            post['timeline_created_at'] = link.get('created_at') or post.get('created_at')
+            post['community_id'] = community_id
+            post['community'] = communities_by_id.get(community_id, {})
+            timeline.append(post)
+            seen.add(post_id)
+
+        enriched = enrich_posts(visible_post_filter(timeline, viewer_id), viewer_id)
+        return rank_timeline_posts(enriched, joined_community_ids=joined_ids)[:limit]
+    except Exception:
+        return []
+
+def get_community_timeline_context(viewer, requested_tab=None, limit=POSTS_PER_PAGE):
+    active_tab = requested_tab if requested_tab in {tab['key'] for tab in COMMUNITY_TIMELINE_TABS} else COMMUNITY_DEFAULT_TAB
+    feeds = {
+        'followers': get_followers_feed_posts(viewer['id'], limit),
+        'following': get_following_feed_posts(viewer['id'], limit=limit),
+        'community': get_community_timeline_posts(viewer['id'], limit)
+    }
+    return {
+        'tabs': COMMUNITY_TIMELINE_TABS,
+        'active_tab': active_tab,
+        'feeds': feeds,
+        'counts': {key: len(value) for key, value in feeds.items()}
+    }
+
 def get_explore_context(viewer):
     context = {
-        'metrics': {'users': 0, 'profiles': 0, 'posts': 0, 'comments': 0, 'likes': 0, 'follows': 0, 'messages': 0, 'notifications': 0, 'communities': 0, 'videos': 0},
+        'metrics': {'users': 0, 'profiles': 0, 'posts': 0, 'comments': 0, 'likes': 0, 'follows': 0, 'messages': 0, 'notifications': 0, 'communities': 0},
         'recent_members': [],
         'popular_users': [],
         'trending_posts': [],
         'communities': [],
-        'short_videos': [],
         'activity_items': []
     }
     try:
@@ -642,9 +849,7 @@ def get_explore_context(viewer):
     context['popular_users'] = get_popular_users(viewer['id'], 5)
     context['trending_posts'] = get_trending_posts(viewer['id'], 5)
     context['communities'] = get_communities(6)
-    context['short_videos'] = get_short_videos(8)
     context['metrics']['communities'] = len(context['communities'])
-    context['metrics']['videos'] = len(context['short_videos'])
 
     for post in context['trending_posts'][:3]:
         context['activity_items'].append({
@@ -703,12 +908,12 @@ def send_verification_email(to_email, first_name, token):
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px; text-align: center;">
-      <h1 style="color: #1D9BF0;">Welcome to LvL, {first_name}!</h1>
+      <h1 style="color: {THEME_COLORS['primary']};">Welcome to LvL, {first_name}!</h1>
       <p style="font-size: 16px;">We're excited to have you. To start earning XP and connecting with the community, please verify your email address by clicking the button below:</p>
       <div style="margin: 30px 0;">
-        <a href="{verify_url}" style="background-color: #1D9BF0; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Verify My Email</a>
+        <a href="{verify_url}" style="background-color: {THEME_COLORS['primary']}; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Verify My Email</a>
       </div>
-      <p style="font-size: 12px; color: #71767B;">If you did not create this account, please ignore this email.</p>
+      <p style="font-size: 12px; color: {THEME_COLORS['muted']};">If you did not create this account, please ignore this email.</p>
     </body>
     </html>
     """
@@ -900,6 +1105,8 @@ def create_community_post(slug):
         return redirect(url_for('community_detail', slug=slug))
 
     content = request.form.get('content', '').strip()
+    image_file = request.files.get('image')
+    image_url = ''
     video_url = request.form.get('video_url', '').strip()
     video_caption = request.form.get('video_caption', '').strip()
 
@@ -911,12 +1118,25 @@ def create_community_post(slug):
         flash("Video URL must start with http:// or https://.", "error")
         return redirect(url_for('community_detail', slug=slug))
 
+    if image_file and image_file.filename:
+        try:
+            image_url = upload_image_to_storage(image_file, f"posts/{viewer['id']}")
+        except ValueError as e:
+            flash(str(e), "error")
+            return redirect(url_for('community_detail', slug=slug))
+        except Exception as e:
+            flash(handle_db_error(e, "Image upload failed. Try again."), "error")
+            return redirect(url_for('community_detail', slug=slug))
+
     try:
-        if content:
-            res = supabase.table('posts').insert({
+        if content or image_url:
+            payload = {
                 'user_id': viewer['id'],
                 'content': content
-            }).execute()
+            }
+            if image_url:
+                payload['image_url'] = image_url
+            res = supabase.table('posts').insert(payload).execute()
             if res.data:
                 post_id = res.data[0]['id']
                 supabase.table('community_posts').insert({
@@ -934,10 +1154,10 @@ def create_community_post(slug):
                 'caption': video_caption or content or ''
             }).execute()
 
-        if content or video_url:
+        if content or image_url or video_url:
             flash("Shared to community.", "success")
         else:
-            flash("Write a post or add a video URL first.", "error")
+            flash("Write a post or add an image first.", "error")
     except Exception:
         flash(community_tables_message(), "error")
 
@@ -1337,7 +1557,7 @@ def settings():
             website = request.form.get('website', '').strip()
             gender = normalize_gender(request.form.get('gender', ''))
             birthday = request.form.get('birthday', '').strip()
-            profile_pic = normalize_hex_color(request.form.get('profile_pic'), viewer.get('theme_color') or viewer.get('avatar_color') or '#1D9BF0')
+            profile_pic = normalize_hex_color(request.form.get('profile_pic'), viewer.get('theme_color') or viewer.get('avatar_color') or THEME_COLORS['primary'])
             remove_profile_photo = request.form.get('remove_profile_photo') == '1'
             
             if not all([first_name, last_name, nickname, gender]):
@@ -1476,6 +1696,21 @@ def own_profile():
         return redirect(url_for('auth'))
     return redirect(url_for('profile', username=viewer['username']))
 
+@app.route('/level-guide')
+def level_guide():
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+    highlights = get_community_highlights()
+    level_requirements = [{'level': level, 'xp': xp_required_for_level(level)} for level in range(1, 31)]
+    return render_template('level_guide.html',
+                           viewer=viewer,
+                           highlights=highlights,
+                           level_requirements=level_requirements,
+                           xp_rewards=XP_REWARD_RULES,
+                           level_rewards=LEVEL_REWARD_TIERS,
+                           achievements=ACHIEVEMENT_DEFINITIONS)
+
 @app.route('/profile/<username>')
 def profile(username):
     viewer = get_current_user()
@@ -1546,6 +1781,8 @@ def profile(username):
         current_xp_req = xp_required_for_level(level)
         next_xp_req = xp_required_for_level(level + 1)
         progress = min(100, max(0, ((total_xp - current_xp_req) / max(1, next_xp_req - current_xp_req)) * 100))
+        achievements = profile_achievements(profile_user, stats)
+        summary = achievement_summary(achievements)
             
     except Exception as e:
         flash(handle_db_error(e), "error")
@@ -1568,7 +1805,12 @@ def profile(username):
                            profile_banner=profile_banner,
                            profile_banner_class=profile_banner['class'],
                            profile_xp_progress=progress,
-                           profile_xp_needed=next_xp_req - total_xp)
+                           profile_xp_needed=next_xp_req - total_xp,
+                           profile_xp_current=max(0, total_xp - current_xp_req),
+                           profile_xp_span=max(1, next_xp_req - current_xp_req),
+                           next_level_reward=next_level_reward_for_level(level),
+                           achievement_summary=summary,
+                           achievements=achievements)
 
 @app.route('/profile/<username>/<list_type>')
 def profile_social_list(username, list_type):
@@ -1793,6 +2035,7 @@ def community():
         return redirect(url_for('auth'))
 
     explore = get_explore_context(viewer)
+    timeline_context = get_community_timeline_context(viewer, request.args.get('tab'))
     return render_template('community.html',
                            viewer=viewer,
                            metrics=explore['metrics'],
@@ -1800,8 +2043,11 @@ def community():
                            popular_users=explore['popular_users'],
                            trending_posts=explore['trending_posts'],
                            communities=explore['communities'],
-                           short_videos=explore['short_videos'],
                            activity_items=explore['activity_items'],
+                           community_tabs=timeline_context['tabs'],
+                           active_tab=timeline_context['active_tab'],
+                           timeline_feeds=timeline_context['feeds'],
+                           timeline_counts=timeline_context['counts'],
                            highlights=get_community_highlights())
 
 @app.route('/communities/new', methods=['GET', 'POST'])
@@ -1813,7 +2059,7 @@ def create_community():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
-        accent_color = normalize_hex_color(request.form.get('accent_color'), viewer.get('theme_color') or '#1D9BF0')
+        accent_color = normalize_hex_color(request.form.get('accent_color'), viewer.get('theme_color') or THEME_COLORS['primary'])
         slug = slugify(request.form.get('slug') or name)
 
         if not name or len(name) > 80:
@@ -1869,7 +2115,6 @@ def community_detail(slug):
     membership = get_viewer_membership(community_item['id'], viewer['id'])
     is_admin = community_item.get('owner_id') == viewer['id'] or (membership and membership.get('role') == 'admin')
     posts = get_community_posts(community_item['id'], viewer['id'])
-    videos = get_short_videos(10, community_item['id'])
     members = get_community_members(community_item['id'])
 
     return render_template('community_detail.html',
@@ -1878,7 +2123,6 @@ def community_detail(slug):
                            membership=membership,
                            is_admin=is_admin,
                            posts=posts,
-                           videos=videos,
                            members=members,
                            highlights=get_community_highlights())
 
@@ -1898,7 +2142,7 @@ def edit_community(slug):
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
-        accent_color = normalize_hex_color(request.form.get('accent_color'), community_item.get('accent_color') or '#1D9BF0')
+        accent_color = normalize_hex_color(request.form.get('accent_color'), community_item.get('accent_color') or THEME_COLORS['primary'])
 
         if not name or len(name) > 80:
             flash("Community name is required and must be 80 characters or less.", "error")

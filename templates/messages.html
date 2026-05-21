@@ -60,17 +60,17 @@
           <div class="message-bubble-wrapper {% if msg.sender_id == viewer.id %}own{% endif %}" data-message-id="{{ msg.id }}">
             <div class="message-bubble" title="{{ msg.created_at }}">
               {% if msg.shared_post %}
-                 <div style="font-size: 0.9em; opacity: 0.8; margin-bottom: 8px;">Shared a post:</div>
-                 <div class="shared-post-card" style="border: 1px solid var(--lvl-border); border-radius: 12px; padding: 10px; background: var(--lvl-surface); text-align: left; min-width: 200px;">
-                   <a href="{{ url_for('post', id=msg.shared_post.id) }}" style="text-decoration: none; color: inherit; display: block;">
-                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                       <img src="{{ msg.shared_post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" style="width: 24px; height: 24px; border-radius: 50%;">
+                 <div class="shared-post-label">Shared a post:</div>
+                 <div class="shared-post-card">
+                   <a href="{{ url_for('post', id=msg.shared_post.id) }}" class="shared-post-link">
+                     <div class="shared-post-author-row">
+                       <img class="shared-post-avatar" src="{{ msg.shared_post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="">
                        <strong>{{ msg.shared_post.user.display_name }}</strong>
-                       <span style="color: var(--lvl-text-muted);">@{{ msg.shared_post.user.username }}</span>
+                       <span class="shared-post-handle">@{{ msg.shared_post.user.username }}</span>
                      </div>
-                     <p style="margin: 0; font-size: 0.95em; white-space: normal;">{{ msg.shared_post.content }}</p>
+                     <p class="shared-post-content">{{ msg.shared_post.content }}</p>
                      {% if msg.shared_post.image_url %}
-                       <img src="{{ msg.shared_post.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 8px; max-height: 150px; object-fit: cover;">
+                       <img class="shared-post-image" src="{{ msg.shared_post.image_url }}" alt="">
                      {% endif %}
                    </a>
                  </div>
@@ -112,7 +112,7 @@
             <h3>Suggested groups</h3>
             {% if suggested_communities %}
               {% for item in suggested_communities %}
-                <a class="community-card compact" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or '#1D9BF0' }};">
+                <a class="community-card compact" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or theme_colors.primary }};">
                   <span class="community-card-mark">{{ item.name[:1] }}</span>
                   <span>
                     <strong>{{ item.name }}</strong>

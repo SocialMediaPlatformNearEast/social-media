@@ -72,6 +72,12 @@
           </span>
           <span class="nav-label">Community</span>
         </a>
+        <a class="{% if active_page == 'level_guide' %}active{% endif %}" href="{{ url_for('level_guide') }}">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5 4h14v3h-2v13H7V7H5V4Zm4 3v11h6V7H9Zm1.25 2h3.5v2h-3.5V9Zm0 3h3.5v2h-3.5v-2Z"/></svg>
+          </span>
+          <span class="nav-label">LvL Guide</span>
+        </a>
         <a class="{% if active_page == 'profile' %}active{% endif %}" href="{{ url_for('profile', username=viewer.username) }}">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z"/></svg>
@@ -116,17 +122,17 @@
          <h2>Community Highlights</h2>
          {% if highlights %}
            {% for h in highlights %}
-             <a class="mini-profile" href="{{ url_for('profile', username=h.username) }}" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; text-decoration: none; color: inherit;">
-               <img class="avatar small-avatar" src="{{ h.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%;" />
-               <div style="flex: 1;">
-                 <strong style="display: block;">{{ h.display_name }}</strong>
-                 <span style="color: #71767b; font-size: 0.9em;">@{{ h.username }}</span>
+             <a class="mini-profile community-highlight-row" href="{{ url_for('profile', username=h.username) }}">
+               <img class="avatar small-avatar community-highlight-avatar" src="{{ h.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+               <div class="community-highlight-row-body">
+                 <strong>{{ h.display_name }}</strong>
+                 <span>@{{ h.username }}</span>
                </div>
-               <span class="level-badge community-level-badge" style="--badge-color: {{ h.badge_color or '#71767B' }};" title="{{ level_title(h.level or 1) }}">LvL {{ h.level or 1 }}</span>
+               <span class="level-badge community-level-badge" style="--badge-color: {{ h.badge_color or theme_colors.muted }};" title="{{ level_title(h.level or 1) }}">LvL {{ h.level or 1 }}</span>
              </a>
            {% endfor %}
          {% else %}
-           <p style="color: #71767b; font-size: 0.9em;">No community members yet.</p>
+           <p class="community-highlight-empty">No community members yet.</p>
          {% endif %}
        </div>
     </aside>

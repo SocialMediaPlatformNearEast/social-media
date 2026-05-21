@@ -10,23 +10,23 @@
 </header>
 
 <section class="feed">
-  <div class="user-selection-list panel" style="padding: 0;">
+  <div class="user-selection-list panel user-selection-panel">
     {% if not users %}
       <div class="empty-state">
         <p>No users found to share with.</p>
       </div>
     {% endif %}
     {% for u in users %}
-      <form action="{{ url_for('share_post', post_id=post_id) }}" method="post" style="margin: 0; padding: 0;">
+      <form action="{{ url_for('share_post', post_id=post_id) }}" method="post" class="user-select-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="target_user_id" value="{{ u.id }}">
-        <button type="submit" class="user-select-item" style="width: 100%; border: none; background: transparent; cursor: pointer; text-align: left; border-bottom: 1px solid var(--lvl-border);">
+        <button type="submit" class="user-select-item">
           <img class="avatar small-avatar" src="{{ u.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
           <div class="user-select-info">
             <strong>{{ u.display_name }}</strong>
             <span>@{{ u.username }}</span>
           </div>
-          <span class="select-arrow" style="color: var(--lvl-primary);">Send</span>
+          <span class="select-arrow">Send</span>
         </button>
       </form>
     {% endfor %}

@@ -4,6 +4,8 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 import os
 
+from app_theme import THEME_COLORS
+
 load_dotenv()
 
 sender = os.getenv("MAIL_USERNAME")
@@ -20,7 +22,7 @@ msg['From'] = sender
 msg['To'] = test_recipient
 msg['Subject'] = "LvL - Test Email Verification"
 
-html = "<html><body><h1 style='color:#1D9BF0'>Test Başarılı!</h1><p>LvL mail sistemi çalışıyor.</p></body></html>"
+html = f"<html><body><h1 style='color:{THEME_COLORS['primary']}'>Test Başarılı!</h1><p>LvL mail sistemi çalışıyor.</p></body></html>"
 msg.attach(MIMEText(html, 'html', 'utf-8'))
 
 try:

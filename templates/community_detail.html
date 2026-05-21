@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="community-detail">
-  <header class="community-detail-hero" style="--community-color: {{ community.accent_color or '#1D9BF0' }};">
+  <header class="community-detail-hero" style="--community-color: {{ community.accent_color or theme_colors.primary }};">
     <div>
       <span class="panel-kicker">Community</span>
       <h1>{{ community.name }}</h1>
@@ -34,48 +34,33 @@
 
   <section class="community-compose-panel">
     {% if membership or is_admin %}
-      <form class="composer community-composer" action="{{ url_for('create_community_post', slug=community.slug) }}" method="post">
+      <form class="composer community-composer" action="{{ url_for('create_community_post', slug=community.slug) }}" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <img class="avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
         <div class="composer-main">
           <textarea name="content" maxlength="280" placeholder="Share something with {{ community.name }}"></textarea>
-          <input name="video_url" type="url" placeholder="Optional short video URL">
-          <input name="video_caption" maxlength="180" placeholder="Optional video caption">
-          <div class="composer-actions">
-            <span class="char-count">280 left</span>
-            <button type="submit" class="post-submit-btn">Share</button>
+          <label class="image-upload-control">
+            <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+            <span data-image-label>Add image</span>
+          </label>
+          <div class="image-upload-preview" data-image-preview hidden>
+            <img alt="Selected image preview">
+            <button type="button" data-clear-image>Remove</button>
+          </div>
+          <div class="composer-footer">
+            <div class="composer-tools"></div>
+            <div class="composer-actions">
+              <span class="char-count">280 left</span>
+              <button type="submit" class="post-submit-btn">Share</button>
+            </div>
           </div>
         </div>
       </form>
     {% else %}
       <div class="join-prompt">
         <strong>Join to post</strong>
-        <p>Members can share posts and short video URLs in this community.</p>
+        <p>Members can share posts, images, and replies in this community.</p>
       </div>
-    {% endif %}
-  </section>
-
-  <section class="short-video-section community-video-strip" aria-label="Community videos">
-    <div class="section-heading">
-      <h3>Short videos</h3>
-    </div>
-    {% if videos %}
-      <div class="short-video-feed">
-        {% for video in videos %}
-          <article class="short-video-card">
-            <video controls preload="metadata" playsinline src="{{ video.video_url }}"></video>
-            <div class="short-video-overlay">
-              <a href="{{ url_for('profile', username=video.author.username) }}" class="short-video-author">
-                <img class="avatar small-avatar" src="{{ video.author.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-                <span><strong>{{ video.author.display_name }}</strong><small>@{{ video.author.username }}</small></span>
-              </a>
-              <p>{{ video.caption or 'Community short.' }}</p>
-            </div>
-          </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="muted-copy">No videos have been shared here yet.</p>
     {% endif %}
   </section>
 
@@ -84,7 +69,7 @@
       {% if not posts %}
         <div class="empty-state">
           <h2>No community posts yet</h2>
-          <p>Start the conversation with a post or short video.</p>
+          <p>Start the conversation with a post, image, or reply.</p>
         </div>
       {% endif %}
       {% for post in posts %}

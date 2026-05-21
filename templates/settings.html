@@ -64,11 +64,11 @@
             <legend>Gender</legend>
             <div class="gender-options">
               <label class="gender-option male-option">
-                <input type="radio" name="gender" value="Male" data-avatar-url="{{ url_for('static', filename='assets/default-male-avatar.svg') }}" data-theme-color="#1D9BF0" {% if viewer.gender == 'Male' %}checked{% endif %} required>
+                <input type="radio" name="gender" value="Male" data-avatar-url="{{ url_for('static', filename='assets/default-male-avatar.svg') }}" data-theme-color="{{ theme_colors.primary }}" {% if viewer.gender == 'Male' %}checked{% endif %} required>
                 <span><b aria-hidden="true">♂</b> Male</span>
               </label>
               <label class="gender-option female-option">
-                <input type="radio" name="gender" value="Female" data-avatar-url="{{ url_for('static', filename='assets/default-female-avatar.svg') }}" data-theme-color="#F91880" {% if viewer.gender == 'Female' %}checked{% endif %} required>
+                <input type="radio" name="gender" value="Female" data-avatar-url="{{ url_for('static', filename='assets/default-female-avatar.svg') }}" data-theme-color="{{ theme_colors.female }}" {% if viewer.gender == 'Female' %}checked{% endif %} required>
                 <span><b aria-hidden="true">♀</b> Female</span>
               </label>
             </div>
@@ -106,8 +106,8 @@
         <label class="form-group" data-guide-target="profile-picture-area">
           <span>Profile Theme Color</span>
           <div class="color-picker-wrapper">
-            <input type="color" name="profile_pic" value="{{ viewer.theme_color or viewer.avatar_color or '#1d9bf0' }}">
-            <input type="text" class="hex-value" value="{{ viewer.theme_color or viewer.avatar_color or '#1d9bf0' }}" maxlength="7">
+            <input type="color" name="profile_pic" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}">
+            <input type="text" class="hex-value" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}" maxlength="7">
           </div>
         </label>
       </div>

@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="profile-header">
-  <div class="profile-banner {{ profile_banner_class }}" data-guide-target="cover-photo-area" style="--profile-color: {{ profile.theme_color or profile.avatar_color or '#1D9BF0' }};">
+  <div class="profile-banner {{ profile_banner_class }}" data-guide-target="cover-photo-area" style="--profile-color: {{ profile.theme_color or profile.avatar_color or theme_colors.primary }};">
     <div class="profile-banner-content">
       <div class="profile-banner-level-card">
         <span>{{ profile_banner.label }}</span>
@@ -69,7 +69,7 @@
     <div class="profile-names">
       <h1>
         <span class="profile-display-name">{{ profile.display_name }}</span>
-        <span class="level-badge" style="--badge-color: {{ profile.badge_color or '#71767B' }};" title="{{ level_title(profile.level or 1) }}">LvL {{ profile.level or 1 }}</span>
+        <span class="level-badge" style="--badge-color: {{ profile.badge_color or theme_colors.muted }};" title="{{ level_title(profile.level or 1) }}">LvL {{ profile.level or 1 }}</span>
       </h1>
       <p class="handle" data-guide-target="username-area">@{{ profile.username }}</p>
     </div>
@@ -123,7 +123,42 @@
       <div class="xp-progress-track" aria-label="XP progress to next level">
         <span style="width: {{ profile_xp_progress }}%;"></span>
       </div>
-      <p>{{ profile_xp_needed }} XP needed for LvL {{ profile.level + 1 }}</p>
+      <div class="xp-score-row">
+        <span>{{ profile_xp_current }} / {{ profile_xp_span }} XP this level</span>
+        <strong>{{ profile_xp_needed }} XP to LvL {{ profile.level + 1 }}</strong>
+      </div>
+      <div class="next-reward-callout">
+        <span>Next reward</span>
+        <strong>LvL {{ next_level_reward.level }} · {{ next_level_reward.label }}</strong>
+        <p>{{ next_level_reward.description }}</p>
+      </div>
+      <a class="level-guide-link" href="{{ url_for('level_guide') }}">Open LvL Guide</a>
+    </section>
+
+    <section class="profile-achievements-card" aria-label="Profile achievements">
+      <div class="profile-achievements-heading">
+        <div>
+          <span class="xp-kicker">Public progress</span>
+          <h2>Achievements</h2>
+        </div>
+        <strong>{{ achievement_summary.unlocked }} / {{ achievement_summary.total }}</strong>
+      </div>
+      <div class="achievement-grid">
+        {% for achievement in achievements %}
+          <article class="achievement-card {% if achievement.unlocked %}unlocked{% else %}locked{% endif %}">
+            <div class="achievement-topline">
+              <span>{{ 'Unlocked' if achievement.unlocked else 'Locked' }}</span>
+              <b>{{ achievement.progress|round(0)|int }}%</b>
+            </div>
+            <strong>{{ achievement.name }}</strong>
+            <p>{{ achievement.description }}</p>
+            <div class="achievement-progress-track" aria-label="{{ achievement.name }} progress">
+              <i style="width: {{ achievement.progress }}%;"></i>
+            </div>
+            <small>{{ achievement.progress_label }}</small>
+          </article>
+        {% endfor %}
+      </div>
     </section>
   </div>
 

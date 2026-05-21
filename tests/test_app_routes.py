@@ -19,6 +19,26 @@ class AppRouteTests(unittest.TestCase):
         html = self.client.get("/auth").data.decode()
         return html.split('name="csrf_token" value="', 1)[1].split('"', 1)[0]
 
+    def sample_post(self, post_id=42, user_id=8, username="demo", content="hello"):
+        return {
+            "id": post_id,
+            "user_id": user_id,
+            "content": content,
+            "reply_count": 0,
+            "repost_count": 0,
+            "like_count": 0,
+            "viewer_reposted": False,
+            "viewer_liked": False,
+            "is_repost": False,
+            "user": {
+                "id": user_id,
+                "username": username,
+                "display_name": "Demo User",
+                "profile_photo_url": "",
+                "level": 1,
+            },
+        }
+
     def test_login_requires_credentials(self):
         with patch.object(zapp, "supabase", object()):
             response = self.client.post("/auth", data={
@@ -104,10 +124,123 @@ class AppRouteTests(unittest.TestCase):
         routes = {rule.rule for rule in zapp.app.url_map.iter_rules()}
 
         self.assertIn("/profile/<username>/<list_type>", routes)
+        self.assertIn("/level-guide", routes)
         self.assertIn("/delete_post", routes)
         self.assertIn("/delete_message", routes)
         self.assertIn("/delete_account", routes)
         self.assertIn("/profile", routes)
+
+    def test_level_achievements_report_public_progress(self):
+        profile = {"level": 5, "total_xp": 720}
+        stats = {"posts": 1, "comments": 4, "followers": 2, "friends": 1}
+
+        achievements = zapp.profile_achievements(profile, stats)
+
+        first_post = next(item for item in achievements if item["id"] == "first_post")
+        conversation = next(item for item in achievements if item["id"] == "conversation_starter")
+        rising = next(item for item in achievements if item["id"] == "rising_member")
+
+        self.assertTrue(first_post["unlocked"])
+        self.assertEqual(first_post["progress_label"], "1 / 1")
+        self.assertFalse(conversation["unlocked"])
+        self.assertEqual(conversation["progress_label"], "4 / 10")
+        self.assertTrue(rising["unlocked"])
+
+    def test_level_guide_page_explains_xp_and_rewards(self):
+        fake_user = {
+            "id": 7,
+            "username": "demo",
+            "display_name": "Demo User",
+            "profile_photo_url": "",
+        }
+
+        with patch.object(zapp, "supabase", object()), \
+             patch.object(zapp, "get_current_user", return_value=fake_user), \
+             patch.object(zapp, "get_community_highlights", return_value=[]):
+            html = self.client.get("/level-guide").data.decode()
+
+        self.assertIn("LvL Guide", html)
+        self.assertIn("+10 XP", html)
+        self.assertIn("Mythic Legend", html)
+        self.assertIn("Achievements are display badges", html)
+
+    def test_community_template_renders_three_timeline_tabs(self):
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+        timeline_feeds = {
+            "followers": [self.sample_post(1, 8, "follower", "Follower post")],
+            "following": [self.sample_post(2, 9, "following", "Following post")],
+            "community": [dict(self.sample_post(3, 10, "groupuser", "Community thread"), community={
+                "id": 5,
+                "name": "Level Talk",
+                "slug": "level-talk",
+                "accent_color": "#1D9BF0",
+            }, community_id=5)],
+        }
+        with zapp.app.test_request_context("/community?tab=following"):
+            html = zapp.render_template(
+                "community.html",
+                viewer=viewer,
+                metrics={"users": 4, "posts": 3, "communities": 1, "likes": 0, "follows": 0},
+                recent_members=[],
+                popular_users=[],
+                trending_posts=[],
+                communities=[{"name": "Level Talk", "slug": "level-talk", "description": "XP threads", "accent_color": "#1D9BF0"}],
+                activity_items=[],
+                community_tabs=zapp.COMMUNITY_TIMELINE_TABS,
+                active_tab="following",
+                timeline_feeds=timeline_feeds,
+                timeline_counts={key: len(value) for key, value in timeline_feeds.items()},
+                highlights=[],
+            )
+
+        self.assertIn('data-community-hub', html)
+        self.assertIn('data-active-tab="following"', html)
+        self.assertIn("Followers", html)
+        self.assertIn("Following", html)
+        self.assertIn("Community", html)
+        self.assertIn("Follower post", html)
+        self.assertIn("Following post", html)
+        self.assertIn("Community thread", html)
+        self.assertNotIn("Community video feed", html)
+
+    def test_community_route_defaults_to_following_timeline(self):
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+        explore = {
+            "metrics": {"users": 0, "posts": 0, "communities": 0, "likes": 0, "follows": 0},
+            "recent_members": [],
+            "popular_users": [],
+            "trending_posts": [],
+            "communities": [],
+            "activity_items": [],
+        }
+        timeline = {
+            "tabs": zapp.COMMUNITY_TIMELINE_TABS,
+            "active_tab": "following",
+            "feeds": {"followers": [], "following": [], "community": []},
+            "counts": {"followers": 0, "following": 0, "community": 0},
+        }
+
+        with patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "get_explore_context", return_value=explore), \
+             patch.object(zapp, "get_community_timeline_context", return_value=timeline) as timeline_context, \
+             patch.object(zapp, "get_community_highlights", return_value=[]):
+            html = self.client.get("/community").data.decode()
+
+        timeline_context.assert_called_once_with(viewer, None)
+        self.assertIn('data-active-tab="following"', html)
+        self.assertIn("Follow people to fill this timeline", html)
+
+    def test_community_timeline_context_uses_three_feed_builders(self):
+        viewer = {"id": 7}
+        with patch.object(zapp, "get_followers_feed_posts", return_value=[self.sample_post(1)]), \
+             patch.object(zapp, "get_following_feed_posts", return_value=[self.sample_post(2)]), \
+             patch.object(zapp, "get_community_timeline_posts", return_value=[]):
+            context = zapp.get_community_timeline_context(viewer, "followers", limit=5)
+
+        self.assertEqual(context["active_tab"], "followers")
+        self.assertEqual(context["counts"]["followers"], 1)
+        self.assertEqual(context["counts"]["following"], 1)
+        self.assertEqual(context["counts"]["community"], 0)
 
     def test_auth_page_includes_pwa_install_prompt(self):
         auth_html = self.client.get("/auth").data.decode()
@@ -164,12 +297,28 @@ class AppRouteTests(unittest.TestCase):
                 profile_banner_class="level-1",
                 profile_xp_progress=20,
                 profile_xp_needed=80,
+                profile_xp_current=20,
+                profile_xp_span=100,
+                next_level_reward={"level": 5, "label": "Rising Charge", "description": "Banner upgrade"},
+                achievement_summary={"unlocked": 1, "total": 3},
+                achievements=[{
+                    "id": "first_post",
+                    "name": "First Post",
+                    "description": "Share one post.",
+                    "current": 1,
+                    "target": 1,
+                    "progress": 100,
+                    "progress_label": "1 / 1",
+                    "unlocked": True,
+                }],
             )
 
         self.assertIn('class="profile-metric-link"', html)
         self.assertIn('/profile/demo/following', html)
         self.assertIn('/profile/demo/followers', html)
         self.assertIn('/profile/demo/friends', html)
+        self.assertIn("Achievements", html)
+        self.assertIn("First Post", html)
 
     def test_social_list_renders_scrollable_people_panel(self):
         with zapp.app.test_request_context("/profile/demo/followers"):

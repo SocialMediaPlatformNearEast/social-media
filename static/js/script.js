@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initInstallPrompt();
     initBirthdayValidation();
     initProfilePreview();
+    initCommunityTimeline();
 
     // Auth Tabs Logic
     const authTabs = document.querySelectorAll('[data-auth-tab]');
@@ -482,6 +483,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return wrapper;
     }
 
+    function getThemeToken(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
     function initProfilePreview() {
         const preview = document.querySelector('[data-profile-preview]');
         if (!preview) return;
@@ -503,7 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
             name.textContent = displayName;
             username.textContent = `@${nick.value || 'username'}`;
             bio.textContent = bioInput.value || 'No bio yet.';
-            preview.style.setProperty('--profile-preview-color', color.value || '#1D9BF0');
+            preview.style.setProperty('--profile-preview-color', color.value || getThemeToken('--lvl-primary'));
         };
 
         [first, last, nick, bioInput, color].forEach(input => input && input.addEventListener('input', update));
@@ -545,7 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             avatar.src = selected.dataset.avatarUrl || '';
-            swatch.style.setProperty('--preview-color', selected.dataset.themeColor || '#1D9BF0');
+            swatch.style.setProperty('--preview-color', selected.dataset.themeColor || getThemeToken('--lvl-primary'));
             preview.hidden = false;
         };
 
@@ -753,6 +758,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.highlight = highlight;
+
+    function initCommunityTimeline() {
+        const hub = document.querySelector('[data-community-hub]');
+        if (!hub) return;
+
+        const track = hub.querySelector('[data-community-track]');
+        const tabs = Array.from(hub.querySelectorAll('[data-community-tab]'));
+        const panes = Array.from(hub.querySelectorAll('[data-community-pane]'));
+        if (!track || !tabs.length || !panes.length) return;
+
+        const setActive = (key, updateHistory = false) => {
+            hub.dataset.activeTab = key;
+            tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.communityTab === key));
+            panes.forEach((pane) => pane.classList.toggle('active', pane.dataset.communityPane === key));
+
+            if (updateHistory) {
+                const activeTab = tabs.find((tab) => tab.dataset.communityTab === key);
+                if (activeTab && activeTab.href) {
+                    window.history.replaceState(null, '', activeTab.href);
+                }
+            }
+        };
+
+        const scrollToPane = (key, behavior = 'smooth') => {
+            const pane = panes.find((item) => item.dataset.communityPane === key);
+            if (!pane) return;
+            track.scrollTo({
+                left: pane.offsetLeft - track.offsetLeft,
+                behavior
+            });
+        };
+
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', (event) => {
+                const key = tab.dataset.communityTab;
+                if (!key) return;
+                event.preventDefault();
+                setActive(key, true);
+                scrollToPane(key);
+            });
+        });
+
+        let scheduled = false;
+        track.addEventListener('scroll', () => {
+            if (scheduled) return;
+            scheduled = true;
+            window.requestAnimationFrame(() => {
+                scheduled = false;
+                const trackLeft = track.scrollLeft;
+                const activePane = panes.reduce((best, pane) => {
+                    const distance = Math.abs((pane.offsetLeft - track.offsetLeft) - trackLeft);
+                    if (!best || distance < best.distance) {
+                        return { pane, distance };
+                    }
+                    return best;
+                }, null);
+                if (activePane && activePane.pane) {
+                    setActive(activePane.pane.dataset.communityPane, true);
+                }
+            });
+        }, { passive: true });
+
+        const initial = hub.dataset.activeTab || tabs[0].dataset.communityTab;
+        window.requestAnimationFrame(() => {
+            setActive(initial, false);
+            scrollToPane(initial, 'auto');
+        });
+    }
 
     // Auto-focus composer if URL has compose=1
     const urlParams = new URLSearchParams(window.location.search);

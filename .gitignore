@@ -4,6 +4,10 @@
 .env*.local
 .env
 .tmp*
+.superpowers/
+.playwright-cli/
+docs/superpowers/
+output/
 __pycache__/
 *.pyc
 .venv/

@@ -93,11 +93,11 @@
         <legend>Gender</legend>
         <div class="gender-options">
           <label class="gender-option male-option">
-            <input type="radio" name="gender" value="Male" data-avatar-url="{{ url_for('static', filename='assets/default-male-avatar.svg') }}" data-theme-color="#1D9BF0" required>
+            <input type="radio" name="gender" value="Male" data-avatar-url="{{ url_for('static', filename='assets/default-male-avatar.svg') }}" data-theme-color="{{ theme_colors.primary }}" required>
             <span><b aria-hidden="true">♂</b> Male</span>
           </label>
           <label class="gender-option female-option">
-            <input type="radio" name="gender" value="Female" data-avatar-url="{{ url_for('static', filename='assets/default-female-avatar.svg') }}" data-theme-color="#F91880" required>
+            <input type="radio" name="gender" value="Female" data-avatar-url="{{ url_for('static', filename='assets/default-female-avatar.svg') }}" data-theme-color="{{ theme_colors.female }}" required>
             <span><b aria-hidden="true">♀</b> Female</span>
           </label>
         </div>
