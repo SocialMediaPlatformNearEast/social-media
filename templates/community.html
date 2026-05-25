@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+{% set active_page = "community" %}
+{% set show_highlights = True %}
+{% set title = "Community" %}
+
+{% block content %}
+<header class="page-header community-header community-timeline-header">
+  <div>
+    <h1>Community</h1>
+    <p>Move between followers, following, and group threads without leaving the LvL feed.</p>
+  </div>
+  <a class="primary-button compact-action" href="{{ url_for('create_community') }}">Create group</a>
+</header>
+
+<section class="community-page community-hub" data-community-hub data-active-tab="{{ active_tab }}">
+  <section class="community-hub-hero">
+    <div>
+      <span class="panel-kicker">Timeline hub</span>
+      <h2>Choose whose posts shape your LvL</h2>
+      <p>{{ metrics.users }} members, {{ metrics.posts }} posts, and {{ metrics.communities }} communities are feeding these timelines.</p>
+    </div>
+    <div class="community-timeline-summary" aria-label="Community timeline counts">
+      {% for tab in community_tabs %}
+        <article>
+          <span>{{ tab.label }}</span>
+          <strong>{{ timeline_counts.get(tab.key, 0) }}</strong>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <nav class="community-timeline-tabs" aria-label="Community timelines">
+    {% for tab in community_tabs %}
+      <a id="community-tab-{{ tab.key }}"
+         class="{% if active_tab == tab.key %}active{% endif %}"
+         href="{{ url_for('community', tab=tab.key) }}"
+         data-community-tab="{{ tab.key }}">
+        <span>{{ tab.label }}</span>
+        <strong>{{ timeline_counts.get(tab.key, 0) }}</strong>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <section class="community-timeline-shell" aria-label="LvL community feeds">
+    <div class="community-timeline-track" data-community-track>
+      {% for tab in community_tabs %}
+        {% set posts = timeline_feeds.get(tab.key, []) %}
+        <section class="community-timeline-pane {% if active_tab == tab.key %}active{% endif %}"
+                 data-community-pane="{{ tab.key }}"
+                 aria-labelledby="community-tab-{{ tab.key }}">
+          <div class="community-feed-header">
+            <div>
+              <span class="panel-kicker">{{ tab.eyebrow }}</span>
+              <h2>{{ tab.title }}</h2>
+              <p>{{ tab.description }}</p>
+            </div>
+          </div>
+
+          {% if posts %}
+            <section class="feed community-timeline-feed">
+              {% for post in posts %}
+                {% if tab.key == 'community' and post.community %}
+                  <a class="community-context-chip" href="{{ url_for('community_detail', slug=post.community.slug) }}" style="--community-color: {{ post.community.accent_color or theme_colors.primary }};">
+                    <span>{{ (post.community.name or 'C')[:1] }}</span>
+                    <strong>{{ post.community.name or 'Community' }}</strong>
+                  </a>
+                {% endif %}
+                {% include "_post_card.html" %}
+              {% endfor %}
+            </section>
+          {% else %}
+            <div class="empty-state community-empty-state">
+              <h2>{{ tab.empty_title }}</h2>
+              <p>{{ tab.empty_text }}</p>
+              {% if tab.key == 'following' %}
+                <a class="outline-button" href="{{ url_for('search') }}">Find people</a>
+              {% elif tab.key == 'community' %}
+                <a class="outline-button" href="{{ url_for('create_community') }}">Create group</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="community-space-strip" aria-label="Communities to join">
+    <div class="section-heading">
+      <div>
+        <span class="panel-kicker">Spaces</span>
+        <h3>Community rooms</h3>
+      </div>
+      <a href="{{ url_for('create_community') }}">New</a>
+    </div>
+    {% if communities %}
+      <div class="community-space-scroll">
+        {% for item in communities %}
+          <a class="community-space-card" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or theme_colors.primary }};">
+            <span class="community-card-mark">{{ item.name[:1] }}</span>
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small>{{ item.description or 'A community on LvL.' }}</small>
+            </span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted-copy">No groups yet. Create the first community.</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

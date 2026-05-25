@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% set active_page = "reels" %}
+{% set show_highlights = False %}
+{% set title = "Reels" %}
+
+{% block content %}
+<section class="reels-page">
+  <header class="reels-header">
+    <div>
+      <span class="panel-kicker">Videos</span>
+      <h1>Reels</h1>
+    </div>
+    <a class="primary-button compact-action" href="{{ url_for('reel_upload') }}">Upload</a>
+  </header>
+
+  <section class="reels-feed" data-reels-feed aria-label="Reels feed">
+    {% for reel in reels %}
+      <div id="reel-{{ reel.id }}">
+        {% include "_reel_card.html" %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <nav class="reels-pagination" aria-label="Reels pagination">
+    {% if page > 1 %}
+      <a class="outline-button" href="{{ url_for('reels', page=page-1) }}">Previous</a>
+    {% endif %}
+    {% if has_next %}
+      <a class="outline-button" href="{{ url_for('reels', page=page+1) }}">More reels</a>
+    {% endif %}
+  </nav>
+  <p class="reels-end-note" data-reels-end hidden>No more reels</p>
+</section>
+{% endblock %}

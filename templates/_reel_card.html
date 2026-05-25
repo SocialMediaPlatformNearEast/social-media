@@ -1,0 +1,101 @@
+{% set author = reel.author or reel.user or {} %}
+{% set is_demo = reel.is_demo %}
+<article class="reel-card {% if is_demo %}is-demo{% endif %}"
+         data-reel-card
+         data-reel-id="{{ reel.id }}"
+         data-autoplay-next="{{ 'true' if reel.autoplay_next else 'false' }}"
+         {% if not is_demo %}data-view-url="{{ url_for('record_reel_view', reel_id=reel.id) }}"{% endif %}>
+  <div class="reel-video-frame">
+    <video class="reel-video"
+           data-reel-video
+           playsinline
+           preload="metadata"
+           muted
+           {% if not reel.autoplay_next %}loop{% endif %}
+           {% if reel.cover_url %}poster="{{ reel.cover_url }}"{% endif %}>
+      <source src="{{ reel.video_url }}" type="video/mp4">
+      Your browser does not support short videos.
+    </video>
+    <button class="reel-play-toggle" type="button" data-reel-play aria-label="Play or pause reel">
+      <span data-reel-play-icon>Play</span>
+    </button>
+    <div class="reel-overlay">
+      <div class="reel-meta">
+        <div class="reel-author">
+          {% if author.username %}
+            <a href="{{ url_for('profile', username=author.username) }}">
+              <img class="avatar small-avatar" src="{{ author.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
+            </a>
+          {% else %}
+            <img class="avatar small-avatar" src="{{ author.profile_photo_url or url_for('static', filename='assets/icon-192.png') }}" alt="Avatar">
+          {% endif %}
+          <span>
+            <strong>{{ author.display_name or 'LvL' }}</strong>
+            <small>@{{ author.username or 'demo' }}</small>
+          </span>
+          {% if is_demo %}
+            <em>Demo</em>
+          {% endif %}
+        </div>
+        {% if reel.community %}
+          <a class="reel-community-chip" href="{{ url_for('community_detail', slug=reel.community.slug) }}" style="--community-color: {{ reel.community.accent_color or theme_colors.primary }};">
+            {{ reel.community.name }}
+          </a>
+        {% endif %}
+        {% if reel.caption %}
+          <p>{{ reel.caption | linkify_mentions }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <aside class="reel-actions" aria-label="Reel actions">
+      <button class="reel-action-button" type="button" data-reel-mute aria-label="Mute or unmute reel">
+        <span data-reel-mute-icon>Mute</span>
+      </button>
+      {% if not is_demo %}
+        <form action="{{ url_for('toggle_reel_like', reel_id=reel.id) }}" method="post" class="reel-like-form" data-reel-like-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="reel-action-button {% if reel.viewer_liked %}active{% endif %}" type="submit" aria-label="Like reel">
+            <span aria-hidden="true">Like</span>
+            <strong data-reel-like-count>{{ reel.like_count }}</strong>
+          </button>
+        </form>
+        <form action="{{ url_for('add_reel_comment', reel_id=reel.id) }}" method="post" class="reel-comment-form" data-reel-comment-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>
+            <span class="sr-only">Comment</span>
+            <input type="text" name="comment" maxlength="280" placeholder="Comment">
+          </label>
+          <button class="reel-action-button" type="submit" aria-label="Post comment">
+            <span aria-hidden="true">Reply</span>
+            <strong data-reel-comment-count>{{ reel.comment_count }}</strong>
+          </button>
+        </form>
+        <button class="reel-action-button" type="button" data-copy-url="{{ url_for('reels', _external=True) }}#reel-{{ reel.id }}" aria-label="Copy reel link">
+          <span aria-hidden="true">Share</span>
+        </button>
+        {% if reel.allow_downloads %}
+          <a class="reel-action-button" href="{{ reel.video_url }}" download aria-label="Download reel">
+            <span aria-hidden="true">Save</span>
+          </a>
+        {% endif %}
+        {% if reel.is_owner %}
+          <form action="{{ url_for('delete_reel', reel_id=reel.id) }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="reel-action-button danger" type="submit" aria-label="Delete reel">
+              <span aria-hidden="true">Delete</span>
+            </button>
+          </form>
+        {% endif %}
+      {% else %}
+        <button class="reel-action-button" type="button" disabled>
+          <span aria-hidden="true">Like</span>
+          <strong>0</strong>
+        </button>
+        <button class="reel-action-button" type="button" disabled>
+          <span aria-hidden="true">Reply</span>
+          <strong>0</strong>
+        </button>
+      {% endif %}
+    </aside>
+  </div>
+</article>

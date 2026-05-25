@@ -1,0 +1,189 @@
+{% extends "layout.html" %}
+{% set active_page = "messages" %}
+{% set show_highlights = False %}
+{% set title = "Messages" %}
+
+{% block content %}
+<div class="messages-container">
+  <aside class="conversations-sidebar">
+    <header class="sidebar-header">
+      <h2>Messages</h2>
+      <button type="button" class="new-message-btn" title="New Message" aria-label="Start a new conversation" aria-controls="new-chat-panel" aria-expanded="false" data-new-chat-toggle>+</button>
+    </header>
+    <div class="conversations-list">
+      {% if not conversations %}
+        <div class="empty-conversations">
+          <p>Nothing yet, maybe message someone first?</p>
+        </div>
+      {% endif %}
+      {% for conv in conversations %}
+        <a href="{{ url_for('messages', u=conv.username) }}" class="conversation-item {% if target_username == conv.username %}active{% endif %} {% if not conv.is_read and conv.id != viewer.id %}unread{% endif %}">
+          <img class="avatar small-avatar" src="{{ conv.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+          <div class="conv-info">
+            <div class="conv-header">
+              <strong>{{ conv.display_name }}</strong>
+              <span class="time">{{ conv.last_message_at }}</span>
+            </div>
+            <p class="last-message">{{ conv.last_message }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <main class="chat-window">
+    {% if target_user %}
+      <header class="chat-header" style="--chat-color: {{ target_user.theme_color }}">
+        <a href="{{ url_for('messages') }}" class="chat-back-link" aria-label="Back to people">
+          <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="currentColor"><path d="M20 11v2H7.83l5.59 5.59L12 20 4 12l8-8 1.42 1.41L7.83 11H20Z"/></svg>
+        </a>
+        <a href="{{ url_for('profile', username=target_user.username) }}" class="chat-user-info">
+          <img class="avatar small-avatar" src="{{ target_user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+          <div>
+            <strong>{{ target_user.display_name }}</strong>
+            <p>@{{ target_user.username }}</p>
+          </div>
+        </a>
+      </header>
+
+      <div class="messages-feed" id="messages-feed" data-message-api="{{ url_for('api_messages', username=target_user.username) }}" data-delete-message-url="{{ url_for('delete_message') }}" data-csrf-token="{{ csrf_token() }}" data-redirect-url="{{ url_for('messages', u=target_user.username) }}" data-viewer-id="{{ viewer.id }}">
+        {% if not messages_list %}
+          <div class="chat-empty-state">
+            <img class="avatar large-avatar" src="{{ target_user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+            <h3>{{ target_user.display_name }}</h3>
+            <p>@{{ target_user.username }}</p>
+            <p class="hint">This is the beginning of your direct message history with @{{ target_user.username }}.</p>
+          </div>
+        {% endif %}
+
+        {% for msg in messages_list %}
+          <div class="message-bubble-wrapper {% if msg.sender_id == viewer.id %}own{% endif %}" data-message-id="{{ msg.id }}">
+            <div class="message-bubble" title="{{ msg.created_at }}">
+              {% if msg.shared_post %}
+                 <div class="shared-post-label">Shared a post:</div>
+                 <div class="shared-post-card">
+                   <a href="{{ url_for('post', id=msg.shared_post.id) }}" class="shared-post-link">
+                     <div class="shared-post-author-row">
+                       <img class="shared-post-avatar" src="{{ msg.shared_post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="">
+                       <strong>{{ msg.shared_post.user.display_name }}</strong>
+                       <span class="shared-post-handle">@{{ msg.shared_post.user.username }}</span>
+                     </div>
+                     <p class="shared-post-content">{{ msg.shared_post.content }}</p>
+                     {% if msg.shared_post.image_url %}
+                       <img class="shared-post-image" src="{{ msg.shared_post.image_url }}" alt="">
+                     {% endif %}
+                   </a>
+                 </div>
+              {% else %}
+                 {{ msg.content }}
+              {% endif %}
+            </div>
+            <div class="message-meta">
+              <span class="message-time">{{ msg.created_at[11:16] }}</span>
+              <form action="{{ url_for('delete_message') }}" method="post" class="message-delete-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="message_id" value="{{ msg.id }}">
+                <input type="hidden" name="redirect" value="{{ url_for('messages', u=target_user.username) }}">
+                <button type="submit" aria-label="Delete message">Delete message</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <footer class="chat-footer">
+        <form action="{{ url_for('send_message') }}" method="post" class="chat-input-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="receiver_id" value="{{ target_user.id }}">
+          <input type="hidden" name="redirect" value="{{ url_for('messages', u=target_user.username) }}">
+          <textarea name="content" placeholder="Start a new message" required maxlength="1000" rows="1"></textarea>
+          <button type="submit" class="send-btn" aria-label="Send message">
+            <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="currentColor"><g><path d="M2.504 21.866l.526-2.108C3.04 19.719 4 15.823 4 12s-.96-7.719-.97-7.757l-.526-2.109L22.247 12 2.504 21.866zM5.981 13c-.072 1.962-.34 3.833-.583 5.183L17.584 12 5.398 5.817c.243 1.35.511 3.221.583 5.183H12v2H5.981z"></path></g></svg>
+          </button>
+        </form>
+      </footer>
+    {% else %}
+      <div class="chat-unselected">
+        <h2>Select a message</h2>
+        <p>Choose from your existing conversations, or start a new one from the list below.</p>
+
+        <section class="message-discovery-grid" aria-label="Community suggestions">
+          <div class="message-discovery-panel">
+            <h3>Suggested groups</h3>
+            {% if suggested_communities %}
+              {% for item in suggested_communities %}
+                <a class="community-card compact" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or theme_colors.primary }};">
+                  <span class="community-card-mark">{{ item.name[:1] }}</span>
+                  <span>
+                    <strong>{{ item.name }}</strong>
+                    <small>{{ item.description or 'A community on LvL.' }}</small>
+                  </span>
+                </a>
+              {% endfor %}
+            {% else %}
+              <p class="muted-copy">Create a group to fill this space with community activity.</p>
+            {% endif %}
+          </div>
+
+          <div class="message-discovery-panel">
+            <h3>People to follow</h3>
+            {% for user in message_people %}
+              <a class="mini-user-row" href="{{ url_for('messages', u=user.username) }}">
+                <img class="avatar small-avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+                <span>
+                  <strong>{{ user.display_name }}</strong>
+                  <small>@{{ user.username }}</small>
+                </span>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
+
+        <div class="new-chat-section" id="new-chat">
+          <h3>Start a new conversation</h3>
+          <div class="user-selection-list">
+            {% for u in all_users %}
+              <a href="{{ url_for('messages', u=u.username) }}" class="user-select-item">
+                <img class="avatar small-avatar" src="{{ u.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+                <div class="user-select-info">
+                  <strong>{{ u.display_name }}</strong>
+                  <span>@{{ u.username }}</span>
+                </div>
+                <span class="select-arrow">-&gt;</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </main>
+</div>
+
+<div class="new-chat-panel" id="new-chat-panel" hidden>
+  <div class="new-chat-backdrop" data-new-chat-close></div>
+  <section class="new-chat-dialog" role="dialog" aria-modal="true" aria-labelledby="new-chat-title">
+    <header>
+      <div>
+        <span class="panel-kicker">Messages</span>
+        <h3 id="new-chat-title">Start a new conversation</h3>
+      </div>
+      <button type="button" class="new-chat-close" aria-label="Close new conversation panel" data-new-chat-close>x</button>
+    </header>
+    <div class="user-selection-list">
+      {% if not all_users %}
+        <p class="empty-conversations">No other users are available yet.</p>
+      {% endif %}
+      {% for u in all_users %}
+        <a href="{{ url_for('messages', u=u.username) }}" class="user-select-item">
+          <img class="avatar small-avatar" src="{{ u.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+          <div class="user-select-info">
+            <strong>{{ u.display_name }}</strong>
+            <span>@{{ u.username }}</span>
+          </div>
+          <span class="select-arrow">-&gt;</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

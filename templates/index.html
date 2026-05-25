@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% set active_page = "home" %}
+{% set show_highlights = True %}
+{% set title = "Home" %}
+
+{% block content %}
+<header class="page-header home-header">
+  <div class="header-top">
+    <h1>Home</h1>
+  </div>
+  <div class="segmented feed-tabs">
+    <a class="{% if mode == 'all' %}active{% endif %}" href="{{ url_for('index', feed='all') }}">
+      <span>For you</span>
+    </a>
+    <a class="{% if mode == 'following' %}active{% endif %}" href="{{ url_for('index', feed='following') }}">
+      <span>Following</span>
+    </a>
+  </div>
+</header>
+
+<form id="composer" class="composer premium-composer" action="{{ url_for('create_post') }}" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="composer-avatar-column">
+    <img class="avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+  </div>
+  <div class="composer-main">
+    <textarea name="content" maxlength="280" placeholder="What's happening?"></textarea>
+    <label class="image-upload-control">
+      <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+      <span data-image-label>Add image</span>
+    </label>
+    <div class="image-upload-preview" data-image-preview hidden>
+      <img alt="Selected image preview">
+      <button type="button" data-clear-image>Remove</button>
+    </div>
+    <div class="composer-footer">
+      <div class="composer-tools"></div>
+      <div class="composer-actions">
+        <span class="char-count">280 left</span>
+        <button type="submit" class="post-submit-btn">Post</button>
+      </div>
+    </div>
+  </div>
+</form>
+
+<section class="feed" aria-label="Timeline">
+  {% if not posts %}
+    <div class="empty-state">
+      <h2>{% if mode == 'following' %}No posts from people you follow{% else %}No posts yet{% endif %}</h2>
+      <p>{% if mode == 'following' %}Follow people to see their posts here.{% else %}Create the first post or follow another user to populate this feed.{% endif %}</p>
+    </div>
+  {% else %}
+    {% for post in posts %}
+      {% include "_post_card.html" %}
+    {% endfor %}
+  {% endif %}
+</section>
+<nav class="pagination-controls" aria-label="Timeline pagination">
+  {% if page > 1 %}
+    <a class="outline-button" href="{{ url_for('index', feed=mode, page=page-1) }}">Previous</a>
+  {% endif %}
+  {% if has_next %}
+    <a class="outline-button" href="{{ url_for('index', feed=mode, page=page+1) }}">More posts</a>
+  {% endif %}
+</nav>
+{% endblock %}

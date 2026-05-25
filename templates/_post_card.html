@@ -1,0 +1,80 @@
+<article class="post">
+  <div class="post-avatar">
+    <a href="{{ url_for('profile', username=post.user.username) }}">
+      <img class="avatar" src="{{ post.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+    </a>
+  </div>
+  <div class="post-content">
+    {% if post.is_repost %}
+      <div class="repost-indicator">
+        {{ post.reposted_by.display_name or post.reposted_by.username or 'Someone' }} reposted
+      </div>
+    {% endif %}
+    <div class="post-header">
+      <a href="{{ url_for('profile', username=post.user.username) }}" class="post-author-link">
+        <strong>{{ post.user.display_name }}</strong>
+        <span>@{{ post.user.username }}</span>
+      </a>
+      <div class="post-menu-wrap">
+        <button class="post-menu-toggle" type="button" data-post-menu-toggle aria-expanded="false" aria-label="Post options">...</button>
+        <div class="post-menu" data-post-menu hidden>
+          <button type="button" data-copy-url="{{ url_for('post', id=post.id, _external=True) }}">Copy link</button>
+          <button type="button" onclick="window.location.href='{{ url_for('share_post', post_id=post.id) }}'">Share via DM</button>
+          {% if post.user.id == viewer.id or post.user_id == viewer.id %}
+            <form action="{{ url_for('delete_post') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="post_id" value="{{ post.id }}">
+              <button type="submit" class="danger-action">Delete post</button>
+            </form>
+          {% else %}
+            <form action="{{ url_for('safety_action') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_user_id" value="{{ post.user.id or post.user_id }}">
+              <input type="hidden" name="post_id" value="{{ post.id }}">
+              <input type="hidden" name="action_type" value="report">
+              <button type="submit">Report post</button>
+            </form>
+            <form action="{{ url_for('safety_action') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_user_id" value="{{ post.user.id or post.user_id }}">
+              <input type="hidden" name="action_type" value="mute">
+              <button type="submit">Mute @{{ post.user.username }}</button>
+            </form>
+            <form action="{{ url_for('safety_action') }}" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_user_id" value="{{ post.user.id or post.user_id }}">
+              <input type="hidden" name="action_type" value="block">
+              <button type="submit" class="danger-action">Block @{{ post.user.username }}</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="post-body">
+      {{ post.content | linkify_mentions }}
+    </div>
+    {% include "_post_media.html" %}
+    <div class="post-actions">
+      <a href="{{ url_for('post', id=post.id) }}" class="post-action-link">
+        <span aria-hidden="true">Reply</span>
+        <strong>{{ post.reply_count }}</strong>
+      </a>
+      <form action="{{ url_for('toggle_repost') }}" method="post" class="ajax-action-form" data-action="repost">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="post_id" value="{{ post.id }}">
+        <button type="submit" class="post-action-button {% if post.viewer_reposted %}active repost-active{% endif %}">
+          <span aria-hidden="true">Repost</span>
+          <strong>{{ post.repost_count }}</strong>
+        </button>
+      </form>
+      <form action="{{ url_for('toggle_like') }}" method="post" class="ajax-action-form" data-action="like">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="post_id" value="{{ post.id }}">
+        <button type="submit" class="post-action-button {% if post.viewer_liked %}active like-active{% endif %}">
+          <span aria-hidden="true">Like</span>
+          <strong>{{ post.like_count }}</strong>
+        </button>
+      </form>
+    </div>
+  </div>
+</article>

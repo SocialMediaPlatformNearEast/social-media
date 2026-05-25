@@ -1,0 +1,5 @@
+{% if post.image_url %}
+  <a class="post-media" href="{{ post.image_url }}" target="_blank" rel="noopener">
+    <img src="{{ post.image_url }}" alt="Post image" loading="lazy">
+  </a>
+{% endif %}

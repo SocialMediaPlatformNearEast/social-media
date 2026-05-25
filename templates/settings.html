@@ -1,0 +1,157 @@
+{% extends "layout.html" %}
+{% set active_page = "settings" %}
+{% set show_highlights = True %}
+{% set title = "Edit Profile" %}
+
+{% block content %}
+<div class="settings-container">
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Edit profile</h1>
+      <p>Update how your account appears to others on LvL.</p>
+    </div>
+  </header>
+
+  <div class="settings-content">
+    <form class="premium-form" action="{{ url_for('settings') }}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="update_profile">
+      
+      <div class="form-section">
+        <h3>Public Information</h3>
+        <div class="form-grid">
+          <label class="form-group">
+            <span>First Name</span>
+            <input name="first_name" maxlength="60" value="{{ viewer.first_name }}" placeholder="e.g. John" required>
+          </label>
+          <label class="form-group">
+            <span>Last Name</span>
+            <input name="last_name" maxlength="60" value="{{ viewer.last_name }}" placeholder="e.g. Doe" required>
+          </label>
+        </div>
+        
+        <label class="form-group" data-guide-target="username-area">
+          <span>Username / Nickname</span>
+          <div class="input-prefix-wrapper">
+            <span class="input-prefix">@</span>
+            <input name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="{{ viewer.nickname or viewer.username }}" required>
+          </div>
+          <small>3-24 letters, numbers, or underscores. Usernames are saved lowercase.</small>
+        </label>
+
+        <label class="form-group" data-guide-target="bio-area">
+          <span>Bio</span>
+          <textarea name="bio" maxlength="180" rows="3" placeholder="Tell us about yourself...">{{ viewer.bio }}</textarea>
+          <div class="char-counter">0 / 180</div>
+        </label>
+      </div>
+
+      <div class="form-section">
+        <h3>Details</h3>
+        <div class="form-grid">
+          <label class="form-group">
+            <span>Location</span>
+            <input name="location" maxlength="80" value="{{ viewer.location }}" placeholder="City, Country">
+          </label>
+          <label class="form-group">
+            <span>Website</span>
+            <input type="url" name="website" maxlength="255" value="{{ viewer.website }}" placeholder="https://yourwebsite.com">
+          </label>
+        </div>
+        
+        <div class="form-grid">
+          <fieldset class="gender-field form-group">
+            <legend>Gender</legend>
+            <div class="gender-options">
+              <label class="gender-option male-option">
+                <input type="radio" name="gender" value="Male" data-avatar-url="{{ url_for('static', filename='assets/default-male-avatar.svg') }}" data-theme-color="{{ theme_colors.primary }}" {% if viewer.gender == 'Male' %}checked{% endif %} required>
+                <span><b aria-hidden="true">♂</b> Male</span>
+              </label>
+              <label class="gender-option female-option">
+                <input type="radio" name="gender" value="Female" data-avatar-url="{{ url_for('static', filename='assets/default-female-avatar.svg') }}" data-theme-color="{{ theme_colors.female }}" {% if viewer.gender == 'Female' %}checked{% endif %} required>
+                <span><b aria-hidden="true">♀</b> Female</span>
+              </label>
+            </div>
+            <div class="gender-preview" data-gender-preview hidden>
+              <img data-gender-avatar src="" alt="Selected default avatar">
+              <span data-gender-swatch aria-hidden="true"></span>
+            </div>
+          </fieldset>
+          <label class="form-group">
+            <span>Birthday</span>
+            {% set limits = birthday_limits() %}
+            <input type="date" name="birthday" value="{{ viewer.birthday }}" min="{{ limits.min.isoformat() }}" max="{{ limits.max.isoformat() }}" autocomplete="bday">
+          </label>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>Appearance</h3>
+        <div class="profile-preview-card" data-profile-preview>
+          <div class="profile-preview-banner"></div>
+          <img class="avatar profile-preview-avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Profile preview">
+          <strong data-preview-name>{{ viewer.display_name }}</strong>
+          <span data-preview-username>@{{ viewer.username }}</span>
+          <p data-preview-bio>{{ viewer.bio or 'No bio yet.' }}</p>
+        </div>
+        <label class="form-group">
+          <span>Profile Photo</span>
+          <input type="file" name="profile_photo" accept="image/png,image/jpeg,image/gif,image/webp" data-profile-photo-input>
+          <small>Upload JPG, PNG, GIF, or WebP up to 5 MB.</small>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" name="remove_profile_photo" value="1">
+          <span>Remove current photo and use the default avatar</span>
+        </label>
+        <label class="form-group" data-guide-target="profile-picture-area">
+          <span>Profile Theme Color</span>
+          <div class="color-picker-wrapper">
+            <input type="color" name="profile_pic" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}">
+            <input type="text" class="hex-value" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}" maxlength="7">
+          </div>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('profile', username=viewer.username) }}" class="outline-button">Cancel</a>
+        <button type="submit" class="primary-button">Save Changes</button>
+      </div>
+    </form>
+
+    <section class="form-section danger-zone">
+      <div>
+        <h3>Delete account</h3>
+        <p>This permanently removes your account and the content connected to it. This action cannot be undone.</p>
+      </div>
+      <form action="{{ url_for('delete_account') }}" method="post" class="danger-zone-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="form-group">
+          <span>Current password</span>
+          <input type="password" name="current_password" autocomplete="current-password" required>
+        </label>
+        <label class="form-group">
+          <span>Type @{{ viewer.username }} to confirm</span>
+          <input name="confirm_username" pattern="{{ viewer.username }}" autocomplete="off" required>
+        </label>
+        <button type="submit" class="danger-button">Delete account</button>
+      </form>
+    </section>
+  </div>
+</div>
+
+<script>
+  // Sync color picker with text input
+  const colorPicker = document.querySelector('input[type="color"]');
+  const hexInput = document.querySelector('.hex-value');
+  if (colorPicker && hexInput) {
+    colorPicker.addEventListener('input', (e) => {
+      hexInput.value = e.target.value.toUpperCase();
+    });
+    hexInput.addEventListener('input', (e) => {
+      if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+        colorPicker.value = e.target.value;
+      }
+    });
+  }
+</script>
+{% endblock %}

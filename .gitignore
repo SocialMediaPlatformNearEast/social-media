@@ -1,0 +1,14 @@
+.DS_Store
+.git.galactacians-backup-*/
+.vercel
+.env*.local
+.env
+.tmp*
+.superpowers/
+.playwright-cli/
+docs/superpowers/
+output/
+__pycache__/
+*.pyc
+.venv/
+static/uploads/

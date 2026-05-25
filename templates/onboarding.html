@@ -1,0 +1,60 @@
+{% extends "layout.html" %}
+{% set active_page = "settings" %}
+{% set show_highlights = False %}
+{% set title = "Set up profile" %}
+
+{% block content %}
+<section class="onboarding-shell">
+  <header class="page-header compact">
+    <div>
+      <h1>Make LvL feel like yours</h1>
+      <p>Add a few details and follow people so your feed is not empty.</p>
+    </div>
+  </header>
+
+  <form class="premium-form onboarding-form" action="{{ url_for('onboarding') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <section class="form-section">
+      <h3>Profile basics</h3>
+      <label class="form-group">
+        <span>Bio</span>
+        <textarea name="bio" maxlength="180" rows="3" placeholder="One short line about you">{{ viewer.bio }}</textarea>
+      </label>
+      <label class="form-group">
+        <span>Location</span>
+        <input name="location" maxlength="80" value="{{ viewer.location }}" placeholder="City, Country">
+      </label>
+    </section>
+
+    <section class="form-section">
+      <h3>Interests</h3>
+      <div class="interest-grid">
+        {% for item in ["Campus", "Study", "Sports", "Music", "Food", "Gaming", "Events", "Tech"] %}
+          <label><input type="checkbox" name="interests" value="{{ item }}"> <span>{{ item }}</span></label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h3>Follow a few people</h3>
+      <div class="follow-suggestion-grid">
+        {% for user in suggested_users %}
+          <label class="follow-suggestion-card">
+            <input type="checkbox" name="follow_ids" value="{{ user.id }}">
+            <img class="avatar small-avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
+            <span>
+              <strong>{{ user.display_name }}</strong>
+              <small>@{{ user.username }}</small>
+            </span>
+          </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="form-actions">
+      <a class="outline-button" href="{{ url_for('index') }}">Skip</a>
+      <button class="primary-button" type="submit">Finish setup</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

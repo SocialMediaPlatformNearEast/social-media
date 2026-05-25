@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% set active_page = "community" %}
+{% set show_highlights = True %}
+{% set title = community.name %}
+
+{% block content %}
+<section class="community-detail">
+  <header class="community-detail-hero" style="--community-color: {{ community.accent_color or theme_colors.primary }};">
+    <div>
+      <span class="panel-kicker">Community</span>
+      <h1>{{ community.name }}</h1>
+      <p>{{ community.description or 'A community on LvL.' }}</p>
+      <small>Created by @{{ community.owner.username if community.owner else 'owner' }}</small>
+    </div>
+    <div class="community-detail-actions">
+      {% if is_admin %}
+        <a class="outline-button" href="{{ url_for('edit_community', slug=community.slug) }}">Edit</a>
+      {% endif %}
+      {% if membership %}
+        {% if community.owner_id != viewer.id %}
+          <form action="{{ url_for('leave_community', slug=community.slug) }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="outline-button active" type="submit">Joined</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <form action="{{ url_for('join_community', slug=community.slug) }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="primary-button" type="submit">Join</button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <section class="community-compose-panel">
+    {% if membership or is_admin %}
+      <form class="composer community-composer" action="{{ url_for('create_community_post', slug=community.slug) }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <img class="avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+        <div class="composer-main">
+          <textarea name="content" maxlength="280" placeholder="Share something with {{ community.name }}"></textarea>
+          <label class="image-upload-control">
+            <input type="file" name="image" accept="image/png,image/jpeg,image/gif,image/webp">
+            <span data-image-label>Add image</span>
+          </label>
+          <div class="image-upload-preview" data-image-preview hidden>
+            <img alt="Selected image preview">
+            <button type="button" data-clear-image>Remove</button>
+          </div>
+          <div class="composer-footer">
+            <div class="composer-tools"></div>
+            <div class="composer-actions">
+              <span class="char-count">280 left</span>
+              <button type="submit" class="post-submit-btn">Share</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="join-prompt">
+        <strong>Join to post</strong>
+        <p>Members can share posts, images, and replies in this community.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="community-detail-grid">
+    <section class="feed community-post-feed">
+      {% if not posts %}
+        <div class="empty-state">
+          <h2>No community posts yet</h2>
+          <p>Start the conversation with a post, image, or reply.</p>
+        </div>
+      {% endif %}
+      {% for post in posts %}
+        {% include "_post_card.html" %}
+      {% endfor %}
+    </section>
+
+    <aside class="community-members-panel">
+      <h3>Members</h3>
+      {% if not members %}
+        <p class="muted-copy">No members yet.</p>
+      {% endif %}
+      {% for member in members %}
+        <a class="mini-user-row" href="{{ url_for('profile', username=member.user.username) }}">
+          <img class="avatar small-avatar" src="{{ member.user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+          <span>
+            <strong>{{ member.user.display_name }}</strong>
+            <small>@{{ member.user.username }} · {{ member.role }}</small>
+          </span>
+        </a>
+      {% endfor %}
+    </aside>
+  </div>
+</section>
+{% endblock %}

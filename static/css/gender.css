@@ -1,0 +1,152 @@
+.avatar {
+  width: var(--control-lg);
+  height: var(--control-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-round);
+  background-color: var(--avatar, var(--lvl-border-strong));
+  color: var(--lvl-white);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.avatar:hover {
+  text-decoration: none;
+}
+
+.avatar.small {
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+  font-size: 15px;
+}
+
+.avatar.large {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.avatar-image .avatar-initial {
+  display: none;
+}
+
+.gender-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 0;
+}
+
+.gender-field legend {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.gender-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gender-option {
+  position: relative;
+}
+
+.gender-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.gender-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--control-xl);
+  border: 1px solid var(--lvl-border-strong);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.gender-option span b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  border-radius: var(--radius-round);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.male-option span b {
+  color: var(--lvl-primary);
+  background-color: color-mix(in srgb, var(--lvl-primary) 14%, transparent);
+}
+
+.female-option span b {
+  color: var(--lvl-female);
+  background-color: color-mix(in srgb, var(--lvl-female) 14%, transparent);
+}
+
+.male-option input:checked + span {
+  border-color: var(--lvl-primary);
+  background-color: color-mix(in srgb, var(--lvl-primary) 12%, transparent);
+}
+
+.female-option input:checked + span {
+  border-color: var(--lvl-female);
+  background-color: color-mix(in srgb, var(--lvl-female) 12%, transparent);
+}
+
+.male-option input:focus-visible + span {
+  border-color: var(--lvl-primary);
+}
+
+.female-option input:focus-visible + span {
+  border-color: var(--lvl-female);
+}
+
+.gender-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gender-preview[hidden] {
+  display: none;
+}
+
+.gender-preview img {
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-round);
+  object-fit: cover;
+  background-color: var(--lvl-white);
+}
+
+.gender-preview span {
+  width: var(--swatch-md);
+  height: var(--swatch-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-round);
+  background-color: var(--preview-color, var(--accent-color));
+}

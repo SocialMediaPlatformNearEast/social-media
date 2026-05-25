@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% set active_page = "reels" %}
+{% set show_highlights = False %}
+{% set title = "Upload Reel" %}
+
+{% block content %}
+<section class="reel-upload-page">
+  <header class="page-header compact">
+    <div>
+      <span class="panel-kicker">Create video</span>
+      <h1>Upload Reel</h1>
+      <p>Share a short video with LvL, your followers, or a community.</p>
+    </div>
+  </header>
+
+  <form class="reel-upload-form panel" action="{{ url_for('reel_upload') }}" method="post" enctype="multipart/form-data" data-reel-upload-form data-max-video-bytes="{{ max_video_bytes }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="reel-upload-grid">
+      <label class="reel-file-picker">
+        <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" data-reel-video-input>
+        <span data-reel-file-label>Choose video</span>
+        <small>MP4, WebM, MOV, or M4V. Max {{ (max_video_bytes // 1024 // 1024) or 1 }} MB.</small>
+      </label>
+
+      <div class="reel-preview" data-reel-preview hidden>
+        <video controls playsinline muted></video>
+      </div>
+    </div>
+
+    <label class="form-field">
+      <span>Caption</span>
+      <textarea name="caption" maxlength="220" placeholder="Write a caption"></textarea>
+      <small><span data-reel-caption-count>220</span> characters left</small>
+    </label>
+
+    <div class="reel-settings-grid">
+      <label class="form-field">
+        <span>Visibility</span>
+        <select name="visibility" data-reel-visibility>
+          <option value="public">Public</option>
+          <option value="followers">Followers</option>
+          <option value="community">Community</option>
+          <option value="private">Private</option>
+        </select>
+      </label>
+
+      <label class="form-field" data-reel-community-field hidden>
+        <span>Community</span>
+        <select name="community_id">
+          <option value="">Choose community</option>
+          {% for community in communities %}
+            <option value="{{ community.id }}">{{ community.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div class="reel-toggle-list" aria-label="Reel settings">
+      <label><input type="checkbox" name="allow_comments" checked> <span>Allow comments</span></label>
+      <label><input type="checkbox" name="allow_downloads"> <span>Allow downloads</span></label>
+      <label><input type="checkbox" name="autoplay_next" checked> <span>Autoplay next</span></label>
+    </div>
+
+    <p class="reel-upload-message" data-reel-upload-message></p>
+
+    <div class="composer-footer">
+      <a class="outline-button" href="{{ url_for('reels') }}">Cancel</a>
+      <button type="submit" class="post-submit-btn" data-reel-submit disabled>Upload reel</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
