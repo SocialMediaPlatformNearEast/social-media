@@ -1,0 +1,67 @@
+ 1. PWA Entegrasyonu
+
+Siteye eksiksiz bir şekilde **PWA desteği** eklensin.
+
+* Proje mobil cihazlarda uygulama gibi düzgün çalışsın.
+* Telefon ekranlarında taşma, bozulma, kayma veya orantısız görünüm olmasın.
+* Kullanıcı siteyi telefonda ana ekrana ekleyebilsin.
+* PWA için gerekli manifest dosyası, ikonlar ve service worker yapısı düzgün şekilde ayarlansın.
+* Mobil deneyim profesyonel, hızlı ve stabil olsun.
+
+## 2. Profil Banner Sistemi
+
+Kullanıcı **Level 1** veya **Level 2** olduğunda profil sayfasındaki arka plan bannerı değişsin.
+
+* Banner sistemi kullanıcının level durumuna göre dinamik çalışsın.
+* Level arttıkça profil kısmında daha özel, dikkat çekici ve temaya uygun banner görselleri kullanılabilir.
+* Tasarım modern, profesyonel ve uygulamanın genel renk uyumuna uygun olsun.
+* Farklı banner fikirlerine açığım; projeye uygun yaratıcı ama abartısız öneriler eklenebilir.
+* Bu sistem eklenirken profil sayfasındaki mevcut düzen bozulmasın.
+
+## 3. Birthday / Doğum Tarihi Alanı Düzeltmesi
+
+Kayıt olurken veya profil düzenleme kısmında doğum tarihi alanı düzgün şekilde kontrol edilsin.
+
+* Kullanıcılar `02.02.3333` gibi gerçek dışı veya geçersiz tarihler giremesin.
+* Gelecek tarihler kabul edilmesin.
+* Çok eski veya mantıksız yıllar kabul edilmesin.
+* Doğum tarihi için mantıklı yıl sınırı eklensin.
+* Hatalı format, eksik tarih veya geçersiz tarih girişlerinde kullanıcıya net bir uyarı mesajı gösterilsin.
+* Tarih formatı kullanıcı dostu ve anlaşılır olsun.
+* Hem kayıt ekranında hem de sonradan profil düzenleme kısmında aynı doğrulama sistemi çalışsın.
+
+## 4. Site / Uygulama İkonu Eklenmesi
+
+Sayfaya profesyonel bir **icon/favicon** eklensin.
+
+* Bu ikon tarayıcı sekmesinde düzgün görünsün.
+* PWA ile birlikte telefona eklendiğinde uygulama ikonu olarak da çalışsın.
+* İkon, uygulamanın ismine ve genel temasına uygun olsun.
+* Gerekirse uygulama adıyla uyumlu sade, modern ve profesyonel bir ikon tasarımı oluşturulsun.
+* Manifest dosyasında gerekli ikon boyutları doğru şekilde tanımlansın.
+
+## 5. Profesyonel Dosya ve Kod Yapısı Düzenlemesi
+
+Projede kodlar şu anda fazla karışık durumda. Bazı dosyalar çok uzun, hatta yaklaşık **4000 satıra** kadar çıkmış durumda. Bu yapı profesyonel bir projeye uygun hale getirilsin.
+
+* Kodlar daha okunabilir, sürdürülebilir ve profesyonel bir dosya yapısına bölünsün.
+* Çok uzun dosyalar mantıklı parçalara ayrılarak component, page, layout, hook, utility, service gibi uygun klasörlere taşınsın.
+* Gereksiz tekrar eden kodlar tespit edilip temiz ve düzenli hale getirilsin.
+* Ancak hiçbir çalışan özellik bozulmasın.
+* Kodun mantıksal yapısı korunarak refactor işlemi yapılsın.
+* Sadece dosya düzeni ve okunabilirlik iyileştirilsin; gereksiz özellik eklenmesin veya mevcut sistem rastgele değiştirilmesin.
+* Import/export yolları düzgün şekilde güncellensin.
+* Proje çalıştırıldığında hata vermemeli.
+* Desktop ve mobile görünüm aynı şekilde sorunsuz çalışmaya devam etmeli.
+* Dosyalama profesyonel bir front-end proje standardına uygun hale getirilsin.
+
+## Genel Kurallar
+
+Bu işlemler yapılırken:
+
+* Mevcut çalışan sistemler bozulmasın.
+* Tasarımın genel teması, renk uyumu ve sayfa düzeni korunarak iyileştirme yapılsın.
+* Kodlar profesyonel, okunabilir ve sürdürülebilir hale getirilsin.
+* Gereksiz kod silme, rastgele yapı değiştirme veya çalışan fonksiyonları bozma yapılmasın.
+* Her değişiklik kontrollü şekilde uygulanmalı.
+* Son durumda proje hem masaüstünde hem telefonda sorunsuz, stabil ve profesyonel şekilde çalışmalı.
