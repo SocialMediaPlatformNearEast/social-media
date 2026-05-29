@@ -6,10 +6,15 @@
 {% block content %}
 <section class="reels-page">
   <header class="reels-header">
-    <div>
+    <div class="reels-header-title">
       <span class="panel-kicker">Videos</span>
       <h1>Reels</h1>
     </div>
+    <nav class="reels-tabs" aria-label="Reels filter">
+      <a href="{{ url_for('reels', tab='for_you') }}" class="reels-tab {% if tab == 'for_you' %}active{% endif %}">For You</a>
+      <a href="{{ url_for('reels', tab='following') }}" class="reels-tab {% if tab == 'following' %}active{% endif %}">Following</a>
+      <a href="{{ url_for('reels', tab='discovery') }}" class="reels-tab {% if tab == 'discovery' %}active{% endif %}">Discovery</a>
+    </nav>
     <a class="primary-button compact-action" href="{{ url_for('reel_upload') }}">Upload</a>
   </header>
 
@@ -23,10 +28,10 @@
 
   <nav class="reels-pagination" aria-label="Reels pagination">
     {% if page > 1 %}
-      <a class="outline-button" href="{{ url_for('reels', page=page-1) }}">Previous</a>
+      <a class="outline-button" href="{{ url_for('reels', page=page-1, tab=tab) }}">Previous</a>
     {% endif %}
     {% if has_next %}
-      <a class="outline-button" href="{{ url_for('reels', page=page+1) }}">More reels</a>
+      <a class="outline-button" href="{{ url_for('reels', page=page+1, tab=tab) }}">More reels</a>
     {% endif %}
   </nav>
   <p class="reels-end-note" data-reels-end hidden>No more reels</p>

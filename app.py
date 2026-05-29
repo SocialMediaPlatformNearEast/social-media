@@ -115,6 +115,18 @@ def inject_helpers():
         'theme_colors': THEME_COLORS,
     }
 
+@app.context_processor
+def inject_unread_count():
+    user_id = session.get('user_id')
+    count = 0
+    if user_id and supabase:
+        try:
+            res = supabase.table('notifications').select('id', count='exact').eq('user_id', user_id).eq('is_read', False).execute()
+            count = res.count or 0
+        except Exception:
+            pass
+    return {'unread_notification_count': count}
+
 import markupsafe
 
 @app.template_filter('linkify_mentions')
@@ -278,6 +290,53 @@ def achievement_summary(achievements):
         'unlocked': sum(1 for item in achievements if item['unlocked']),
         'total': len(achievements),
     }
+
+def update_streak(sender_id, receiver_id):
+    """
+    Increment the daily streak between two users when sender sends receiver a message.
+    Called at most once per calendar day per pair (idempotent within the same day).
+    Returns (streak_count, xp_awarded).
+    XP is tiered to stay balanced: 3 XP days 2-6, 5 XP days 7-29, 8 XP days 30+.
+    """
+    if not supabase:
+        return 0, 0
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        first = min(sender_id, receiver_id)
+        second = max(sender_id, receiver_id)
+
+        res = supabase.table('user_streaks').select('*').eq('user_1', first).eq('user_2', second).execute()
+
+        if not res.data:
+            supabase.table('user_streaks').insert({
+                'user_1': first, 'user_2': second,
+                'streak_count': 1, 'last_streak_date': today
+            }).execute()
+            return 1, 0
+
+        streak = res.data[0]
+        last_date = streak.get('last_streak_date', '')
+        count = streak.get('streak_count', 1)
+
+        if last_date == today:
+            return count, 0  # Already interacted today
+
+        new_count = (count + 1) if last_date == yesterday else 1
+
+        supabase.table('user_streaks').update({
+            'streak_count': new_count,
+            'last_streak_date': today,
+            'updated_at': datetime.now().isoformat()
+        }).eq('user_1', first).eq('user_2', second).execute()
+
+        xp = 0
+        if new_count >= 2:
+            xp = 3 if new_count < 7 else (5 if new_count < 30 else 8)
+            award_xp(sender_id, 'streak', xp, event_key=f'streak_{first}_{second}_{today}')
+        return new_count, xp
+    except Exception:
+        return 0, 0
 
 def award_xp(user_id, event_type, points, event_key=''):
     try:
@@ -963,10 +1022,25 @@ def enrich_reels(reels, viewer_id):
         reel['is_demo'] = False
     return reels
 
-def get_reels(viewer_id, limit=8, page=1):
+def get_reels(viewer_id, limit=8, page=1, tab='for_you'):
     offset = (page - 1) * limit
     select_query = '*, user:users!reels_user_id_fkey(*), community:communities!reels_community_id_fkey(*)'
-    res = supabase.table('reels').select(select_query).eq('status', 'active').is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit).execute()
+    query = supabase.table('reels').select(select_query).eq('status', 'active').is_('deleted_at', 'null')
+    if tab == 'following':
+        try:
+            follows_res = supabase.table('follows').select('following_id').eq('follower_id', viewer_id).execute()
+            following_ids = [row['following_id'] for row in follows_res.data or []]
+            following_ids.append(viewer_id)
+            if following_ids:
+                query = query.in_('user_id', following_ids)
+        except Exception:
+            pass
+        query = query.order('created_at', desc=True)
+    elif tab == 'discovery':
+        query = query.order('view_count', desc=True).order('created_at', desc=True)
+    else:
+        query = query.order('created_at', desc=True)
+    res = query.range(offset, offset + limit).execute()
     rows = res.data if res and res.data else []
     visible = visible_reel_filter(rows, viewer_id)
     return enrich_reels(visible[:limit], viewer_id), len(visible) > limit
@@ -1124,7 +1198,16 @@ def index():
         posts = []
         flash(handle_db_error(e, "An error occurred while loading posts."), "error")
 
-    return render_template('index.html', viewer=viewer, posts=posts, mode=feed_mode, highlights=highlights, page=page, has_next=len(posts) == POSTS_PER_PAGE)
+    home_reels = []
+    try:
+        home_reels_data, _ = get_reels(viewer['id'], limit=5, page=1)
+        home_reels = home_reels_data
+    except Exception:
+        pass
+    if not home_reels:
+        home_reels = get_demo_reels()
+
+    return render_template('index.html', viewer=viewer, posts=posts, mode=feed_mode, highlights=highlights, page=page, has_next=len(posts) == POSTS_PER_PAGE, home_reels=home_reels)
 
 @app.route('/reels')
 def reels():
@@ -1133,9 +1216,12 @@ def reels():
         return redirect(url_for('auth'))
 
     page = parse_positive_int(request.args.get('page'), default=1, maximum=500)
+    tab = request.args.get('tab', 'for_you')
+    if tab not in {'for_you', 'following', 'discovery'}:
+        tab = 'for_you'
     table_ready = True
     try:
-        reels_list, has_next = get_reels(viewer['id'], limit=8, page=page)
+        reels_list, has_next = get_reels(viewer['id'], limit=8, page=page, tab=tab)
     except Exception as exc:
         reels_list = []
         has_next = False
@@ -1155,6 +1241,7 @@ def reels():
                            page=page,
                            has_next=has_next,
                            table_ready=table_ready,
+                           tab=tab,
                            highlights=[])
 
 @app.route('/api/reels')
@@ -1341,6 +1428,18 @@ def delete_reel(reel_id):
         flash(handle_db_error(exc, "Could not delete that reel."), "error")
     return redirect(url_for('reels'))
 
+@app.route('/api/reels/<int:reel_id>/comments')
+def api_reel_comments(reel_id):
+    viewer = get_current_user()
+    if not viewer:
+        return jsonify({'success': False, 'error': 'Authentication required.'}), 401
+    try:
+        res = supabase.table('reel_comments').select('*, user:users!reel_comments_user_id_fkey(id,username,display_name,profile_photo_url)').eq('reel_id', reel_id).is_('deleted_at', 'null').order('created_at', desc=False).limit(50).execute()
+        comments = res.data if res and res.data else []
+        return jsonify({'success': True, 'comments': comments})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': handle_db_error(exc)}), 400
+
 
 def send_verification_email(to_email, first_name, token):
     sender_email = os.getenv("MAIL_USERNAME")
@@ -1432,10 +1531,6 @@ def auth():
                 if res.data:
                     user = res.data[0]
                     if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-                        if not user.get('is_verified', True):
-                            flash("Please check your inbox and verify your email address before logging in.", "error")
-                            return render_template('auth.html')
-
                         session['user_id'] = user['id']
                         clear_login_failures(username)
                         award_xp(user['id'], 'daily_login', 5)
@@ -1473,8 +1568,7 @@ def auth():
             
             hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             defaults = gender_defaults(gender)
-            verification_token = secrets.token_urlsafe(32)
-            
+
             try:
                 new_user = supabase.table('users').insert({
                     'first_name': first_name,
@@ -1489,14 +1583,14 @@ def auth():
                     'profile_photo_url': url_for('static', filename=defaults['avatar']),
                     'theme_color': defaults['theme_color'],
                     'avatar_color': defaults['theme_color'],
-                    'is_verified': False,
-                    'verification_token': verification_token
+                    'is_verified': True,
                 }).execute()
-                
+
                 if new_user.data:
-                    send_verification_email(email, first_name, verification_token)
-                    flash("Account created! Please check your email inbox to verify your account before logging in.", "success")
-                    return redirect(url_for('auth'))
+                    session['user_id'] = new_user.data[0]['id']
+                    award_xp(new_user.data[0]['id'], 'account_created', 20)
+                    flash(f"Welcome to LvL, {first_name}! You've earned 20 XP for joining.", "success")
+                    return redirect(url_for('index'))
             except Exception as e:
                 flash(handle_db_error(e), "error")
     
@@ -1832,33 +1926,55 @@ def request_friend():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     target_id = request.form.get('target_id')
     target_user_id = parse_int(target_id)
-    if target_user_id and target_user_id != viewer['id']:
-        try:
-            first = min(viewer['id'], target_user_id)
-            second = max(viewer['id'], target_user_id)
-            
-            res = supabase.table('friendships').select('*').eq('user_1', first).eq('user_2', second).execute()
-            if not res.data:
-                supabase.table('friendships').insert({
-                    'user_1': first,
-                    'user_2': second,
-                    'action_user_id': viewer['id'],
-                    'status': 'pending'
-                }).execute()
-                supabase.table('notifications').insert({
-                    'user_id': target_user_id,
-                    'actor_id': viewer['id'],
-                    'type': 'friend_request'
-                }).execute()
-                flash("Friend request sent.", "success")
-            elif res.data[0].get('status') == 'pending' and res.data[0].get('action_user_id') != viewer['id']:
+    is_ajax = request.form.get('ajax') == '1'
+
+    if not target_user_id or target_user_id == viewer['id']:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'Invalid target.'}), 400
+        return redirect(safe_redirect_url())
+
+    try:
+        first = min(viewer['id'], target_user_id)
+        second = max(viewer['id'], target_user_id)
+
+        res = supabase.table('friendships').select('*').eq('user_1', first).eq('user_2', second).execute()
+        if not res.data:
+            supabase.table('friendships').insert({
+                'user_1': first,
+                'user_2': second,
+                'action_user_id': viewer['id'],
+                'status': 'pending'
+            }).execute()
+            supabase.table('notifications').insert({
+                'user_id': target_user_id,
+                'actor_id': viewer['id'],
+                'type': 'friend_request'
+            }).execute()
+            if is_ajax:
+                return jsonify({'success': True, 'status': 'pending', 'label': 'Requested'})
+            flash("Friend request sent.", "success")
+        elif res.data[0].get('status') == 'pending':
+            if res.data[0].get('action_user_id') == viewer['id']:
+                supabase.table('friendships').delete().eq('user_1', first).eq('user_2', second).execute()
+                if is_ajax:
+                    return jsonify({'success': True, 'status': None, 'label': 'Add friend'})
+                flash("Friend request cancelled.", "success")
+            else:
+                if is_ajax:
+                    return jsonify({'success': True, 'status': 'pending_incoming', 'label': 'Accept friend'})
                 flash("This person already sent you a request. Accept it from notifications.", "info")
-        except Exception as e:
-            flash(handle_db_error(e), "error")
-            
+        elif res.data[0].get('status') == 'accepted':
+            if is_ajax:
+                return jsonify({'success': True, 'status': 'accepted', 'label': 'Friend'})
+            flash("You are already friends.", "info")
+    except Exception as e:
+        if is_ajax:
+            return jsonify({'success': False, 'error': handle_db_error(e)}), 400
+        flash(handle_db_error(e), "error")
+
     return redirect(safe_redirect_url())
 
 @app.route('/respond_friend_request', methods=['POST'])
@@ -1927,8 +2043,9 @@ def send_message():
                         'type': 'message',
                         'message_id': res.data[0]['id']
                     }).execute()
+                    streak_count, streak_xp = update_streak(viewer['id'], receiver_id)
                     if request.form.get('ajax') == '1':
-                        return jsonify({'success': True, 'message': res.data[0]})
+                        return jsonify({'success': True, 'message': res.data[0], 'streak': streak_count, 'streak_xp': streak_xp})
             except Exception as e:
                 if request.form.get('ajax') == '1':
                     return jsonify({'success': False, 'error': handle_db_error(e)}), 400
@@ -2298,14 +2415,19 @@ def profile_social_list(username, list_type):
 def safety_action():
     viewer = get_current_user()
     if not viewer:
+        if request.form.get('ajax') == '1':
+            return jsonify({'success': False, 'error': 'Login required.'}), 401
         return redirect(url_for('auth'))
 
     action_type = request.form.get('action_type')
     target_user_id = parse_int(request.form.get('target_user_id'))
     post_id = parse_int(request.form.get('post_id'))
     reason = request.form.get('reason', '').strip()[:280]
+    is_ajax = request.form.get('ajax') == '1'
 
     if action_type not in {'report', 'block', 'mute'} or not target_user_id or target_user_id == viewer['id']:
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'That safety action is not available.'}), 400
         flash("That safety action is not available.", "error")
         return redirect(safe_redirect_url())
 
@@ -2321,16 +2443,21 @@ def safety_action():
         if post_id:
             existing = existing.eq('post_id', post_id)
         existing_res = existing.execute()
+        active = True
         if existing_res.data and action_type in {'block', 'mute'}:
             supabase.table('user_safety_actions').delete().eq('id', existing_res.data[0]['id']).execute()
             label = {'block': 'unblocked', 'mute': 'unmuted'}[action_type]
-            flash(f"User {label}.", "success")
-            return redirect(safe_redirect_url())
-        if not existing_res.data:
-            supabase.table('user_safety_actions').insert(payload).execute()
-        label = {'report': 'reported', 'block': 'blocked', 'mute': 'muted'}[action_type]
+            active = False
+        else:
+            if not existing_res.data:
+                supabase.table('user_safety_actions').insert(payload).execute()
+            label = {'report': 'reported', 'block': 'blocked', 'mute': 'muted'}[action_type]
+        if is_ajax:
+            return jsonify({'success': True, 'active': active, 'action_type': action_type, 'label': label})
         flash(f"User {label}.", "success")
     except Exception as e:
+        if is_ajax:
+            return jsonify({'success': False, 'error': handle_db_error(e)}), 400
         flash(handle_db_error(e, "Safety controls need the latest database migration first."), "error")
     return redirect(safe_redirect_url())
 
@@ -2396,9 +2523,32 @@ def messages():
             other_user['last_message_at'] = (message.get('created_at') or '')[11:16]
             other_user['is_read'] = message['sender_id'] == viewer['id'] or message.get('is_read', False)
             other_user['unread_count'] = sum(1 for row in conversation_rows if row.get('sender_id') == other_id and row.get('receiver_id') == viewer['id'] and not row.get('is_read'))
+            other_user['streak_count'] = 0
             conversations.append(other_user)
             seen_users.add(other_id)
-        
+
+        # Ensure target_user always has streak_count
+        if target_user and 'streak_count' not in target_user:
+            target_user = dict(target_user)
+            target_user['streak_count'] = 0
+
+        # Attach streak counts to conversations
+        try:
+            viewer_id = viewer['id']
+            streaks_res = supabase.table('user_streaks').select('user_1,user_2,streak_count').or_(
+                f"user_1.eq.{viewer_id},user_2.eq.{viewer_id}"
+            ).execute()
+            streaks_by_user = {}
+            for s in (streaks_res.data or []):
+                other = s['user_2'] if s['user_1'] == viewer_id else s['user_1']
+                streaks_by_user[other] = s.get('streak_count', 0)
+            for conv in conversations:
+                conv['streak_count'] = streaks_by_user.get(conv['id'], 0)
+            if target_user:
+                target_user['streak_count'] = streaks_by_user.get(target_user['id'], 0)
+        except Exception:
+            pass
+
     except Exception as e:
         flash(handle_db_error(e), "error")
         conversations = []
@@ -2406,9 +2556,9 @@ def messages():
 
     explore = get_explore_context(viewer)
 
-    return render_template('messages.html', 
-                           viewer=viewer, 
-                           target_username=target_username, 
+    return render_template('messages.html',
+                           viewer=viewer,
+                           target_username=target_username,
                            target_user=target_user,
                            conversations=conversations,
                            all_users=all_users,

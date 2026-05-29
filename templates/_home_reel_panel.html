@@ -1,0 +1,65 @@
+<div class="home-reel-panel panel" data-home-reel-panel>
+  <div class="home-reel-panel-header">
+    <div>
+      <span class="panel-kicker">Videos</span>
+      <h2>Reels</h2>
+    </div>
+    <a href="{{ url_for('reels') }}" class="home-reel-see-all">See all →</a>
+  </div>
+  <div class="home-reel-slides" data-home-reel-slides>
+    {% for reel in home_reels %}
+    {% set reel_author = reel.author or reel.user or {} %}
+    <div class="home-reel-slide{% if loop.first %} is-active{% endif %}"
+         data-home-reel-slide
+         data-reel-index="{{ loop.index0 }}">
+      <div class="home-reel-video-wrap">
+        <video class="home-reel-video"
+               data-home-reel-video
+               playsinline
+               preload="none"
+               muted
+               loop
+               {% if reel.cover_url %}poster="{{ reel.cover_url }}"{% endif %}>
+          <source src="{{ reel.video_url }}" type="video/mp4">
+        </video>
+        <button class="home-reel-play-btn" type="button" data-home-reel-play aria-label="Play or pause">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor" data-play-icon><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="home-reel-mute-btn" type="button" data-home-reel-mute aria-label="Toggle sound">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        </button>
+      </div>
+      <div class="home-reel-info">
+        <div class="home-reel-author">
+          <img class="avatar small-avatar" src="{{ reel_author.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="">
+          <strong>{{ reel_author.display_name or 'LvL' }}</strong>
+          {% if reel.is_demo %}<em class="demo-badge">Demo</em>{% endif %}
+        </div>
+        {% if reel.caption %}
+        <p class="home-reel-caption">{{ reel.caption }}</p>
+        {% endif %}
+        <div class="home-reel-counts">
+          <span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            {{ reel.like_count or 0 }}
+          </span>
+          <span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            {{ reel.comment_count or 0 }}
+          </span>
+          <a href="{{ url_for('reels') }}{% if not reel.is_demo %}#reel-{{ reel.id }}{% endif %}" class="home-reel-open-link">Open</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="home-reel-nav" data-home-reel-nav>
+    <button class="home-reel-prev" type="button" data-home-reel-prev aria-label="Previous reel">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>
+    </button>
+    <span class="home-reel-counter" data-home-reel-counter>1 / {{ home_reels|length }}</span>
+    <button class="home-reel-next" type="button" data-home-reel-next aria-label="Next reel">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+    </button>
+  </div>
+</div>

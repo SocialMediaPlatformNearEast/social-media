@@ -67,8 +67,9 @@
           <span class="nav-label">Messages</span>
         </a>
         <a class="{% if active_page == 'notifications' %}active{% endif %}" href="{{ url_for('notifications') }}">
-          <span class="nav-icon" aria-hidden="true">
+          <span class="nav-icon nav-icon-badge" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 22a2.75 2.75 0 0 0 2.58-1.8H9.42A2.75 2.75 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .2.8.8H6.2l.8-.8V11a5 5 0 1 1 10 0v5.2Z"/></svg>
+            {% if unread_notification_count > 0 %}<span class="nav-badge" aria-label="{{ unread_notification_count }} unread notifications">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>{% endif %}
           </span>
           <span class="nav-label">Alerts</span>
         </a>
@@ -122,8 +123,9 @@
 {% if request.endpoint != 'auth' %}
   </main>
   <div class="right-rail-wrapper">
-    {% if show_highlights %}
+    {% if show_highlights or (home_reels is defined and home_reels) %}
     <aside class="right-rail">
+      {% if show_highlights %}
        <div class="community-highlights panel">
          <h2>Community Highlights</h2>
          {% if highlights %}
@@ -141,6 +143,10 @@
            <p class="community-highlight-empty">No community members yet.</p>
          {% endif %}
        </div>
+      {% endif %}
+      {% if home_reels is defined and home_reels %}
+        {% include "_home_reel_panel.html" %}
+      {% endif %}
     </aside>
     {% endif %}
   </div>
@@ -162,6 +168,11 @@
   <a class="{% if active_page == 'messages' %}active{% endif %}" href="{{ url_for('messages') }}" aria-label="Messages">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 4h16v12H7.8L4 19.35V4Zm2 2v8.93L7.04 14H18V6H6Z"/></svg>
     <span>Chats</span>
+  </a>
+  <a class="{% if active_page == 'notifications' %}active{% endif %}" href="{{ url_for('notifications') }}" aria-label="Notifications" style="position:relative">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 22a2.75 2.75 0 0 0 2.58-1.8H9.42A2.75 2.75 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .2.8.8H6.2l.8-.8V11a5 5 0 1 1 10 0v5.2Z"/></svg>
+    {% if unread_notification_count > 0 %}<span class="mobile-notif-badge">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>{% endif %}
+    <span>Alerts</span>
   </a>
   <a class="{% if active_page == 'profile' or active_page == 'settings' %}active{% endif %}" href="{{ url_for('profile', username=viewer.username) }}" aria-label="Profile">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z"/></svg>

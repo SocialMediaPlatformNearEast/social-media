@@ -26,6 +26,9 @@
             </div>
             <p class="last-message">{{ conv.last_message }}</p>
           </div>
+          {% if conv.streak_count > 0 %}
+          <span class="streak-badge" title="{{ conv.streak_count }}-day streak">🔥 {{ conv.streak_count }}</span>
+          {% endif %}
         </a>
       {% endfor %}
     </div>
@@ -44,6 +47,11 @@
             <p>@{{ target_user.username }}</p>
           </div>
         </a>
+        {% if target_user.streak_count > 0 %}
+        <span class="streak-badge streak-badge-header" data-chat-streak title="{{ target_user.streak_count }}-day streak with {{ target_user.display_name }}">🔥 {{ target_user.streak_count }}</span>
+        {% else %}
+        <span class="streak-badge streak-badge-header streak-badge-zero" data-chat-streak title="Message daily to build a streak!">🔥 0</span>
+        {% endif %}
       </header>
 
       <div class="messages-feed" id="messages-feed" data-message-api="{{ url_for('api_messages', username=target_user.username) }}" data-delete-message-url="{{ url_for('delete_message') }}" data-csrf-token="{{ csrf_token() }}" data-redirect-url="{{ url_for('messages', u=target_user.username) }}" data-viewer-id="{{ viewer.id }}">

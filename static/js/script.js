@@ -40,6 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initInstallPrompt();
     initBirthdayValidation();
     initProfilePreview();
+    initProfileAvatarModal();
+    initHomeReelPanel();
     initCommunityTimeline();
     initReelsFeed();
     initReelUploadPreview();
@@ -198,11 +200,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     const wrapper = renderMessage(result.message, true);
                     messagesFeed.appendChild(wrapper);
-                    
-                    // Reset form
                     textarea.value = '';
                     textarea.style.height = 'auto';
                     messagesFeed.scrollTop = messagesFeed.scrollHeight;
+                    // Update streak display in chat header
+                    if (typeof result.streak === 'number') {
+                        const streakEl = document.querySelector('[data-chat-streak]');
+                        if (streakEl) {
+                            streakEl.textContent = `🔥 ${result.streak}`;
+                            streakEl.title = `${result.streak}-day streak`;
+                            streakEl.classList.toggle('streak-badge-zero', result.streak === 0);
+                        }
+                        if (result.streak_xp > 0) {
+                            showXpToasts([{ points: result.streak_xp, label: `🔥 ${result.streak}-day streak` }]);
+                        }
+                    }
                 } else {
                     alert(result.error || 'Failed to send message');
                 }
@@ -390,14 +402,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // AJAX Like/Repost Logic
+    // AJAX Like/Repost/Mute/Friend Logic
     const ajaxForms = document.querySelectorAll('.ajax-action-form');
     ajaxForms.forEach(form => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
             const btn = form.querySelector('button');
-            const countTarget = btn.querySelector('strong') || btn.querySelector('span');
+            if (!btn || btn.dataset.pending === '1') return;
+            btn.dataset.pending = '1';
+            btn.disabled = true;
+
+            const countTarget = btn.querySelector('strong');
             const formData = new FormData(form);
             formData.append('ajax', '1');
 
@@ -411,20 +427,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (result.success) {
                     showXpToasts(result.xp_toasts || []);
-                    if (form.dataset.action === 'like') {
+                    const action = form.dataset.action;
+                    if (action === 'like') {
                         btn.classList.toggle('active', result.liked);
+                        btn.classList.toggle('like-active', result.liked);
                         if (countTarget) countTarget.textContent = result.count || '0';
-                    } else if (form.dataset.action === 'repost') {
+                    } else if (action === 'repost') {
                         btn.classList.toggle('active', result.reposted);
+                        btn.classList.toggle('repost-active', result.reposted);
                         if (countTarget) countTarget.textContent = result.count || '0';
-                    } else if (form.dataset.action === 'follow') {
+                    } else if (action === 'follow') {
                         btn.classList.toggle('active', result.following);
                         btn.textContent = result.following ? 'Unfollow' : 'Follow';
+                    } else if (action === 'mute') {
+                        btn.classList.toggle('active', result.active);
+                        btn.textContent = result.active ? 'Muted' : 'Mute';
+                    } else if (action === 'block') {
+                        btn.classList.toggle('active', result.active);
+                        btn.textContent = result.active ? 'Blocked' : 'Block';
+                    } else if (action === 'friend') {
+                        btn.classList.toggle('active', !!result.status);
+                        btn.textContent = result.label || 'Add friend';
                     }
                 }
             } catch (error) {
                 console.error('Error performing AJAX action:', error);
                 form.submit();
+                return;
+            } finally {
+                delete btn.dataset.pending;
+                btn.disabled = false;
             }
         });
     });
@@ -978,51 +1010,107 @@ document.addEventListener('DOMContentLoaded', () => {
             if (muteButton && video) {
                 muteButton.addEventListener('click', () => {
                     video.muted = !video.muted;
-                    if (muteLabel) muteLabel.textContent = video.muted ? 'Mute' : 'Sound';
+                    if (muteLabel) muteLabel.textContent = video.muted ? 'Muted' : 'Sound on';
                     muteButton.classList.toggle('active', !video.muted);
+                    muteButton.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
                 });
+                // Sync initial state
+                muteButton.classList.toggle('active', !video.muted);
+                if (muteLabel) muteLabel.textContent = video.muted ? 'Muted' : 'Sound on';
+            }
+
+            // Comment panel toggle
+            const commentToggle = card.querySelector('[data-reel-comment-toggle]');
+            const commentPanel = card.querySelector('[data-reel-comment-panel]');
+            const commentClose = card.querySelector('[data-reel-comment-close]');
+
+            if (commentToggle && commentPanel) {
+                let commentsLoaded = false;
+
+                const openPanel = async () => {
+                    commentPanel.classList.add('is-open');
+                    document.body.classList.add('reel-comments-open');
+                    if (!commentsLoaded) {
+                        commentsLoaded = true;
+                        await loadReelComments(card, commentPanel, commentToggle);
+                    }
+                };
+
+                const closePanel = () => {
+                    commentPanel.classList.remove('is-open');
+                    document.body.classList.remove('reel-comments-open');
+                };
+
+                commentToggle.addEventListener('click', () => {
+                    if (commentPanel.classList.contains('is-open')) {
+                        closePanel();
+                    } else {
+                        openPanel();
+                    }
+                });
+
+                if (commentClose) commentClose.addEventListener('click', closePanel);
+
+                // Comment form inside panel
+                const commentForm = commentPanel.querySelector('[data-reel-comment-form]');
+                if (commentForm) {
+                    commentForm.addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const input = commentForm.querySelector('input[name="comment"]');
+                        const submitBtn = commentForm.querySelector('button[type="submit"]');
+                        if (!input || !input.value.trim()) return;
+                        if (submitBtn) submitBtn.disabled = true;
+                        const formData = new FormData(commentForm);
+                        formData.append('ajax', '1');
+                        try {
+                            const response = await fetch(commentForm.action, {
+                                method: 'POST',
+                                body: formData,
+                                headers: { 'Accept': 'application/json' }
+                            });
+                            const result = await response.json();
+                            if (!result.success) return;
+                            const countEl = card.querySelector('[data-reel-comment-count]');
+                            if (countEl) countEl.textContent = result.count || '0';
+                            const commentData = result.comment || {};
+                            commentData._viewerName = commentForm.dataset.viewerName;
+                            commentData._viewerUsername = commentForm.dataset.viewerUsername;
+                            commentData._viewerAvatar = commentForm.dataset.viewerAvatar;
+                            appendReelComment(commentPanel, commentData, true);
+                            input.value = '';
+                            showXpToasts(result.xp_toasts || []);
+                        } catch (error) {
+                            console.error('Could not post reel comment:', error);
+                            commentForm.submit();
+                        } finally {
+                            if (submitBtn) submitBtn.disabled = false;
+                        }
+                    });
+                }
             }
         });
 
         feed.querySelectorAll('[data-reel-like-form]').forEach((form) => {
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
+                const btn = form.querySelector('button');
+                if (btn && btn.dataset.pending === '1') return;
+                if (btn) { btn.dataset.pending = '1'; btn.disabled = true; }
                 const formData = new FormData(form);
                 formData.append('ajax', '1');
                 try {
                     const response = await fetch(form.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
                     const result = await response.json();
                     if (!result.success) return;
-                    const button = form.querySelector('button');
+                    if (btn) btn.classList.toggle('active', result.liked);
                     const count = form.querySelector('[data-reel-like-count]');
-                    if (button) button.classList.toggle('active', result.liked);
                     if (count) count.textContent = result.count || '0';
                     showXpToasts(result.xp_toasts || []);
                 } catch (error) {
                     console.error('Could not like reel:', error);
                     form.submit();
-                }
-            });
-        });
-
-        feed.querySelectorAll('[data-reel-comment-form]').forEach((form) => {
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const input = form.querySelector('input[name="comment"]');
-                if (!input || !input.value.trim()) return;
-                const formData = new FormData(form);
-                formData.append('ajax', '1');
-                try {
-                    const response = await fetch(form.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
-                    const result = await response.json();
-                    if (!result.success) return;
-                    const count = form.querySelector('[data-reel-comment-count]');
-                    if (count) count.textContent = result.count || '0';
-                    input.value = '';
-                    showXpToasts(result.xp_toasts || []);
-                } catch (error) {
-                    console.error('Could not comment on reel:', error);
-                    form.submit();
+                } finally {
+                    if (btn) { delete btn.dataset.pending; btn.disabled = false; }
                 }
             });
         });
@@ -1047,6 +1135,94 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         window.requestAnimationFrame(() => activateCard(cards[0]));
+    }
+
+    async function loadReelComments(card, panel, toggleBtn) {
+        const listEl = panel.querySelector('[data-reel-comment-list]');
+        if (!listEl) return;
+        const url = toggleBtn.dataset.commentsUrl;
+        if (!url) {
+            listEl.innerHTML = '<p class="reel-comment-empty">Comments not available.</p>';
+            return;
+        }
+        listEl.innerHTML = '<p class="reel-comment-empty">Loading…</p>';
+        try {
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const result = await response.json();
+            listEl.innerHTML = '';
+            if (!result.success || !result.comments || result.comments.length === 0) {
+                listEl.innerHTML = '<p class="reel-comment-empty">No comments yet. Be the first!</p>';
+                return;
+            }
+            result.comments.forEach((comment) => appendReelComment(panel, comment, false));
+            listEl.scrollTop = listEl.scrollHeight;
+        } catch (error) {
+            console.error('Could not load reel comments:', error);
+            listEl.innerHTML = '<p class="reel-comment-empty">Could not load comments.</p>';
+        }
+    }
+
+    function appendReelComment(panel, comment, scrollToBottom) {
+        const listEl = panel.querySelector('[data-reel-comment-list]');
+        if (!listEl) return;
+        const empty = listEl.querySelector('.reel-comment-empty');
+        if (empty) empty.remove();
+        const user = comment.user || {};
+        const avatarSrc = user.profile_photo_url || comment._viewerAvatar || '/static/assets/default-male-avatar.svg';
+        const displayName = escapeHTML(user.display_name || comment._viewerName || user.username || 'User');
+        const username = escapeHTML(user.username || comment._viewerUsername || '');
+        const text = escapeHTML(comment.comment || '');
+        const time = comment.created_at ? new Date(comment.created_at).toLocaleDateString() : '';
+        const item = document.createElement('div');
+        item.className = 'reel-comment-item';
+        item.innerHTML = `
+            <img class="avatar reel-comment-avatar" src="${escapeHTML(avatarSrc)}" alt="">
+            <div class="reel-comment-body">
+                <span class="reel-comment-author">${displayName}</span>
+                <span class="reel-comment-handle">@${username}</span>
+                <p class="reel-comment-text">${text}</p>
+                ${time ? `<time class="reel-comment-time">${time}</time>` : ''}
+            </div>
+        `;
+        listEl.appendChild(item);
+        if (scrollToBottom) listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    function initProfileAvatarModal() {
+        const btn = document.querySelector('[data-profile-avatar-open]');
+        if (!btn) return;
+        const img = btn.querySelector('img');
+        if (!img || !img.src) return;
+
+        btn.addEventListener('click', () => {
+            const modal = document.createElement('div');
+            modal.className = 'avatar-modal';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('aria-label', 'Profile picture');
+            modal.innerHTML = `
+                <button class="avatar-modal-close" aria-label="Close">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+                <img src="${escapeHTML(img.src)}" alt="Profile picture">
+            `;
+            document.body.appendChild(modal);
+            window.requestAnimationFrame(() => modal.classList.add('is-open'));
+
+            const closeModal = () => {
+                modal.classList.remove('is-open');
+                window.setTimeout(() => modal.remove(), 220);
+            };
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal || e.target.closest('.avatar-modal-close')) closeModal();
+            });
+
+            const keyHandler = (e) => {
+                if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', keyHandler); }
+            };
+            document.addEventListener('keydown', keyHandler);
+        });
     }
 
     function initReelUploadPreview() {
@@ -1123,6 +1299,102 @@ document.addEventListener('DOMContentLoaded', () => {
             visibility.addEventListener('change', toggleCommunity);
             toggleCommunity();
         }
+    }
+
+    function initHomeReelPanel() {
+        const panel = document.querySelector('[data-home-reel-panel]');
+        if (!panel) return;
+
+        const slides = Array.from(panel.querySelectorAll('[data-home-reel-slide]'));
+        if (!slides.length) return;
+
+        const counter = panel.querySelector('[data-home-reel-counter]');
+        let current = 0;
+
+        const getVideo = (slide) => slide.querySelector('[data-home-reel-video]');
+        const getPlayBtn = (slide) => slide.querySelector('[data-home-reel-play]');
+        const getPlayIcon = (slide) => slide.querySelector('[data-play-icon]');
+
+        const pauseSlide = (slide) => {
+            const vid = getVideo(slide);
+            if (vid && !vid.paused) vid.pause();
+        };
+
+        const updatePlayIcon = (slide) => {
+            const vid = getVideo(slide);
+            const icon = getPlayIcon(slide);
+            if (!vid || !icon) return;
+            // Show play icon when paused, hide when playing
+            icon.style.opacity = vid.paused ? '1' : '0';
+        };
+
+        const activateSlide = (index) => {
+            slides.forEach((s, i) => {
+                s.classList.toggle('is-active', i === index);
+                if (i !== index) pauseSlide(s);
+            });
+            current = index;
+            if (counter) counter.textContent = `${current + 1} / ${slides.length}`;
+
+            const activeSlide = slides[current];
+            const vid = getVideo(activeSlide);
+            if (vid) {
+                vid.play().catch(() => {});
+                updatePlayIcon(activeSlide);
+                vid.addEventListener('play', () => updatePlayIcon(activeSlide), { once: false });
+                vid.addEventListener('pause', () => updatePlayIcon(activeSlide), { once: false });
+            }
+        };
+
+        slides.forEach((slide) => {
+            const vid = getVideo(slide);
+            const playBtn = getPlayBtn(slide);
+            const muteBtn = slide.querySelector('[data-home-reel-mute]');
+
+            if (vid) {
+                vid.addEventListener('click', () => {
+                    if (vid.paused) { vid.play().catch(() => {}); } else { vid.pause(); }
+                    updatePlayIcon(slide);
+                });
+                vid.addEventListener('play', () => updatePlayIcon(slide));
+                vid.addEventListener('pause', () => updatePlayIcon(slide));
+            }
+
+            if (playBtn && vid) {
+                playBtn.addEventListener('click', () => {
+                    if (vid.paused) { vid.play().catch(() => {}); } else { vid.pause(); }
+                    updatePlayIcon(slide);
+                });
+            }
+
+            if (muteBtn && vid) {
+                muteBtn.addEventListener('click', () => {
+                    vid.muted = !vid.muted;
+                    muteBtn.classList.toggle('active', !vid.muted);
+                    muteBtn.setAttribute('aria-label', vid.muted ? 'Unmute' : 'Mute');
+                });
+            }
+        });
+
+        const prevBtn = panel.querySelector('[data-home-reel-prev]');
+        const nextBtn = panel.querySelector('[data-home-reel-next]');
+        if (prevBtn) prevBtn.addEventListener('click', () => activateSlide((current - 1 + slides.length) % slides.length));
+        if (nextBtn) nextBtn.addEventListener('click', () => activateSlide((current + 1) % slides.length));
+
+        // Auto-play first slide when visible via IntersectionObserver
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const vid = getVideo(slides[current]);
+                    if (vid && vid.paused) vid.play().catch(() => {});
+                } else {
+                    pauseSlide(slides[current]);
+                }
+            });
+        }, { threshold: 0.3 });
+        observer.observe(panel);
+
+        activateSlide(0);
     }
 
     // Auto-focus composer if URL has compose=1

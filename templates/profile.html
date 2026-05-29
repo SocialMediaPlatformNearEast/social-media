@@ -23,7 +23,9 @@
   <div class="profile-info-container">
     <div class="profile-top-row">
       <div data-guide-target="profile-picture-area">
-        <img class="avatar profile-avatar-large" src="{{ profile.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+        <button class="profile-avatar-btn" type="button" data-profile-avatar-open aria-label="View profile picture">
+          <img class="avatar profile-avatar-large" src="{{ profile.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+        </button>
       </div>
       <div class="profile-actions">
         {% if is_own_profile %}
@@ -37,19 +39,19 @@
             </button>
           </form>
           <a class="outline-button" href="{{ url_for('messages', u=profile.username) }}">Message</a>
-          <form action="{{ url_for('safety_action') }}" method="post">
+          <form action="{{ url_for('safety_action') }}" method="post" class="ajax-action-form" data-action="mute">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_user_id" value="{{ profile.id }}">
             <input type="hidden" name="action_type" value="mute">
             <button class="outline-button {% if safety_state.muted %}active{% endif %}" type="submit">{{ 'Muted' if safety_state.muted else 'Mute' }}</button>
           </form>
-          <form action="{{ url_for('safety_action') }}" method="post">
+          <form action="{{ url_for('safety_action') }}" method="post" class="ajax-action-form" data-action="block">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_user_id" value="{{ profile.id }}">
             <input type="hidden" name="action_type" value="block">
             <button class="outline-button danger-action {% if safety_state.blocked %}active{% endif %}" type="submit">{{ 'Blocked' if safety_state.blocked else 'Block' }}</button>
           </form>
-          <form action="{{ url_for('request_friend') }}" method="post">
+          <form action="{{ url_for('request_friend') }}" method="post" class="ajax-action-form" data-action="friend">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_id" value="{{ profile.id }}">
             <button class="outline-button {% if friend_status %}active{% endif %}" type="submit">
