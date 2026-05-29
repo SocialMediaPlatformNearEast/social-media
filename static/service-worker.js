@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'lvl-static-v25';
+const STATIC_CACHE = 'lvl-static-v26';
 const STATIC_ASSETS = [
   '/static/css/styles.css',
   '/static/css/gender.css',
