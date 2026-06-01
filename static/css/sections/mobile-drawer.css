@@ -1,0 +1,82 @@
+/* Mobile sidebar repair */
+/* Mobile sidebar repair: keep the drawer readable when opened from phone widths. */
+@media (max-width: 1000px) {
+  .left-rail.menu-open {
+    width: min(86vw, 320px) !important;
+    padding: 16px !important;
+    overflow-x: hidden !important;
+  }
+
+  .left-rail.menu-open .nav-list {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 18px 0 0 !important;
+  }
+
+  .left-rail.menu-open .nav-list a {
+    display: grid !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    gap: 14px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: var(--control-lg) !important;
+    height: var(--control-lg) !important;
+    padding: 0 14px !important;
+    border-radius: var(--radius-lg) !important;
+    line-height: 1.1 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+
+  .left-rail.menu-open .nav-icon,
+  .left-rail.menu-open .nav-list a svg {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 28px !important;
+    justify-self: center !important;
+  }
+
+  .left-rail.menu-open .nav-label {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+  }
+
+  .left-rail.menu-open .nav-list a span.nav-label {
+    width: auto !important;
+    height: auto !important;
+    flex: 1 1 auto !important;
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .left-rail-wrapper,
+  .left-rail-wrapper:has(.left-rail.menu-open) {
+    display: contents !important;
+  }
+
+  .left-rail:not(.menu-open) {
+    pointer-events: none !important;
+  }
+
+  .left-rail.menu-open {
+    pointer-events: auto !important;
+    z-index: 1200 !important;
+  }
+}

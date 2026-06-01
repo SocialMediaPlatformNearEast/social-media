@@ -27,7 +27,7 @@ LvL is a leveling-first social media web application built with Python Flask, Su
 - Report, mute, and block safety controls
 - First-run onboarding for new accounts
 - Default illustrated avatars and theme colors based on gender
-- Community highlights and metrics
+- Community timelines for Followers, Following, and Community
 - XP, levels, badges, and activity titles
 - PWA support (manifest, service worker)
 
@@ -55,8 +55,9 @@ social-media-main/
 │
 ├── static/                 Frontend assets
 │   ├── css/
-│   │   ├── styles.css      Main application styles
-│   │   └── gender.css      Gender-based theme overrides
+│   │   ├── styles.css      CSS import manifest
+│   │   ├── gender.css      Avatar and gender picker styles
+│   │   └── sections/       Section-focused CSS modules
 │   ├── js/
 │   │   └── script.js       Client-side UI behavior
 │   ├── assets/
@@ -73,7 +74,7 @@ social-media-main/
 │
 ├── tests/
 │   ├── test_app_routes.py   Route/helper tests
-│   └── test_supabase.py     Supabase connection test
+│   └── test_supabase.py     Optional Supabase smoke test
 │
 ├── docs/
 │   ├── AI_GUIDELINES.md    Technical guidelines for AI tools
@@ -109,7 +110,7 @@ social-media-main/
    flask run
    ```
 
-4. Run Supabase SQL from `database/community_schema.sql` and `database/migrations/001_product_hardening.sql`.
+4. Run Supabase SQL from `database/community_schema.sql` and every file in `database/migrations/` that has not been applied yet.
 
 5. Create a public Supabase Storage bucket matching `SUPABASE_STORAGE_BUCKET` for uploaded post/profile images.
 
@@ -135,11 +136,16 @@ The original PHP/MySQL/XAMPP files are preserved under `legacy/`. They are not p
 | `/post/<id>` | Single post with comments |
 | `/messages` | Direct messages |
 | `/notifications` | Notifications |
-| `/community` | Community metrics |
+| `/community` | Community timelines and groups |
+| `/community/<slug>` | Community detail |
+| `/level-guide` | XP, level, and reward guide |
+| `/reels` | Reels feed |
+| `/reels/upload` | Upload a reel |
 | `/search` | Search |
 
 ## Notes
 
-- Image posting is not exposed in the current UI.
 - The `legacy/` folder is not used by the active app.
+- Styles are intentionally split through `static/css/styles.css`: keep default layout/navigation/feed rules separate from reward-specific CSS so level rewards can grow without bloating the base UI.
+- `tests/test_supabase.py` is skipped by default. Run it only when you intentionally want a live Supabase smoke test: `RUN_SUPABASE_SMOKE=1 python -m unittest tests.test_supabase`.
 - See `docs/AI_GUIDELINES.md` for technical context when using AI tools.

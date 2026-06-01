@@ -33,9 +33,10 @@
 
     <label class="form-group">
       <span>Accent color</span>
+      {% set default_community_color = community.accent_color if community else display_profile_color(viewer) %}
       <div class="color-picker-wrapper">
-        <input type="color" name="accent_color" value="{{ community.accent_color if community else (viewer.theme_color or theme_colors.primary) }}">
-        <input type="text" class="hex-value" value="{{ community.accent_color if community else (viewer.theme_color or theme_colors.primary) }}" maxlength="7">
+        <input type="color" name="accent_color" value="{{ default_community_color }}">
+        <input type="text" class="hex-value" value="{{ default_community_color }}" maxlength="7">
       </div>
     </label>
 

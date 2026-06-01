@@ -2,7 +2,7 @@ import re
 import unittest
 from pathlib import Path
 
-from app_theme import LEVEL_COLOR_UNLOCKS, THEME_COLORS, level_color_for_level
+from app_theme import PROFILE_COLOR_UNLOCK_LEVEL, LEVEL_COLOR_UNLOCKS, THEME_COLORS, level_color_for_level, profile_color_unlocked
 
 
 COLOR_LITERAL_RE = re.compile(r"#[0-9A-Fa-f]{3,8}")
@@ -17,15 +17,28 @@ class ThemeTokenTests(unittest.TestCase):
         for unlock in LEVEL_COLOR_UNLOCKS:
             self.assertIn(unlock["color"], theme_values)
         self.assertEqual(level_color_for_level(1), THEME_COLORS["muted"])
-        self.assertEqual(level_color_for_level(5), THEME_COLORS["primary"])
+        self.assertEqual(level_color_for_level(5), THEME_COLORS["cyan"])
         self.assertEqual(level_color_for_level(10), THEME_COLORS["purple"])
 
+    def test_profile_colors_unlock_after_reward_tier(self):
+        self.assertFalse(profile_color_unlocked(PROFILE_COLOR_UNLOCK_LEVEL - 1))
+        self.assertTrue(profile_color_unlocked(PROFILE_COLOR_UNLOCK_LEVEL))
+
     def test_stylesheet_colors_are_centralized_in_root_tokens(self):
-        css_path = Path(__file__).resolve().parents[1] / "static" / "css" / "styles.css"
-        css = css_path.read_text()
-        css_without_root = re.sub(r"\A\s*:root\s*\{.*?\}\s*", "", css, count=1, flags=re.S)
+        root = Path(__file__).resolve().parents[1]
+        css = "\n".join(path.read_text() for path in sorted((root / "static" / "css").glob("**/*.css")))
+        css_without_root = re.sub(r":root\s*\{.*?\}", "", css, flags=re.S)
 
         self.assertNotRegex(css_without_root, r"#[0-9A-Fa-f]{3,8}")
+
+    def test_stylesheet_manifest_imports_focused_sections(self):
+        root = Path(__file__).resolve().parents[1]
+        manifest = (root / "static" / "css" / "styles.css").read_text()
+
+        self.assertIn("sections/rewards.css", manifest)
+        self.assertIn("sections/community-timeline.css", manifest)
+        self.assertIn("sections/reels.css", manifest)
+        self.assertLessEqual(len(manifest.splitlines()), 40)
 
     def test_site_files_do_not_hardcode_accent_colors(self):
         root = Path(__file__).resolve().parents[1]
@@ -44,7 +57,7 @@ class ThemeTokenTests(unittest.TestCase):
 
     def test_border_radius_uses_design_tokens(self):
         root = Path(__file__).resolve().parents[1]
-        css_paths = [root / "static" / "css" / "styles.css", root / "static" / "css" / "gender.css"]
+        css_paths = sorted((root / "static" / "css").glob("**/*.css"))
 
         for path in css_paths:
             with self.subTest(path=path.relative_to(root)):

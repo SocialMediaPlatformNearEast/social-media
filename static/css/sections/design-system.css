@@ -1,0 +1,361 @@
+/* Unified LvL surface system */
+/* LvL brand and unified surface system */
+:root {
+  --surface-panel: var(--lvl-surface-24);
+  --surface-panel-raised: var(--lvl-surface-25);
+  --surface-panel-soft: var(--lvl-surface-26);
+  --surface-border: var(--lvl-system-blue-shadow);
+  --surface-border-strong: var(--lvl-system-blue-border);
+  --surface-shadow: 0 18px 48px var(--lvl-black-34);
+  --surface-radius: var(--radius-2xl);
+  --surface-radius-small: var(--radius-lg);
+  --component-radius: var(--radius-sm);
+  --interactive-radius: var(--radius-pill);
+}
+
+.brand-logo {
+  width: auto !important;
+  min-width: 0;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border-radius: var(--radius-xl);
+}
+
+.left-rail:not(.menu-open) .brand-logo {
+  display: none !important;
+}
+
+.left-rail.menu-open .sidebar-top {
+  justify-content: space-between;
+}
+
+.brand-logo img,
+.mobile-brand img {
+  display: block;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px var(--lvl-system-blue-soft-28), 0 12px 32px var(--lvl-primary-soft-16);
+}
+
+.brand-logo img {
+  width: 38px;
+  height: 38px;
+}
+
+.mobile-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+}
+
+.mobile-brand img {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-icon);
+}
+
+.brand-lockup {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.level-badge,
+.community-level-badge {
+  min-width: 58px;
+  height: var(--badge-height-sm);
+  padding: 0 10px;
+  border-color: color-mix(in srgb, var(--badge-color, var(--lvl-text-secondary)) 54%, var(--lvl-white-18));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--badge-color, var(--lvl-text-secondary)) 86%, var(--lvl-surface-27) 14%), var(--lvl-surface-28));
+  box-shadow: inset 0 1px 0 var(--lvl-white-22), 0 8px 22px color-mix(in srgb, var(--badge-color, var(--lvl-text-secondary)) 24%, transparent);
+  font-size: 12px;
+}
+
+.page-header,
+.composer,
+.post,
+.empty-state,
+.community-highlights.panel,
+.profile-info-container,
+.profile-account-card,
+.profile-xp-card,
+.profile-achievements-card,
+.profile-preview-card,
+.premium-form,
+.form-section,
+.level-guide-hero,
+.level-guide-panel,
+.message-discovery-panel,
+.community-compose-panel,
+.community-members-panel,
+.community-card,
+.user-result-card,
+.new-chat-panel,
+.chat-window,
+.conversations-sidebar {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--surface-radius) !important;
+  background: linear-gradient(180deg, var(--surface-panel-raised), var(--surface-panel)) !important;
+  box-shadow: var(--surface-shadow);
+}
+
+.page-header,
+.composer,
+.post,
+.empty-state,
+.profile-info-container,
+.premium-form,
+.level-guide-hero,
+.level-guide-panel,
+.message-discovery-panel,
+.community-compose-panel,
+.community-members-panel,
+.user-result-card {
+  overflow: hidden;
+}
+
+.page-header {
+  margin: 14px;
+  padding: 18px;
+}
+
+.composer,
+.post,
+.empty-state,
+.profile-account-card,
+.profile-xp-card,
+.profile-achievements-card,
+.form-section,
+.level-guide-hero,
+.level-guide-panel,
+.message-discovery-panel,
+.community-compose-panel,
+.community-members-panel {
+  margin: 12px 14px;
+}
+
+.composer {
+  padding: 16px;
+}
+
+.post {
+  padding: 16px;
+}
+
+.profile-info-container,
+.premium-form {
+  margin: 0 14px 14px;
+  padding: 18px;
+}
+
+.form-section,
+.level-guide-hero,
+.level-guide-panel,
+.message-discovery-panel,
+.community-compose-panel,
+.community-members-panel {
+  padding: 18px;
+}
+
+.profile-account-card,
+.profile-xp-card,
+.profile-achievements-card {
+  padding: 16px;
+}
+
+.profile-achievements-card,
+.level-guide-panel,
+.level-guide-hero {
+  margin: 12px 14px;
+  padding: 16px;
+}
+
+.community-card,
+.user-result-card {
+  border-radius: var(--surface-radius-small) !important;
+  box-shadow: none;
+}
+
+.page-header h1,
+.profile-names h1,
+.section-heading h3,
+.profile-xp-card strong,
+.profile-achievements-card strong {
+  letter-spacing: 0;
+}
+
+.community-highlight-row {
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  color: inherit;
+  text-decoration: none;
+}
+
+.community-highlight-row:hover {
+  text-decoration: none;
+}
+
+.community-highlight-avatar {
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+  border-radius: var(--radius-round);
+}
+
+.community-highlight-row-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.community-highlight-row-body strong {
+  display: block;
+}
+
+.community-highlight-row-body span,
+.community-highlight-empty {
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+.shared-post-label {
+  margin-bottom: var(--space-3);
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.shared-post-card {
+  min-width: min(220px, 100%);
+  padding: var(--space-4);
+  border: var(--line-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel-soft);
+  text-align: left;
+}
+
+.shared-post-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.shared-post-link:hover {
+  text-decoration: none;
+}
+
+.shared-post-author-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  min-width: 0;
+}
+
+.shared-post-avatar {
+  width: var(--avatar-xs);
+  height: var(--avatar-xs);
+  border-radius: var(--radius-round);
+  object-fit: cover;
+}
+
+.shared-post-handle {
+  color: var(--text-secondary);
+}
+
+.shared-post-content {
+  margin: 0;
+  font-size: 0.95em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.shared-post-image {
+  width: 100%;
+  max-height: 150px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.user-selection-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.user-select-form {
+  margin: 0;
+  padding: 0;
+}
+
+.user-selection-panel .user-select-item {
+  width: 100%;
+  border: 0;
+  border-bottom: var(--line-default);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.user-selection-panel .user-select-form:last-child .user-select-item {
+  border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .level-guide-hero,
+  .xp-rule-grid,
+  .achievement-guide-grid,
+  .reward-ladder,
+  .level-requirement-grid,
+  .achievement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .level-guide-hero h2 {
+    font-size: 24px;
+  }
+
+  .xp-score-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .xp-score-row strong {
+    text-align: left;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 980px) {
+  .reward-ladder,
+  .level-requirement-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header,
+  .composer,
+  .post,
+  .empty-state,
+    .profile-info-container,
+    .premium-form,
+    .form-section,
+    .message-discovery-panel,
+    .community-compose-panel,
+  .community-members-panel,
+  .profile-account-card,
+  .profile-xp-card,
+  .profile-achievements-card,
+  .level-guide-hero,
+  .level-guide-panel {
+    margin-inline: 10px;
+    border-radius: var(--radius-xl) !important;
+  }
+
+  .post,
+    .composer,
+    .form-section,
+    .level-guide-hero,
+    .level-guide-panel {
+    padding: 14px;
+  }
+}

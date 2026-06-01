@@ -1,38 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const faq = {
-        update_profile: {
-            question: 'How do I update my profile?',
-            answer: '1. Open your profile\n2. Click Edit profile\n3. Update your details and theme color\n4. Save changes',
-            action: 'profile-picture-area'
-        },
-        edit_bio: {
-            question: 'How can I edit my bio?',
-            answer: '1. Open your profile\n2. Click Edit profile\n3. Write your new bio\n4. Click Save Changes',
-            action: 'bio-area'
-        },
-        change_username: {
-            question: 'How do I change my username?',
-            answer: '1. Open Edit profile\n2. Find Username / Nickname\n3. Type your new username\n4. Save changes',
-            action: 'username-area'
-        },
-        use_post_menu: {
-            question: 'What can I do from a post menu?',
-            answer: '1. Open the three dots on a post\n2. View the profile or open the post\n3. Message the author when available\n4. Delete your own posts',
-            action: 'post-actions-area'
-        },
-        handle_friends: {
-            question: 'How do friend requests work?',
-            answer: '1. Open someone’s profile\n2. Click Add friend\n3. Check Notifications for incoming requests\n4. Accept or decline from there',
-            action: 'notifications-area'
-        },
-        search_help: {
-            question: 'How do I find people or posts?',
-            answer: '1. Open Search from the menu\n2. Type a name, username, or post text\n3. Use Top, Latest, or People to narrow results',
-            action: 'search-area'
-        }
-    };
-
-    initSupportChat(faq);
     initXpToasts();
     initGenderPreview();
     initNewChatPanel();
@@ -652,147 +618,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function initSupportChat(items) {
-        const chat = document.querySelector('.support-chat');
-        if (!chat) return;
-
-        const toggle = chat.querySelector('.support-chat-toggle');
-        const close = chat.querySelector('.support-chat-close');
-        const windowEl = chat.querySelector('.support-chat-window');
-        const questionList = chat.querySelector('.support-question-list');
-        const answerList = chat.querySelector('.support-answer-list');
-        const backButton = chat.querySelector('.support-back-button');
-        const contactButton = chat.querySelector('.support-contact-button');
-
-        Object.entries(items).forEach(([key, item]) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'support-question-button';
-            button.textContent = item.question;
-            button.dataset.faqKey = key;
-            questionList.appendChild(button);
-        });
-
-        const setOpen = (open) => {
-            windowEl.hidden = !open;
-            toggle.setAttribute('aria-expanded', String(open));
-            chat.classList.toggle('is-open', open);
-        };
-
-        const showQuestions = () => {
-            chat.classList.remove('has-answer');
-            answerList.replaceChildren();
-            if (backButton) backButton.hidden = true;
-            questionList.hidden = false;
-            const body = chat.querySelector('.support-chat-body');
-            if (body) body.scrollTop = 0;
-        };
-
-        const showAnswer = (question, answer) => {
-            questionList.hidden = true;
-            answerList.replaceChildren();
-            appendSupportMessage(answerList, question, 'user');
-            appendSupportMessage(answerList, answer, 'bot');
-            chat.classList.add('has-answer');
-            if (backButton) backButton.hidden = false;
-            const body = chat.querySelector('.support-chat-body');
-            if (body) body.scrollTop = 0;
-        };
-
-        toggle.addEventListener('click', () => setOpen(windowEl.hidden));
-        close.addEventListener('click', () => setOpen(false));
-        if (backButton) {
-            backButton.addEventListener('click', showQuestions);
-        }
-
-        questionList.addEventListener('click', (event) => {
-            const button = event.target.closest('.support-question-button');
-            if (!button) return;
-
-            const item = items[button.dataset.faqKey];
-            if (!item) return;
-
-            showAnswer(item.question, item.answer);
-        });
-
-        contactButton.addEventListener('click', () => {
-            showAnswer('Still need help?', 'Use the Messages page to contact a community member or ask for help.');
-        });
-    }
-
-    function appendSupportMessage(container, text, type) {
-        const message = document.createElement('div');
-        message.className = `support-message ${type}`;
-
-        if (type === 'bot' && /^\d+\./m.test(text)) {
-            const list = document.createElement('ol');
-            text.split('\n').forEach((line) => {
-                const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
-                if (!cleanLine) return;
-
-                const item = document.createElement('li');
-                item.textContent = cleanLine;
-                list.appendChild(item);
-            });
-            message.appendChild(list);
-        } else {
-            message.textContent = text;
-        }
-
-        container.appendChild(message);
-    }
-
-    function highlight(targetName) {
-        const previous = document.querySelector('.guide-highlight');
-        const tooltip = document.querySelector('.guide-tooltip');
-        if (previous) {
-            previous.classList.remove('guide-highlight');
-        }
-        if (!tooltip) return;
-
-        const target = findGuideTarget(targetName) || document.querySelector('.support-chat-window');
-        if (!target) return;
-
-        const labels = {
-            'profile-picture-area': 'Update your profile details and theme color here.',
-            'bio-area': 'Edit your short bio here.',
-            'username-area': 'Change your username here.',
-            'post-actions-area': 'Use this menu for user and post actions.',
-            'notifications-area': 'Friend request actions appear in notifications.',
-            'search-area': 'Search for people and posts here.'
-        };
-
-        target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-        target.classList.add('guide-highlight');
-
-        window.setTimeout(() => {
-            const rect = target.getBoundingClientRect();
-            const left = Math.min(Math.max(rect.left + 12, 16), window.innerWidth - 280);
-            const top = rect.bottom + 12 > window.innerHeight - 70 ? rect.top - 58 : rect.bottom + 12;
-
-            tooltip.textContent = labels[targetName] || 'Look here.';
-            tooltip.style.left = `${left}px`;
-            tooltip.style.top = `${Math.max(top, 16)}px`;
-            tooltip.hidden = false;
-        }, 250);
-
-        window.clearTimeout(highlight.hideTimer);
-        highlight.hideTimer = window.setTimeout(() => {
-            target.classList.remove('guide-highlight');
-            tooltip.hidden = true;
-        }, 4500);
-    }
-
-    function findGuideTarget(targetName) {
-        const targets = Array.from(document.querySelectorAll(`[data-guide-target="${targetName}"]`));
-        return targets.find((target) => {
-            const rect = target.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
-        }) || targets[0] || null;
-    }
-
-    window.highlight = highlight;
-
     function initCommunityTimeline() {
         const hub = document.querySelector('[data-community-hub]');
         if (!hub) return;
@@ -802,10 +627,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const panes = Array.from(hub.querySelectorAll('[data-community-pane]'));
         if (!track || !tabs.length || !panes.length) return;
 
+        hub.classList.add('is-enhanced');
+        const tabOrder = tabs.map((tab) => tab.dataset.communityTab).filter(Boolean);
+
         const setActive = (key, updateHistory = false) => {
+            if (!tabOrder.includes(key)) return false;
+
             hub.dataset.activeTab = key;
-            tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.communityTab === key));
-            panes.forEach((pane) => pane.classList.toggle('active', pane.dataset.communityPane === key));
+            tabs.forEach((tab) => {
+                const active = tab.dataset.communityTab === key;
+                tab.classList.toggle('active', active);
+                if (active) {
+                    tab.setAttribute('aria-current', 'page');
+                } else {
+                    tab.removeAttribute('aria-current');
+                }
+            });
+            panes.forEach((pane) => {
+                const active = pane.dataset.communityPane === key;
+                pane.classList.toggle('active', active);
+                pane.hidden = !active;
+            });
 
             if (updateHistory) {
                 const activeTab = tabs.find((tab) => tab.dataset.communityTab === key);
@@ -813,52 +655,66 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.history.replaceState(null, '', activeTab.href);
                 }
             }
+
+            return true;
         };
 
-        const scrollToPane = (key, behavior = 'smooth') => {
-            const pane = panes.find((item) => item.dataset.communityPane === key);
-            if (!pane) return;
-            track.scrollTo({
-                left: pane.offsetLeft - track.offsetLeft,
-                behavior
-            });
+        const activateByOffset = (offset) => {
+            const current = hub.dataset.activeTab || tabOrder[0];
+            const currentIndex = Math.max(0, tabOrder.indexOf(current));
+            const nextIndex = Math.min(tabOrder.length - 1, Math.max(0, currentIndex + offset));
+            const nextKey = tabOrder[nextIndex];
+            if (nextKey && nextKey !== current) {
+                setActive(nextKey, true);
+            }
         };
 
         tabs.forEach((tab) => {
             tab.addEventListener('click', (event) => {
                 const key = tab.dataset.communityTab;
                 if (!key) return;
-                event.preventDefault();
-                setActive(key, true);
-                scrollToPane(key);
-            });
-        });
-
-        let scheduled = false;
-        track.addEventListener('scroll', () => {
-            if (scheduled) return;
-            scheduled = true;
-            window.requestAnimationFrame(() => {
-                scheduled = false;
-                const trackLeft = track.scrollLeft;
-                const activePane = panes.reduce((best, pane) => {
-                    const distance = Math.abs((pane.offsetLeft - track.offsetLeft) - trackLeft);
-                    if (!best || distance < best.distance) {
-                        return { pane, distance };
-                    }
-                    return best;
-                }, null);
-                if (activePane && activePane.pane) {
-                    setActive(activePane.pane.dataset.communityPane, true);
+                if (setActive(key, true)) {
+                    event.preventDefault();
                 }
             });
+        });
+
+        let pointerStart = null;
+        track.addEventListener('pointerdown', (event) => {
+            if (event.button !== 0) return;
+            if (event.target.closest('a, button, input, textarea, select, label')) return;
+            pointerStart = { x: event.clientX, y: event.clientY };
         }, { passive: true });
 
+        track.addEventListener('pointerup', (event) => {
+            if (!pointerStart) return;
+            const deltaX = event.clientX - pointerStart.x;
+            const deltaY = event.clientY - pointerStart.y;
+            pointerStart = null;
+
+            if (Math.abs(deltaX) < 60 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+            activateByOffset(deltaX < 0 ? 1 : -1);
+        }, { passive: true });
+
+        track.addEventListener('pointercancel', () => {
+            pointerStart = null;
+        }, { passive: true });
+
+        const tabNav = hub.querySelector('.community-timeline-tabs');
+        if (tabNav) {
+            tabNav.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    activateByOffset(-1);
+                } else if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    activateByOffset(1);
+                }
+            });
+        }
+
         const initial = hub.dataset.activeTab || tabs[0].dataset.communityTab;
-        window.requestAnimationFrame(() => {
-            setActive(initial, false);
-            scrollToPane(initial, 'auto');
-        });
+        setActive(initial, false);
     }
 
     function initReelsFeed() {

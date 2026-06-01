@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Login - LvL</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="icon" href="{{ url_for('static', filename='assets/icon-192.png') }}" sizes="192x192" type="image/png">
-  <link rel="icon" href="{{ url_for('static', filename='assets/icon-512.png') }}" sizes="512x512" type="image/png">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/icon-192.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/gender.css') }}">
-  <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+  <link rel="manifest" href="{{ static_asset('manifest.json') }}">
+  <link rel="icon" href="{{ static_asset('assets/icon-192.png') }}" sizes="192x192" type="image/png">
+  <link rel="icon" href="{{ static_asset('assets/icon-512.png') }}" sizes="512x512" type="image/png">
+  <link rel="apple-touch-icon" href="{{ static_asset('assets/icon-192.png') }}">
+  <link rel="stylesheet" href="{{ static_asset('css/styles.css') }}">
+  <link rel="stylesheet" href="{{ static_asset('css/gender.css') }}">
+  <script src="{{ static_asset('js/script.js') }}" defer></script>
 </head>
 <body>
 
@@ -54,7 +54,7 @@
         Nickname or email
         <input name="username" autocomplete="username" required>
       </label>
-      <label data-guide-target="password-reset-area">
+      <label>
         Password
         <input type="password" name="password" autocomplete="current-password" required>
       </label>

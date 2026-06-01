@@ -1,0 +1,11 @@
+/* Community highlights overflow safety */
+/* ─── Community highlights — no overflow ────────────────────────────────── */
+.community-highlight-row {
+  overflow: hidden;
+}
+
+.community-highlight-row-body {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}

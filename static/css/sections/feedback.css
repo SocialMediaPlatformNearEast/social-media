@@ -1,0 +1,48 @@
+/* Runtime feedback: XP toasts and small empty text states */
+.empty-bio {
+  color: var(--text-secondary);
+}
+
+.xp-toast-stack {
+  position: fixed;
+  right: 96px;
+  bottom: 34px;
+  z-index: 270;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.xp-toast {
+  opacity: 0;
+  transform: translateY(10px) scale(0.96);
+  border: 1px solid var(--lvl-primary-soft-35);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--lvl-surface-7) 94%, transparent);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 16px 38px var(--lvl-black-45);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.xp-toast.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.xp-toast.level-up {
+  border-color: var(--lvl-warning-border);
+  background: linear-gradient(135deg, var(--lvl-primary-solid-96), var(--lvl-purple-solid-96));
+  color: var(--lvl-white);
+}
+
+@media (max-width: 1000px) {
+  .xp-toast-stack {
+    right: 16px;
+    bottom: 154px;
+  }
+}

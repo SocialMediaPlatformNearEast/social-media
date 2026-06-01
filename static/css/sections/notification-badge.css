@@ -1,0 +1,42 @@
+/* Unread notification badge */
+/* ─── Notification badge ─────────────────────────────────────────────────── */
+.nav-icon-badge {
+  position: relative;
+  display: inline-flex;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid var(--bg-color);
+  border-radius: var(--radius-pill);
+  background: var(--lvl-danger);
+  color: var(--lvl-white);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mobile-notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border: 1.5px solid var(--bg-color);
+  border-radius: var(--radius-pill);
+  background: var(--lvl-danger);
+  color: var(--lvl-white);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
+}

@@ -195,7 +195,9 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn("LvL Guide", html)
         self.assertIn("+10 XP", html)
-        self.assertIn("Mythic Legend", html)
+        self.assertIn("Reward Roadmap", html)
+        self.assertIn("Profile Color", html)
+        self.assertIn("App Icon Recolor", html)
         self.assertIn("Achievements are display badges", html)
 
     def test_community_template_renders_three_timeline_tabs(self):
@@ -235,7 +237,30 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("Follower post", html)
         self.assertIn("Following post", html)
         self.assertIn("Community thread", html)
+        self.assertIn('data-community-pane="followers"', html)
+        self.assertIn('aria-current="page"', html)
+        self.assertRegex(html, r'data-community-pane="followers"[\s\S]+?hidden')
         self.assertNotIn("Community video feed", html)
+
+        with zapp.app.test_request_context("/community?tab=following"):
+            empty_html = zapp.render_template(
+                "community.html",
+                viewer=viewer,
+                metrics={"users": 4, "posts": 0, "communities": 1, "likes": 0, "follows": 0},
+                recent_members=[],
+                popular_users=[],
+                trending_posts=[],
+                communities=[],
+                activity_items=[],
+                community_tabs=zapp.COMMUNITY_TIMELINE_TABS,
+                active_tab="following",
+                timeline_feeds={"followers": [], "following": [], "community": []},
+                timeline_counts={"followers": 0, "following": 0, "community": 0},
+                highlights=[],
+            )
+
+        self.assertIn("What this timeline means", empty_html)
+        self.assertIn("This is the middle timeline", empty_html)
 
     def test_community_route_defaults_to_following_timeline(self):
         viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
@@ -299,6 +324,8 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn("Reels", html)
         self.assertIn('data-reels-feed', html)
+        self.assertIn('mobile-reels-upload-cta', html)
+        self.assertIn('mobile-reel-upload-action', html)
         self.assertIn("hello reel", html)
 
     def test_reel_upload_renders_for_authenticated_user(self):

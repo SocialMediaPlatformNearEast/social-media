@@ -1,0 +1,200 @@
+/* Product hardening and layout safety additions */
+/* LvL product hardening additions */
+.post-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.post-author-link {
+  min-width: 0;
+  display: grid;
+  color: inherit;
+  text-decoration: none;
+}
+
+.post-author-link span {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.post-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.post-menu-toggle {
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.post-menu-toggle:hover,
+.post-menu-toggle[aria-expanded="true"] {
+  border-color: var(--border-color);
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.post-action-link,
+.post-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.post-action-link strong,
+.post-action-button strong {
+  font-weight: 700;
+}
+
+.post-action-button.like-active {
+  color: var(--lvl-female);
+}
+
+.post-action-button.repost-active {
+  color: var(--lvl-success);
+}
+
+.profile-stats a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.profile-stats a:hover {
+  text-decoration: underline;
+}
+
+.profile-banner.level-4 {
+  background:
+    radial-gradient(circle at 18% 22%, var(--lvl-cyan-soft-42), transparent 26%),
+    radial-gradient(circle at 78% 18%, var(--lvl-purple-strong-soft-40), transparent 30%),
+    linear-gradient(135deg, var(--lvl-surface-29), var(--lvl-surface-30) 72%);
+}
+
+.profile-banner.level-5 {
+  background:
+    radial-gradient(circle at 20% 20%, var(--lvl-warning-soft-46), transparent 24%),
+    radial-gradient(circle at 82% 78%, var(--lvl-female-soft-38), transparent 30%),
+    linear-gradient(135deg, var(--lvl-surface-31), var(--lvl-surface-32) 72%);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.people-list-panel {
+  margin: 12px 14px 18px;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--surface-radius);
+  background: linear-gradient(180deg, var(--surface-panel-raised), var(--surface-panel));
+  box-shadow: var(--surface-shadow);
+}
+
+.people-list-scroll {
+  max-height: min(64vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.people-list {
+  display: grid;
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.people-list .person-row:last-child {
+  border-bottom: 0;
+}
+
+.person-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.person-main span {
+  min-width: 0;
+  display: grid;
+}
+
+.person-main strong,
+.person-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.person-main small {
+  color: var(--text-secondary);
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .post {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .post-actions {
+    max-width: none;
+    justify-content: space-between;
+  }
+
+  .profile-banner-level-card {
+    width: min(100%, 260px);
+    padding: 14px;
+  }
+
+  .person-row {
+    align-items: flex-start;
+  }
+
+  .people-list-scroll {
+    max-height: calc(100dvh - 220px);
+  }
+}

@@ -9,7 +9,7 @@
     <div>
       <span class="panel-kicker">Create video</span>
       <h1>Upload Reel</h1>
-      <p>Share a short video with LvL, your followers, or a community.</p>
+      <p>Upload a short vertical clip for the Reels feed. Public reels can appear in For You and Discovery, follower reels stay closer to your network, and community reels attach to a group.</p>
     </div>
   </header>
 
@@ -20,7 +20,7 @@
       <label class="reel-file-picker">
         <input type="file" name="video" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" data-reel-video-input>
         <span data-reel-file-label>Choose video</span>
-        <small>MP4, WebM, MOV, or M4V. Max {{ (max_video_bytes // 1024 // 1024) or 1 }} MB.</small>
+        <small>MP4, WebM, MOV, or M4V. Max {{ (max_video_bytes // 1024 // 1024) or 1 }} MB. Use short mobile clips for the cleanest feed fit.</small>
       </label>
 
       <div class="reel-preview" data-reel-preview hidden>
@@ -43,6 +43,7 @@
           <option value="community">Community</option>
           <option value="private">Private</option>
         </select>
+        <small>Choose where the reel can be discovered after upload.</small>
       </label>
 
       <label class="form-field" data-reel-community-field hidden>
@@ -53,6 +54,7 @@
             <option value="{{ community.id }}">{{ community.name }}</option>
           {% endfor %}
         </select>
+        <small>This is required only when Visibility is set to Community.</small>
       </label>
     </div>
 

@@ -38,10 +38,6 @@
   object-fit: cover;
 }
 
-.avatar-image .avatar-initial {
-  display: none;
-}
-
 .gender-field {
   display: flex;
   flex-direction: column;

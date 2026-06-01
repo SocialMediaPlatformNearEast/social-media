@@ -57,6 +57,31 @@
     </div>
   </section>
 
+  <section class="level-guide-panel reward-roadmap-panel">
+    <div class="section-heading">
+      <h3>Reward Roadmap</h3>
+      <p>This is the clean product table for what each reward changes visually.</p>
+    </div>
+    <div class="reward-roadmap" role="table" aria-label="LvL reward roadmap">
+      <div class="reward-roadmap-row reward-roadmap-head" role="row">
+        <span role="columnheader">LvL</span>
+        <span role="columnheader">Reward</span>
+        <span role="columnheader">Type</span>
+        <span role="columnheader">Visual change</span>
+        <span role="columnheader">Why it exists</span>
+      </div>
+      {% for item in reward_product_table %}
+        <article class="reward-roadmap-row" role="row">
+          <span class="reward-level-chip" role="cell">{{ item.level }}</span>
+          <strong role="cell">{{ item.reward }}</strong>
+          <span class="reward-type-pill" role="cell">{{ item.type }}</span>
+          <p role="cell">{{ item.visual }}</p>
+          <p role="cell">{{ item.purpose }}</p>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
   <section class="level-guide-panel">
     <div class="section-heading">
       <h3>Level Requirements</h3>

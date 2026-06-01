@@ -1,0 +1,395 @@
+/* Community timeline tabs and panes */
+/* LvL community timeline redesign */
+.community-timeline-header {
+  align-items: center;
+  gap: var(--space-7);
+}
+
+.community-timeline-header p {
+  max-width: 620px;
+}
+
+.community-hub {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-8);
+}
+
+.community-hub-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 22px;
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 13%, transparent), transparent 42%),
+    var(--lvl-surface-6);
+}
+
+.community-hub-hero h2,
+.community-feed-header h2 {
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--text-primary);
+  line-height: 1.05;
+}
+
+.community-hub-hero p,
+.community-feed-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.community-timeline-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: var(--space-3);
+}
+
+.community-timeline-summary article {
+  min-width: 0;
+  padding: var(--space-5);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background: var(--lvl-white-03);
+}
+
+.community-timeline-summary span,
+.community-timeline-tabs span {
+  display: block;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-timeline-summary strong {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--text-primary);
+  font-size: 22px;
+}
+
+.community-timeline-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--lvl-surface-1) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.community-timeline-tabs a {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  gap: var(--space-1);
+  min-height: 54px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.community-timeline-tabs a.active {
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  color: var(--text-primary);
+  box-shadow: inset 0 -3px 0 var(--accent-color);
+}
+
+.community-timeline-tabs strong {
+  font-size: 12px;
+  color: inherit;
+}
+
+.community-timeline-shell {
+  overflow: hidden;
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background: var(--lvl-surface-3);
+}
+
+.community-timeline-track {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.community-timeline-track::-webkit-scrollbar {
+  display: none;
+}
+
+.community-timeline-pane {
+  min-width: 0;
+  width: 100%;
+}
+
+.community-hub.is-enhanced .community-timeline-shell {
+  touch-action: pan-y;
+}
+
+.community-hub.is-enhanced .community-timeline-track {
+  cursor: grab;
+}
+
+.community-hub.is-enhanced .community-timeline-track:active {
+  cursor: grabbing;
+}
+
+.community-feed-header {
+  padding: var(--space-8);
+  border-bottom: var(--line-default);
+}
+
+.community-timeline-feed {
+  border-top: 0;
+}
+
+.community-timeline-feed .post:first-of-type {
+  border-top: 0;
+}
+
+.community-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-6) var(--space-8) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--community-color, var(--accent-color)) 42%, var(--border-color));
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--community-color, var(--accent-color)) 12%, transparent);
+}
+
+.community-context-chip span {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--community-color, var(--accent-color));
+  color: var(--lvl-white);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.community-context-chip strong {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 64px 20px;
+  border: 0;
+  border-radius: 0;
+}
+
+.community-empty-explainer {
+  display: grid;
+  gap: var(--space-2);
+  width: min(100%, 520px);
+  padding: var(--space-5);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background: var(--lvl-white-03);
+  text-align: left;
+}
+
+.community-empty-explainer strong {
+  color: var(--text-primary);
+}
+
+.community-empty-explainer span {
+  color: var(--text-secondary);
+}
+
+.community-empty-state .outline-button {
+  margin-top: var(--space-1);
+}
+
+.community-space-strip {
+  padding: var(--space-7);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  background: var(--lvl-surface-4);
+}
+
+.community-space-scroll {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-4);
+}
+
+.community-space-card {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+  background: var(--lvl-white-03);
+}
+
+.community-space-card:hover {
+  border-color: color-mix(in srgb, var(--community-color, var(--accent-color)) 42%, var(--border-color));
+  background: color-mix(in srgb, var(--community-color, var(--accent-color)) 10%, transparent);
+}
+
+.community-space-card span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.community-space-card strong,
+.community-space-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-space-card small {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .community-hub {
+    padding: var(--space-5);
+  }
+
+  .community-hub-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .community-timeline-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .community-timeline-header {
+    padding-inline: 14px;
+  }
+
+  .community-hub {
+    gap: var(--space-5);
+    padding: var(--space-4) var(--space-4) calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .community-hub-hero {
+    padding: var(--space-7);
+  }
+
+  .community-hub-hero h2 {
+    font-size: 24px;
+  }
+
+  .community-timeline-summary {
+    gap: var(--space-2);
+  }
+
+  .community-timeline-summary article {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .community-timeline-summary span {
+    font-size: 12px;
+  }
+
+  .community-timeline-summary strong {
+    font-size: 18px;
+  }
+
+  .community-timeline-tabs {
+    top: 0;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border-radius: 0;
+    border-inline: 0;
+  }
+
+  .community-timeline-tabs a {
+    min-height: var(--control-lg);
+    padding: var(--space-2);
+    font-size: 14px;
+  }
+
+  .community-feed-header {
+    padding: var(--space-6);
+  }
+
+  .community-feed-header h2 {
+    font-size: 21px;
+  }
+
+  .community-context-chip {
+    margin: var(--space-5) var(--space-5) 0;
+  }
+
+  .community-space-strip {
+    padding: var(--space-5);
+  }
+
+  .community-space-scroll {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .community-hub {
+    gap: var(--space-4);
+    padding: var(--space-4);
+  }
+
+  .community-hub-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--space-5);
+  }
+
+  .community-hub-hero h2,
+  .community-feed-header h2 {
+    font-size: 20px;
+  }
+
+  .community-hub-hero p,
+  .community-feed-header p {
+    font-size: 13px;
+  }
+
+  .community-timeline-summary article {
+    padding: var(--space-3);
+  }
+
+  .community-timeline-tabs {
+    position: static;
+  }
+
+  .community-timeline-tabs a {
+    min-height: 42px;
+  }
+
+  .community-feed-header {
+    padding: var(--space-5);
+  }
+
+  .community-empty-state {
+    padding: 34px 16px;
+  }
+}

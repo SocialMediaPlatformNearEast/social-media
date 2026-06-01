@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="profile-header">
-  <div class="profile-banner {{ profile_banner_class }}" data-guide-target="cover-photo-area" style="--profile-color: {{ profile.theme_color or profile.avatar_color or theme_colors.primary }};">
+  <div class="profile-banner {{ profile_banner_class }}" style="--profile-color: {{ display_profile_color(profile) }};">
     <div class="profile-banner-content">
       <div class="profile-banner-level-card">
         <span>{{ profile_banner.label }}</span>
@@ -22,8 +22,8 @@
   </div>
   <div class="profile-info-container">
     <div class="profile-top-row">
-      <div data-guide-target="profile-picture-area">
-        <button class="profile-avatar-btn" type="button" data-profile-avatar-open aria-label="View profile picture">
+      <div>
+        <button class="profile-avatar-btn" type="button" data-profile-avatar-open aria-label="View profile picture" style="--avatar-frame-color: {{ profile.badge_color or theme_colors.muted }};">
           <img class="avatar profile-avatar-large" src="{{ profile.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
         </button>
       </div>
@@ -73,13 +73,13 @@
         <span class="profile-display-name">{{ profile.display_name }}</span>
         <span class="level-badge" style="--badge-color: {{ profile.badge_color or theme_colors.muted }};" title="{{ level_title(profile.level or 1) }}">LvL {{ profile.level or 1 }}</span>
       </h1>
-      <p class="handle" data-guide-target="username-area">@{{ profile.username }}</p>
+      <p class="handle">@{{ profile.username }}</p>
     </div>
 
     {% if profile.bio %}
-      <p class="bio" data-guide-target="bio-area">{{ profile.bio }}</p>
+      <p class="bio">{{ profile.bio }}</p>
     {% else %}
-      <p class="bio empty-bio" data-guide-target="bio-area">No bio yet.</p>
+      <p class="bio empty-bio">No bio yet.</p>
     {% endif %}
 
     <div class="profile-meta-grid">

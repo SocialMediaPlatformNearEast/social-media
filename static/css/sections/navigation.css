@@ -1,0 +1,78 @@
+/* Left rail and primary navigation */
+/* Left Sidebar */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  border-radius: var(--radius-pill);
+  width: fit-content;
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.brand:hover {
+  background-color: var(--hover-bg);
+  text-decoration: none;
+}
+
+.brand-mark {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-list a {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px 12px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 20px;
+  color: var(--text-primary);
+  width: fit-content;
+  text-decoration: none;
+  font-weight: 400;
+  transition: 0.2s;
+}
+
+.nav-list a:hover {
+  background-color: var(--hover-bg);
+  text-decoration: none;
+}
+
+.nav-list a.active {
+  font-weight: 700;
+}
+
+.nav-list a span {
+  width: var(--icon-sm);
+  text-align: center;
+  font-weight: 700;
+}
+
+.compose-link {
+  margin-top: 16px;
+  background-color: var(--accent-color);
+  color: var(--lvl-text-inverse);
+  border-radius: var(--radius-pill);
+  padding: 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 17px;
+  text-decoration: none;
+  display: block;
+  border: none;
+  width: 90%;
+  cursor: pointer;
+  transition: 0.2s;
+}

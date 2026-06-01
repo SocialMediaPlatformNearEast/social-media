@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>{{ title }} - LvL</title>
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-  <link rel="icon" href="{{ url_for('static', filename='assets/icon-192.png') }}" sizes="192x192" type="image/png">
-  <link rel="icon" href="{{ url_for('static', filename='assets/icon-512.png') }}" sizes="512x512" type="image/png">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/icon-192.png') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/gender.css') }}">
-  <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
+  <link rel="manifest" href="{{ static_asset('manifest.json') }}">
+  <link rel="icon" href="{{ static_asset('assets/icon-192.png') }}" sizes="192x192" type="image/png">
+  <link rel="icon" href="{{ static_asset('assets/icon-512.png') }}" sizes="512x512" type="image/png">
+  <link rel="apple-touch-icon" href="{{ static_asset('assets/icon-192.png') }}">
+  <link rel="stylesheet" href="{{ static_asset('css/styles.css') }}">
+  <link rel="stylesheet" href="{{ static_asset('css/gender.css') }}">
+  <script src="{{ static_asset('js/script.js') }}" defer></script>
 </head>
 <body>
 
@@ -34,7 +34,7 @@
     <aside class="left-rail">
       <div class="sidebar-top desktop-only">
         <a class="brand brand-logo" href="{{ url_for('index') }}" aria-label="LvL home">
-          <img src="{{ url_for('static', filename='assets/icon-192.png') }}" alt="" aria-hidden="true">
+          <img src="{{ static_asset('assets/icon-192.png') }}" alt="" aria-hidden="true">
           <span class="brand-text">LvL</span>
         </a>
         <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
@@ -114,7 +114,7 @@
       <button class="mobile-sidebar-toggle" aria-label="Toggle Sidebar">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/></svg>
       </button>
-      <span class="mobile-brand"><img src="{{ url_for('static', filename='assets/icon-192.png') }}" alt="" aria-hidden="true"> LvL</span>
+      <span class="mobile-brand"><img src="{{ static_asset('assets/icon-192.png') }}" alt="" aria-hidden="true"> LvL</span>
     </div>
 {% endif %}
 
@@ -164,7 +164,9 @@
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M5 3.5h14A2.5 2.5 0 0 1 21.5 6v12a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 18V6A2.5 2.5 0 0 1 5 3.5Zm0 2A.5.5 0 0 0 4.5 6v12a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5H5Zm4.5 3.1 6 3.4-6 3.4V8.6Z"/></svg>
     <span>Reels</span>
   </a>
-  <a class="mobile-compose-action" href="{{ url_for('index', compose=1) }}" aria-label="Create post">+</a>
+  {% set mobile_create_href = url_for('reel_upload') if active_page == 'reels' else url_for('index', compose=1) %}
+  {% set mobile_create_label = 'Upload reel' if active_page == 'reels' else 'Create post' %}
+  <a class="mobile-compose-action {% if active_page == 'reels' %}mobile-reel-upload-action{% endif %}" href="{{ mobile_create_href }}" aria-label="{{ mobile_create_label }}">+</a>
   <a class="{% if active_page == 'messages' %}active{% endif %}" href="{{ url_for('messages') }}" aria-label="Messages">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 4h16v12H7.8L4 19.35V4Zm2 2v8.93L7.04 14H18V6H6Z"/></svg>
     <span>Chats</span>

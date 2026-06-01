@@ -1,0 +1,39 @@
+/* Chat streak badges */
+/* ─── Streak badges ─────────────────────────────────────────────────────────── */
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--lvl-streak);
+  background: var(--lvl-streak-soft);
+  border: 1px solid var(--lvl-streak-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.streak-badge-zero {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+  font-weight: 400;
+}
+
+.streak-badge-header {
+  margin-left: auto;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+}
+
+.conversation-item .conv-info {
+  flex: 1;
+  min-width: 0;
+}

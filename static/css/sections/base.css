@@ -1,0 +1,406 @@
+/* Design tokens, reset, shell layout */
+:root {
+  --lvl-black: #000000;
+  --lvl-white: #ffffff;
+  --lvl-text-primary: #e7e9ea;
+  --lvl-text-secondary: #71767b;
+  --lvl-text-inverse: #0f1419;
+  --lvl-border: #2f3336;
+  --lvl-border-strong: #333639;
+  --lvl-surface-1: #020304;
+  --lvl-surface-2: #030405;
+  --lvl-surface-3: #05070a;
+  --lvl-surface-4: #07090b;
+  --lvl-surface-5: #080a0d;
+  --lvl-surface-6: #0b1118;
+  --lvl-surface-7: #111418;
+  --lvl-surface-8: #16181c;
+  --lvl-surface-9: #202327;
+  --lvl-surface-10: #d7d9da;
+  --lvl-surface-11: #171b20;
+  --lvl-surface-12: #12161b;
+  --lvl-surface-13: #15191f;
+  --lvl-surface-14: #07121b;
+  --lvl-surface-15: #0a1722;
+  --lvl-surface-16: #0e1217;
+  --lvl-surface-17: #11151a;
+  --lvl-surface-18: #0a0d12;
+  --lvl-surface-19: #111827;
+  --lvl-surface-20: #180f24;
+  --lvl-surface-21: #0c1117;
+  --lvl-surface-22: #101419;
+  --lvl-surface-23: #111111;
+  --lvl-surface-24: #070d14;
+  --lvl-surface-25: #0a1420;
+  --lvl-surface-26: #0b1724;
+  --lvl-surface-27: #06111c;
+  --lvl-surface-28: #0e1620;
+  --lvl-surface-29: #08111f;
+  --lvl-surface-30: #1a1030;
+  --lvl-surface-31: #141004;
+  --lvl-surface-32: #280b18;
+  --lvl-light-surface: #f7f9f9;
+  --lvl-app-icon-ink: #050505;
+  --lvl-primary: #e7e9ea;
+  --lvl-primary-hover: #d7d9da;
+  --lvl-female: #e7e9ea;
+  --lvl-success: #00ba7c;
+  --lvl-danger: #f4212e;
+  --lvl-danger-hover: #dc1f29;
+  --lvl-warning: #f5c542;
+  --lvl-orange: #f97316;
+  --lvl-purple: #8b5cf6;
+  --lvl-cyan: #38bdf8;
+  --lvl-blue-strong: #3b82f6;
+  --lvl-purple-strong: #a855f7;
+  --lvl-scrollbar: #536471;
+  --lvl-primary-soft: rgba(231, 233, 234, 0.1);
+  --lvl-primary-softer: rgba(231, 233, 234, 0.05);
+  --lvl-primary-soft-12: rgba(231, 233, 234, 0.12);
+  --lvl-primary-soft-15: rgba(231, 233, 234, 0.15);
+  --lvl-primary-soft-16: rgba(231, 233, 234, 0.16);
+  --lvl-primary-soft-18: rgba(231, 233, 234, 0.18);
+  --lvl-primary-soft-20: rgba(231, 233, 234, 0.2);
+  --lvl-primary-soft-28: rgba(231, 233, 234, 0.28);
+  --lvl-primary-soft-35: rgba(231, 233, 234, 0.35);
+  --lvl-primary-soft-38: rgba(231, 233, 234, 0.38);
+  --lvl-primary-border: rgba(231, 233, 234, 0.45);
+  --lvl-primary-border-55: rgba(231, 233, 234, 0.55);
+  --lvl-primary-border-62: rgba(231, 233, 234, 0.62);
+  --lvl-primary-border-70: rgba(231, 233, 234, 0.7);
+  --lvl-primary-solid-96: rgba(231, 233, 234, 0.96);
+  --lvl-female-soft: rgba(231, 233, 234, 0.1);
+  --lvl-female-soft-38: rgba(231, 233, 234, 0.38);
+  --lvl-success-soft: rgba(0, 186, 124, 0.12);
+  --lvl-success-soft-10: rgba(0, 186, 124, 0.1);
+  --lvl-success-border: rgba(0, 186, 124, 0.45);
+  --lvl-danger-soft: rgba(244, 33, 46, 0.12);
+  --lvl-danger-softer: rgba(244, 33, 46, 0.07);
+  --lvl-danger-soft-10: rgba(244, 33, 46, 0.1);
+  --lvl-danger-border: rgba(244, 33, 46, 0.45);
+  --lvl-danger-border-light: rgba(244, 33, 46, 0.42);
+  --lvl-danger-border-strong: rgba(244, 33, 46, 0.64);
+  --lvl-warning-soft-34: rgba(245, 197, 66, 0.34);
+  --lvl-warning-soft-46: rgba(245, 197, 66, 0.46);
+  --lvl-warning-border: rgba(245, 197, 66, 0.55);
+  --lvl-purple-soft-25: rgba(139, 92, 246, 0.25);
+  --lvl-purple-solid-96: rgba(139, 92, 246, 0.96);
+  --lvl-cyan-soft-42: rgba(56, 189, 248, 0.42);
+  --lvl-purple-strong-soft-40: rgba(168, 85, 247, 0.4);
+  --lvl-system-blue-soft-28: rgba(88, 184, 255, 0.28);
+  --lvl-system-blue-border: rgba(67, 171, 255, 0.32);
+  --lvl-system-blue-shadow: rgba(149, 182, 216, 0.18);
+  --lvl-danger-text-soft: #ffd7da;
+  --lvl-success-text-soft: #c8ffea;
+  --lvl-primary-text-soft: #d7ecff;
+  --lvl-muted-bluegrey: #8b98a5;
+  --lvl-white-02: rgba(255, 255, 255, 0.02);
+  --lvl-white-03: rgba(255, 255, 255, 0.03);
+  --lvl-white-04: rgba(255, 255, 255, 0.04);
+  --lvl-white-05: rgba(255, 255, 255, 0.05);
+  --lvl-white-08: rgba(255, 255, 255, 0.08);
+  --lvl-white-12: rgba(255, 255, 255, 0.12);
+  --lvl-white-14: rgba(255, 255, 255, 0.14);
+  --lvl-white-16: rgba(255, 255, 255, 0.16);
+  --lvl-white-18: rgba(255, 255, 255, 0.18);
+  --lvl-white-22: rgba(255, 255, 255, 0.22);
+  --lvl-white-75: rgba(255, 255, 255, 0.75);
+  --lvl-streak: #ff6b35;
+  --lvl-streak-soft: rgba(255, 107, 53, 0.12);
+  --lvl-streak-border: rgba(255, 107, 53, 0.25);
+  --lvl-black-08: rgba(0, 0, 0, 0.08);
+  --lvl-black-28: rgba(0, 0, 0, 0.28);
+  --lvl-black-32: rgba(0, 0, 0, 0.32);
+  --lvl-black-34: rgba(0, 0, 0, 0.34);
+  --lvl-black-38: rgba(0, 0, 0, 0.38);
+  --lvl-black-42: rgba(0, 0, 0, 0.42);
+  --lvl-black-44: rgba(0, 0, 0, 0.44);
+  --lvl-black-45: rgba(0, 0, 0, 0.45);
+  --lvl-black-48: rgba(0, 0, 0, 0.48);
+  --lvl-black-52: rgba(0, 0, 0, 0.52);
+  --lvl-black-56: rgba(0, 0, 0, 0.56);
+  --lvl-black-58: rgba(0, 0, 0, 0.58);
+  --lvl-black-62: rgba(0, 0, 0, 0.62);
+  --lvl-black-65: rgba(0, 0, 0, 0.65);
+  --lvl-black-78: rgba(0, 0, 0, 0.78);
+  --lvl-black-85: rgba(0, 0, 0, 0.85);
+  --lvl-black-86: rgba(0, 0, 0, 0.86);
+  --lvl-black-94: rgba(0, 0, 0, 0.94);
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-icon: 9px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-bubble: 24px;
+  --radius-pill: 9999px;
+  --radius-round: 50%;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 20px;
+  --space-10: 24px;
+  --space-11: 28px;
+  --space-12: 32px;
+  --control-xs: 32px;
+  --control-sm: 38px;
+  --control-md: 44px;
+  --control-lg: 48px;
+  --control-xl: 52px;
+  --icon-sm: 24px;
+  --swatch-md: 32px;
+  --badge-height-sm: 24px;
+  --avatar-xs: 24px;
+  --avatar-sm: 40px;
+  --avatar-md: 48px;
+  --avatar-lg: 64px;
+  --shell-left-expanded: 275px;
+  --shell-left-collapsed: 88px;
+  --shell-main: 600px;
+  --shell-right: 350px;
+  --line-default: 1px solid var(--border-color);
+  --bg-color: var(--lvl-black);
+  --text-primary: var(--lvl-text-primary);
+  --text-secondary: var(--lvl-text-secondary);
+  --border-color: var(--lvl-border);
+  --accent-color: var(--lvl-primary);
+  --accent-hover: var(--lvl-primary-hover);
+  --hover-bg: color-mix(in srgb, var(--lvl-text-primary) 10%, transparent);
+  --error-color: var(--lvl-danger);
+  --success-color: var(--lvl-success);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Layout & Container */
+.app-shell {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+.left-rail-wrapper {
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-end;
+  z-index: 20;
+}
+
+.right-rail-wrapper {
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-start;
+  z-index: 20;
+}
+
+.left-rail {
+  display: flex;
+  flex-direction: column;
+  width: var(--shell-left-expanded);
+  padding: 0 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--border-color);
+  transition: width 0.2s cubic-bezier(0, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.left-rail:not(.menu-open) {
+  width: var(--shell-left-collapsed);
+  align-items: center;
+}
+
+.left-rail:not(.menu-open) .brand-text,
+.left-rail:not(.menu-open) .nav-label,
+.left-rail:not(.menu-open) .mini-profile div,
+.left-rail:not(.menu-open) .logout-link {
+  display: none;
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  gap: 12px;
+  min-height: 60px;
+}
+
+.left-rail:not(.menu-open) .sidebar-top {
+  justify-content: center;
+  padding-left: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-xl);
+  height: var(--control-xl);
+  border-radius: var(--radius-round);
+  transition: 0.2s;
+  color: var(--text-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.brand:hover {
+  background-color: var(--hover-bg);
+}
+
+.brand-mark {
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.brand-text {
+  font-size: 20px;
+  font-weight: 700;
+  margin-left: 12px;
+}
+
+.nav-list {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.left-rail.menu-open .nav-list {
+  display: flex;
+}
+
+.nav-list a {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px;
+  border-radius: var(--radius-pill);
+  font-size: 20px;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: 0.2s;
+  width: fit-content;
+}
+
+.nav-list a:hover {
+  background-color: var(--hover-bg);
+}
+
+.nav-list a.active {
+  font-weight: 700;
+}
+
+.left-rail:not(.menu-open) .nav-list a {
+  width: var(--control-xl);
+  height: var(--control-xl);
+  padding: 0;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.sidebar-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-round);
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: var(--hover-bg);
+}
+
+.compose-link {
+  background-color: var(--accent-color);
+  color: var(--lvl-text-inverse);
+  text-align: center;
+  padding: 15px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 17px;
+  text-decoration: none;
+  margin: 16px 0;
+  transition: 0.2s;
+  display: block;
+}
+
+.compose-link:hover {
+  background-color: var(--accent-hover);
+}
+
+.left-rail:not(.menu-open) .compose-link {
+  width: var(--control-xl);
+  height: var(--control-xl);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  margin: 16px auto;
+}
+
+.left-rail:not(.menu-open) .compose-link::before {
+  content: '+';
+  font-size: 24px;
+}
+
+.timeline {
+  width: var(--shell-main);
+  border-right: 1px solid var(--border-color);
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+.right-rail {
+  width: var(--shell-right);
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}

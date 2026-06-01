@@ -1,0 +1,199 @@
+/* Mobile profile layout repair */
+/* Mobile profile layout repair */
+.profile-info-container {
+  overflow: visible;
+}
+
+@media (max-width: 640px) {
+  .people-list-panel {
+    margin-inline: 10px;
+    border-radius: var(--radius-xl);
+  }
+
+  .person-row {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .person-row .outline-button {
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+
+  .profile-header {
+    overflow: hidden;
+  }
+
+  .profile-banner {
+    min-height: 188px;
+  }
+
+  .profile-banner-content {
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 14px;
+  }
+
+  .profile-banner-level-card {
+    max-width: calc(100vw - 48px);
+    padding: 12px;
+  }
+
+  .profile-top-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: 10px;
+    margin-top: -46px;
+  }
+
+  .profile-avatar-large {
+    width: 96px;
+    height: 96px;
+    border-width: 3px;
+  }
+
+  .profile-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+
+  .profile-actions form,
+  .profile-actions .outline-button,
+  .profile-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-actions .outline-button {
+    padding: 7px 8px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .profile-names h1 {
+    font-size: 19px;
+  }
+
+  .profile-meta-grid,
+  .profile-stats {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-top-row {
+    grid-template-columns: 1fr;
+    margin-top: -40px;
+  }
+
+  .profile-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .profile-stats a {
+    min-width: 0;
+  }
+}
+
+.install-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 1200;
+  width: min(560px, calc(100vw - 28px));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--lvl-white-16);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--lvl-surface-5) 94%, transparent);
+  color: var(--text-primary);
+  box-shadow: 0 18px 60px var(--lvl-black-48);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+}
+
+.install-prompt[hidden] {
+  display: none;
+}
+
+.install-prompt-mark {
+  width: var(--control-lg);
+  height: var(--control-lg);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--lvl-light-surface);
+  color: var(--lvl-app-icon-ink);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.install-prompt-copy {
+  min-width: 0;
+}
+
+.install-prompt h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.install-prompt p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.install-ios-steps {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.install-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-prompt-actions .primary-button,
+.install-prompt-actions .outline-button {
+  min-height: 38px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .install-prompt {
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .install-prompt-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .install-prompt-actions .primary-button,
+  .install-prompt-actions .outline-button {
+    flex: 1;
+  }
+}

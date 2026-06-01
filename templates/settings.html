@@ -30,7 +30,7 @@
           </label>
         </div>
         
-        <label class="form-group" data-guide-target="username-area">
+        <label class="form-group">
           <span>Username / Nickname</span>
           <div class="input-prefix-wrapper">
             <span class="input-prefix">@</span>
@@ -39,7 +39,7 @@
           <small>3-24 letters, numbers, or underscores. Usernames are saved lowercase.</small>
         </label>
 
-        <label class="form-group" data-guide-target="bio-area">
+        <label class="form-group">
           <span>Bio</span>
           <textarea name="bio" maxlength="180" rows="3" placeholder="Tell us about yourself...">{{ viewer.bio }}</textarea>
           <div class="char-counter">0 / 180</div>
@@ -87,6 +87,7 @@
 
       <div class="form-section">
         <h3>Appearance</h3>
+        {% set profile_color_is_unlocked = profile_color_unlocked(viewer.level or 1) %}
         <div class="profile-preview-card" data-profile-preview>
           <div class="profile-preview-banner"></div>
           <img class="avatar profile-preview-avatar" src="{{ viewer.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Profile preview">
@@ -103,13 +104,24 @@
           <input type="checkbox" name="remove_profile_photo" value="1">
           <span>Remove current photo and use the default avatar</span>
         </label>
-        <label class="form-group" data-guide-target="profile-picture-area">
+        <label class="form-group">
           <span>Profile Theme Color</span>
           <div class="color-picker-wrapper">
-            <input type="color" name="profile_pic" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}">
-            <input type="text" class="hex-value" value="{{ viewer.theme_color or viewer.avatar_color or theme_colors.primary }}" maxlength="7">
+            <input type="color" name="profile_pic" value="{{ display_profile_color(viewer) }}" {% if not profile_color_is_unlocked %}disabled{% endif %}>
+            <input type="text" class="hex-value" value="{{ display_profile_color(viewer) }}" maxlength="7" {% if not profile_color_is_unlocked %}disabled{% endif %}>
           </div>
+          {% if profile_color_is_unlocked %}
+            <small>Unlocked. Choose the profile color other people see on your banner and chat header.</small>
+          {% else %}
+            <small>Profile colors unlock at LvL {{ profile_color_unlock_level }}. Until then, accounts stay black and white so reward colors stay meaningful.</small>
+          {% endif %}
         </label>
+        {% if not profile_color_is_unlocked %}
+          <p class="profile-color-lock-note">
+            Earn XP by posting, commenting, liking, and joining conversations.
+            <a href="{{ url_for('level_guide') }}">See the LvL reward table.</a>
+          </p>
+        {% endif %}
       </div>
 
       <div class="form-actions">

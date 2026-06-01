@@ -1,0 +1,123 @@
+/* Profile header and public profile layout */
+/* Profile Header */
+.profile-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.profile-banner {
+  height: 200px;
+  width: 100%;
+  background-color: var(--profile-color, var(--lvl-primary));
+}
+
+.profile-info-container {
+  padding: 0 16px 16px;
+  position: relative;
+  z-index: 10;
+}
+
+.profile-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: -75px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+}
+
+.profile-avatar-large {
+  width: 140px;
+  height: 140px;
+  font-size: 48px;
+  border: 4px solid var(--bg-color);
+  background-color: var(--avatar, var(--lvl-border-strong));
+}
+
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.outline-button {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.outline-button:hover {
+  background-color: var(--hover-bg);
+  text-decoration: none;
+}
+
+.outline-button.active {
+  background-color: var(--text-primary);
+  color: var(--bg-color);
+}
+
+.profile-names h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 20px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.profile-names .handle {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.profile-header .bio {
+  font-size: 15px;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.profile-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+.profile-meta-grid a {
+  color: var(--accent-color);
+}
+
+.profile-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.profile-stats a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.profile-stats a:hover {
+  text-decoration: underline;
+}
+
+.profile-stats span {
+  color: var(--text-secondary);
+}
+
+.profile-stats strong {
+  color: var(--text-primary);
+}

@@ -1,0 +1,76 @@
+/* Notifications UI */
+/* Notifications */
+.notification-item {
+  display: flex;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+  transition: 0.2s;
+}
+
+.notification-item:hover {
+  background-color: var(--lvl-white-03);
+}
+
+.notification-item.unread {
+  background-color: var(--lvl-primary-softer);
+}
+
+.notification-icon {
+  font-size: 20px;
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notification-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-header {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.actor-link {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.actor-link:hover {
+  text-decoration: underline;
+}
+
+.notification-text {
+  color: var(--text-secondary);
+}
+
+.notification-header .time {
+  color: var(--text-secondary);
+}
+
+.notification-preview {
+  color: var(--text-secondary);
+  font-size: 15px;
+  display: block;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.notification-action {
+  color: var(--accent-color);
+  font-size: 15px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.notification-action:hover {
+  text-decoration: underline;
+}

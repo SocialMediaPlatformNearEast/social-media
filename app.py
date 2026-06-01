@@ -16,7 +16,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app_utils import birthday_date_limits, normalize_username, profile_banner_for_level, validate_birthday
-from app_theme import GENDER_THEME, THEME_COLORS, level_color_for_level
+from app_theme import GENDER_THEME, PROFILE_COLOR_UNLOCK_LEVEL, THEME_COLORS, level_color_for_level, profile_color_unlocked
 
 load_dotenv()
 
@@ -57,6 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
+ASSET_VERSION = "30"
 
 GENDER_OPTIONS = GENDER_THEME
 COMMUNITY_DEFAULT_TAB = 'following'
@@ -68,7 +69,10 @@ COMMUNITY_TIMELINE_TABS = [
         'title': 'Posts from people who follow you',
         'description': 'See what the people already connected to you are sharing.',
         'empty_title': 'No follower posts yet',
-        'empty_text': 'When someone who follows you posts, it will appear here.'
+        'empty_text': 'When someone who follows you posts, it will appear here.',
+        'empty_help': 'This tab is for seeing your audience from the other side: people who follow you, even if you do not follow them back.',
+        'empty_action_label': 'Search members',
+        'empty_action_url': 'search'
     },
     {
         'key': 'following',
@@ -77,7 +81,10 @@ COMMUNITY_TIMELINE_TABS = [
         'title': 'Posts from people you follow',
         'description': 'Your main community timeline, focused on accounts you chose.',
         'empty_title': 'Follow people to fill this timeline',
-        'empty_text': 'Search for members or open profiles and follow them to build this feed.'
+        'empty_text': 'Search for members or open profiles and follow them to build this feed.',
+        'empty_help': 'This is the middle timeline and should feel like your chosen feed: accounts you intentionally follow.',
+        'empty_action_label': 'Find people',
+        'empty_action_url': 'search'
     },
     {
         'key': 'community',
@@ -86,7 +93,10 @@ COMMUNITY_TIMELINE_TABS = [
         'title': 'Community threads across LvL',
         'description': 'Group posts and public threads ranked by activity and relevance.',
         'empty_title': 'No community threads yet',
-        'empty_text': 'Join or create a community, then start a thread.'
+        'empty_text': 'Join or create a community, then start a thread.',
+        'empty_help': 'This tab is for shared rooms and topic threads, separate from personal follower/following feeds.',
+        'empty_action_label': 'Create group',
+        'empty_action_url': 'create_community'
     }
 ]
 
@@ -113,6 +123,10 @@ def inject_helpers():
         'level_title': activity_title_for_level,
         'birthday_limits': birthday_date_limits,
         'theme_colors': THEME_COLORS,
+        'display_profile_color': display_profile_color,
+        'profile_color_unlocked': profile_color_unlocked,
+        'profile_color_unlock_level': PROFILE_COLOR_UNLOCK_LEVEL,
+        'static_asset': static_asset_url,
     }
 
 @app.context_processor
@@ -218,6 +232,8 @@ def badge_color_for_level(level):
     return level_color_for_level(level)
 
 def activity_title_for_level(level):
+    if level >= 50:
+        return 'Icon Legend'
     if level >= 30: return 'Mythic Legend'
     if level >= 20: return 'Elite Champion'
     if level >= 10: return 'Rising Hero'
@@ -236,11 +252,64 @@ XP_REWARD_RULES = [
 ]
 
 LEVEL_REWARD_TIERS = [
-    {'level': 2, 'label': 'Neon Climb', 'description': 'First upgraded profile banner.'},
-    {'level': 5, 'label': 'Quest Regular', 'description': 'Blue badge color, new title, and Rising Charge banner.'},
-    {'level': 10, 'label': 'Rising Hero', 'description': 'Purple badge color and Hero Pulse banner.'},
-    {'level': 20, 'label': 'Elite Champion', 'description': 'Orange badge color and Mythic Circuit banner.'},
-    {'level': 30, 'label': 'Mythic Legend', 'description': 'Gold badge color and top public title.'},
+    {'level': 5, 'label': 'Emoji Kit', 'description': 'Unlock first profile expression tools and a cyan LvL badge.'},
+    {'level': 10, 'label': 'Rising Medal', 'description': 'Unlock a purple medal badge, title upgrade, and stronger profile status.'},
+    {'level': 15, 'label': 'Avatar Frame', 'description': 'Unlock avatar border styles that make your profile stand out.'},
+    {'level': 20, 'label': 'Profile Color', 'description': 'Unlock custom profile colors and the Elite Champion title.'},
+    {'level': 30, 'label': 'Mythic Badge', 'description': 'Unlock a gold medal badge and premium public status.'},
+    {'level': 50, 'label': 'App Icon Recolor', 'description': 'Unlock the first prestige icon recolor tier for long-term players.'},
+]
+
+LEVEL_REWARD_PRODUCT_TABLE = [
+    {
+        'level': '1-4',
+        'reward': 'Default identity',
+        'type': 'Baseline',
+        'visual': 'Black and white profile, standard avatar border, default LvL badge.',
+        'purpose': 'Keeps new accounts clean and makes later color rewards feel earned.'
+    },
+    {
+        'level': '5',
+        'reward': 'Emoji Kit',
+        'type': 'Expression',
+        'visual': 'First emoji/profile expression tools plus the cyan LvL badge color.',
+        'purpose': 'Small visible reward for early activity.'
+    },
+    {
+        'level': '10',
+        'reward': 'Rising Medal',
+        'type': 'Badge',
+        'visual': 'Purple medal styling and a stronger public rank title.',
+        'purpose': 'Shows that the account has moved past beginner status.'
+    },
+    {
+        'level': '15',
+        'reward': 'Avatar Frame',
+        'type': 'Profile',
+        'visual': 'Avatar border styles for profile and feed identity.',
+        'purpose': 'Adds recognition without changing the whole theme too early.'
+    },
+    {
+        'level': '20',
+        'reward': 'Profile Color',
+        'type': 'Customization',
+        'visual': 'Custom profile color for banners, chat headers, and profile accents.',
+        'purpose': 'Unlocks personal color only after enough visible participation.'
+    },
+    {
+        'level': '30',
+        'reward': 'Mythic Badge',
+        'type': 'Prestige',
+        'visual': 'Gold public badge treatment and premium status visuals.',
+        'purpose': 'Rewards long-term activity with a clearly rare look.'
+    },
+    {
+        'level': '50+',
+        'reward': 'App Icon Recolor',
+        'type': 'Prestige',
+        'visual': 'First special LvL icon recolor tier for very active members.',
+        'purpose': 'Creates a long-term chase reward without affecting core usability.'
+    },
 ]
 
 ACHIEVEMENT_DEFINITIONS = [
@@ -397,7 +466,12 @@ def handle_db_error(e, default_msg="An error occurred. Please try again."):
 
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory(app.static_folder, 'service-worker.js')
+    response = send_from_directory(app.static_folder, 'service-worker.js', max_age=0)
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+def static_asset_url(filename):
+    return url_for('static', filename=filename, v=ASSET_VERSION)
 
 def normalize_gender(value):
     value = (value or '').strip().title()
@@ -409,6 +483,13 @@ def gender_defaults(gender):
 def normalize_hex_color(value, fallback=THEME_COLORS['primary']):
     value = (value or '').strip()
     return value.upper() if re.match(r'^#[0-9A-Fa-f]{6}$', value) else fallback
+
+def display_profile_color(user):
+    if not user:
+        return THEME_COLORS['muted']
+    level = parse_int(user.get('level')) or 1
+    stored = normalize_hex_color(user.get('theme_color') or user.get('avatar_color'), THEME_COLORS['muted'])
+    return stored if profile_color_unlocked(level) else THEME_COLORS['muted']
 
 def normalize_website(value):
     value = (value or '').strip()
@@ -1465,7 +1546,7 @@ def send_verification_email(to_email, first_name, token):
       <h1 style="color: {THEME_COLORS['primary']};">Welcome to LvL, {first_name}!</h1>
       <p style="font-size: 16px;">We're excited to have you. To start earning XP and connecting with the community, please verify your email address by clicking the button below:</p>
       <div style="margin: 30px 0;">
-        <a href="{verify_url}" style="background-color: {THEME_COLORS['primary']}; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Verify My Email</a>
+        <a href="{verify_url}" style="background-color: {THEME_COLORS['primary']}; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Verify My Email</a>
       </div>
       <p style="font-size: 12px; color: {THEME_COLORS['muted']};">If you did not create this account, please ignore this email.</p>
     </body>
@@ -2129,7 +2210,8 @@ def settings():
             website = request.form.get('website', '').strip()
             gender = normalize_gender(request.form.get('gender', ''))
             birthday = request.form.get('birthday', '').strip()
-            profile_pic = normalize_hex_color(request.form.get('profile_pic'), viewer.get('theme_color') or viewer.get('avatar_color') or THEME_COLORS['primary'])
+            requested_profile_color = normalize_hex_color(request.form.get('profile_pic'), viewer.get('theme_color') or viewer.get('avatar_color') or THEME_COLORS['muted'])
+            profile_pic = requested_profile_color if profile_color_unlocked(viewer.get('level')) else THEME_COLORS['muted']
             remove_profile_photo = request.form.get('remove_profile_photo') == '1'
             
             if not all([first_name, last_name, nickname, gender]):
@@ -2281,6 +2363,7 @@ def level_guide():
                            level_requirements=level_requirements,
                            xp_rewards=XP_REWARD_RULES,
                            level_rewards=LEVEL_REWARD_TIERS,
+                           reward_product_table=LEVEL_REWARD_PRODUCT_TABLE,
                            achievements=ACHIEVEMENT_DEFINITIONS)
 
 @app.route('/profile/<username>')

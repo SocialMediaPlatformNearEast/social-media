@@ -36,7 +36,7 @@
 
   <main class="chat-window">
     {% if target_user %}
-      <header class="chat-header" style="--chat-color: {{ target_user.theme_color }}">
+      <header class="chat-header" style="--chat-color: {{ display_profile_color(target_user) }}">
         <a href="{{ url_for('messages') }}" class="chat-back-link" aria-label="Back to people">
           <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="currentColor"><path d="M20 11v2H7.83l5.59 5.59L12 20 4 12l8-8 1.42 1.41L7.83 11H20Z"/></svg>
         </a>
@@ -47,8 +47,9 @@
             <p>@{{ target_user.username }}</p>
           </div>
         </a>
-        {% if target_user.streak_count > 0 %}
-        <span class="streak-badge streak-badge-header" data-chat-streak title="{{ target_user.streak_count }}-day streak with {{ target_user.display_name }}">🔥 {{ target_user.streak_count }}</span>
+        {% set target_streak_count = target_user.streak_count|default(0)|int %}
+        {% if target_streak_count > 0 %}
+        <span class="streak-badge streak-badge-header" data-chat-streak title="{{ target_streak_count }}-day streak with {{ target_user.display_name }}">🔥 {{ target_streak_count }}</span>
         {% else %}
         <span class="streak-badge streak-badge-header streak-badge-zero" data-chat-streak title="Message daily to build a streak!">🔥 0</span>
         {% endif %}
