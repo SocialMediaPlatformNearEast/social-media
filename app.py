@@ -127,6 +127,7 @@ def inject_helpers():
         'profile_color_unlocked': profile_color_unlocked,
         'profile_color_unlock_level': PROFILE_COLOR_UNLOCK_LEVEL,
         'static_asset': static_asset_url,
+        'relative_time': relative_time,
     }
 
 @app.context_processor
@@ -837,6 +838,41 @@ def timeline_timestamp(value):
         return datetime.fromisoformat(normalized).timestamp()
     except (TypeError, ValueError):
         return 0
+
+def relative_time(value, now=None):
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        target = value
+    else:
+        try:
+            target = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except (TypeError, ValueError):
+            return ""
+
+    current = now or (datetime.now(target.tzinfo) if target.tzinfo else datetime.now())
+    if target.tzinfo and current.tzinfo is None:
+        current = current.replace(tzinfo=target.tzinfo)
+
+    seconds = int((current - target).total_seconds())
+    if seconds < 0:
+        seconds = 0
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"{minutes}m"
+    hours = minutes // 60
+    if hours < 24:
+        return f"{hours}h"
+    days = hours // 24
+    if days < 30:
+        return f"{days}d"
+    months = days // 30
+    if months < 12:
+        return f"{months}mo"
+    years = days // 365
+    return f"{max(1, years)}y"
 
 def nested_count(value):
     if isinstance(value, list) and value:
@@ -2466,6 +2502,44 @@ def profile(username):
                            next_level_reward=next_level_reward_for_level(level),
                            achievement_summary=summary,
                            achievements=achievements)
+
+@app.route('/profile/<username>/high-five', methods=['POST'])
+def high_five_profile(username):
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+
+    try:
+        res = supabase.table('users').select('id, username, display_name').eq('username', username).execute()
+        if not res.data:
+            flash("Profile not found.", "error")
+            return redirect(url_for('index'))
+
+        target = res.data[0]
+        if target['id'] == viewer['id']:
+            flash("You cannot high-five yourself.", "info")
+            return redirect(url_for('profile', username=username))
+
+        streak_count, streak_xp = update_streak(viewer['id'], target['id'])
+        try:
+            supabase.table('notifications').insert({
+                'user_id': target['id'],
+                'actor_id': viewer['id'],
+                'type': 'high_five',
+                'is_read': False
+            }).execute()
+        except Exception:
+            app.logger.info("High-five notification could not be created", exc_info=True)
+
+        if streak_count > 1:
+            extra = f" {streak_xp} XP bonus." if streak_xp else ""
+            flash(f"High-five sent. You have a {streak_count}-day high-five streak with {target['display_name']}.{extra}", "success")
+        else:
+            flash(f"High-five sent to {target['display_name']}. Come back tomorrow to build the streak.", "success")
+    except Exception as e:
+        flash(handle_db_error(e), "error")
+
+    return redirect(url_for('profile', username=username))
 
 @app.route('/profile/<username>/<list_type>')
 def profile_social_list(username, list_type):

@@ -239,6 +239,64 @@
   font-size: 20px;
 }
 
+.level-path-panel {
+  background:
+    radial-gradient(circle at 16% 18%, var(--lvl-primary-soft-22), transparent 30%),
+    radial-gradient(circle at 86% 24%, var(--lvl-female-soft-25), transparent 28%),
+    linear-gradient(180deg, var(--surface-panel-raised, var(--lvl-surface-7)), var(--surface-panel, var(--lvl-surface-5))) !important;
+}
+
+.level-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.level-step-card,
+.xp-rule-card,
+.reward-ladder-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.level-step-card > span,
+.xp-rule-card > i {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--lvl-white-16);
+  border-radius: var(--radius-round);
+  background: var(--lvl-white-06);
+  font-style: normal;
+  font-size: 20px;
+}
+
+.level-step-card strong {
+  font-size: 16px;
+}
+
+.level-step-card:nth-child(1),
+.xp-rule-card:nth-child(3n + 1),
+.reward-ladder-card:nth-child(3n + 1) {
+  border-color: var(--lvl-primary-border);
+  background: linear-gradient(180deg, var(--lvl-primary-soft-12), var(--lvl-surface-5));
+}
+
+.level-step-card:nth-child(2),
+.xp-rule-card:nth-child(3n + 2),
+.reward-ladder-card:nth-child(3n + 2) {
+  border-color: var(--lvl-purple-soft-25);
+  background: linear-gradient(180deg, var(--lvl-purple-soft-25), var(--lvl-surface-5));
+}
+
+.level-step-card:nth-child(3),
+.xp-rule-card:nth-child(3n),
+.reward-ladder-card:nth-child(3n) {
+  border-color: var(--lvl-success-border);
+  background: linear-gradient(180deg, var(--lvl-success-soft), var(--lvl-surface-5));
+}
+
 .level-guide-panel {
   display: grid;
   gap: 14px;
@@ -351,6 +409,14 @@
 }
 
 @media (max-width: 900px) {
+  .level-step-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reward-ladder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .reward-roadmap-row {
     grid-template-columns: 1fr;
     align-items: start;
@@ -358,5 +424,15 @@
 
   .reward-roadmap-head {
     display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .level-guide-hero,
+  .reward-ladder,
+  .xp-rule-grid,
+  .achievement-guide-grid,
+  .level-requirement-grid {
+    grid-template-columns: 1fr;
   }
 }

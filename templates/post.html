@@ -30,7 +30,7 @@
             <strong>{{ post.user.display_name }}</strong>
           </a>
           <span>@{{ post.user.username }}</span>
-          <span class="time">· {{ post.created_at[:10] }}</span>
+          <span class="time" title="{{ post.created_at }}">· {{ relative_time(post.created_at) }}</span>
         </div>
         <div class="post-body">
           {{ post.content | linkify_mentions }}
@@ -84,7 +84,7 @@
               <strong>{{ comment.user.display_name }}</strong>
             </a>
             <span>@{{ comment.user.username }}</span>
-            <span class="time">· {{ comment.created_at[:10] }}</span>
+            <span class="time" title="{{ comment.created_at }}">· {{ relative_time(comment.created_at) }}</span>
           </div>
           <div class="post-body">
             {{ comment.comment | linkify_mentions }}

@@ -7,32 +7,58 @@
 <header class="page-header level-guide-header">
   <div>
     <h1>LvL Guide</h1>
-    <p>Learn how XP, rewards, and display achievements work across LvL.</p>
+    <p>Earn XP, unlock profile style, and make your progress visible without reading a rule book.</p>
   </div>
 </header>
 
 <section class="level-guide-page">
   <section class="level-guide-hero">
     <div>
-      <span class="panel-kicker">Progress system</span>
-      <h2>Every useful social action builds your public score.</h2>
-      <p>XP adds to your total score. When your total reaches the next requirement, your LvL goes up and your profile unlocks stronger status visuals.</p>
+      <span class="panel-kicker">🎮 Progress system</span>
+      <h2>Use LvL like a social app. Level up like a game.</h2>
+      <p>Posting, replying, liking, messaging, and high-fiving all feed your XP track. Higher LvLs unlock style rewards that make your profile feel earned.</p>
     </div>
     <div class="level-guide-score-card">
-      <span>Score track</span>
+      <span>⚡ Score track</span>
       <strong>XP → LvL → Rewards</strong>
       <p>Achievements are display badges for now. They show progress, but they do not add bonus XP.</p>
+    </div>
+  </section>
+
+  <section class="level-guide-panel level-path-panel" aria-label="How LvL works">
+    <div class="section-heading">
+      <h3>How it works</h3>
+      <p>Three simple steps: interact, fill the bar, unlock a visible reward.</p>
+    </div>
+    <div class="level-step-grid">
+      <article class="level-step-card">
+        <span aria-hidden="true">💬</span>
+        <strong>1. Join in</strong>
+        <p>Post, reply, like, repost, message, or high-five someone.</p>
+      </article>
+      <article class="level-step-card">
+        <span aria-hidden="true">⚡</span>
+        <strong>2. Gain XP</strong>
+        <p>Useful activity fills your LvL bar and helps your profile grow.</p>
+      </article>
+      <article class="level-step-card">
+        <span aria-hidden="true">🏅</span>
+        <strong>3. Show rewards</strong>
+        <p>Unlock badges, borders, colors, titles, and future icon recolors.</p>
+      </article>
     </div>
   </section>
 
   <section class="level-guide-panel">
     <div class="section-heading">
       <h3>Earn XP By</h3>
-      <p>These are the current ways to move your progress bar.</p>
+      <p>Small actions add up. The app should reward real interaction, not spam.</p>
     </div>
     <div class="xp-rule-grid">
+      {% set xp_icons = ['📝', '💬', '👍', '🔁', '👋', '🎥', '🔥'] %}
       {% for reward in xp_rewards %}
-        <article>
+        <article class="xp-rule-card">
+          <i aria-hidden="true">{{ xp_icons[loop.index0 % xp_icons|length] }}</i>
           <strong>+{{ reward.points }} XP</strong>
           <span>{{ reward.label }}</span>
           <p>{{ reward.description }}</p>
@@ -48,7 +74,7 @@
     </div>
     <div class="reward-ladder">
       {% for reward in level_rewards %}
-        <article>
+        <article class="reward-ladder-card">
           <span>LvL {{ reward.level }}</span>
           <strong>{{ reward.label }}</strong>
           <p>{{ reward.description }}</p>

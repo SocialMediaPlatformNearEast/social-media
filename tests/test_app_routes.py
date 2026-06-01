@@ -476,6 +476,25 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn('/reels', html)
         self.assertIn('Reels', html)
+        self.assertIn('class="app-topbar"', html)
+        self.assertIn('class="topbar-search"', html)
+        self.assertIn('data-web-back', html)
+        self.assertIn('aria-label="Messages"', html)
+        self.assertIn('aria-label="Alerts"', html)
+        self.assertIn('class="nav-label sr-only"', html)
+        self.assertIn('class="mobile-nav-label sr-only"', html)
+
+    def test_post_actions_are_icon_first_controls(self):
+        with zapp.app.test_request_context("/"):
+            html = zapp.render_template("_post_card.html", viewer={"id": 7}, post=self.sample_post())
+
+        self.assertIn('aria-label="Reply to post"', html)
+        self.assertIn('aria-label="Repost"', html)
+        self.assertIn('aria-label="Like post"', html)
+        self.assertIn('class="post-action-icon"', html)
+        self.assertNotIn('<span aria-hidden="true">Reply</span>', html)
+        self.assertNotIn('<span aria-hidden="true">Repost</span>', html)
+        self.assertNotIn('<span aria-hidden="true">Like</span>', html)
 
     def test_manifest_has_core_app_shortcuts(self):
         manifest_path = Path(__file__).resolve().parents[1] / "static" / "manifest.json"
@@ -488,7 +507,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(shortcuts["Notifications"], "/notifications")
         self.assertEqual(shortcuts["Profile"], "/profile")
 
-    def test_profile_metric_cards_link_to_social_lists(self):
+    def test_profile_stats_are_ordered_without_duplicate_metric_card(self):
         fake_user = {
             "id": 7,
             "username": "demo",
@@ -541,12 +560,93 @@ class AppRouteTests(unittest.TestCase):
                 }],
             )
 
-        self.assertIn('class="profile-metric-link"', html)
+        stats_pos = html.index('class="profile-stats"')
+        posts_pos = html.index('list_type=\'posts\'') if "list_type='posts'" in html else html.index('/profile/demo?m=posts')
+        following_pos = html.index('/profile/demo/following')
+        followers_pos = html.index('/profile/demo/followers')
+        friends_pos = html.index('/profile/demo/friends')
+        self.assertLess(posts_pos, following_pos)
+        self.assertLess(following_pos, followers_pos)
+        self.assertLess(followers_pos, friends_pos)
+        self.assertGreater(posts_pos, stats_pos)
+        self.assertNotIn('profile-account-card', html)
         self.assertIn('/profile/demo/following', html)
         self.assertIn('/profile/demo/followers', html)
         self.assertIn('/profile/demo/friends', html)
         self.assertIn("Achievements", html)
         self.assertIn("First Post", html)
+
+    def test_other_profile_has_high_five_action(self):
+        viewer = {
+            "id": 7,
+            "username": "viewer",
+            "display_name": "Viewer",
+            "profile_photo_url": "",
+            "level": 1,
+        }
+        profile = {
+            "id": 8,
+            "username": "demo",
+            "display_name": "Demo User",
+            "profile_photo_url": "",
+            "theme_color": "#1D9BF0",
+            "avatar_color": "#1D9BF0",
+            "badge_color": "#71767B",
+            "level": 2,
+            "total_xp": 120,
+            "bio": "",
+            "location": "",
+            "website": "",
+            "gender": "Male",
+            "created_at": "2026-05-14T00:00:00+00:00",
+        }
+        with zapp.app.test_request_context("/profile/demo"):
+            html = zapp.render_template(
+                "profile.html",
+                viewer=viewer,
+                profile=profile,
+                is_own_profile=False,
+                is_following=False,
+                friend_status=None,
+                friend_action_user_id=None,
+                safety_state={"muted": False, "blocked": False},
+                stats={"posts": 1, "comments": 2, "friends": 3, "following": 4, "followers": 5},
+                posts=[],
+                mode="posts",
+                page=1,
+                has_next=False,
+                highlights=[],
+                profile_banner={"label": "Rising", "description": "Keep going.", "class": "level-1"},
+                profile_banner_class="level-1",
+                profile_xp_progress=20,
+                profile_xp_needed=80,
+                profile_xp_current=20,
+                profile_xp_span=100,
+                next_level_reward={"level": 5, "label": "Rising Charge", "description": "Banner upgrade"},
+                achievement_summary={"unlocked": 1, "total": 3},
+                achievements=[],
+            )
+
+        self.assertIn('class="profile-high-five-form"', html)
+        self.assertIn('/profile/demo/high-five', html)
+        self.assertIn('aria-label="High-five Demo User"', html)
+
+    def test_relative_time_helper_formats_short_units(self):
+        self.assertEqual(zapp.relative_time(None), "")
+        self.assertEqual(zapp.relative_time("not-a-date"), "")
+
+        now = zapp.datetime(2026, 6, 1, 12, 0, 0)
+        self.assertEqual(zapp.relative_time("2026-06-01T11:59:30", now=now), "30s")
+        self.assertEqual(zapp.relative_time("2026-06-01T11:42:00", now=now), "18m")
+        self.assertEqual(zapp.relative_time("2026-06-01T08:00:00", now=now), "4h")
+        self.assertEqual(zapp.relative_time("2026-05-30T12:00:00", now=now), "2d")
+        self.assertEqual(zapp.relative_time("2026-04-01T12:00:00", now=now), "2mo")
+        self.assertEqual(zapp.relative_time("2025-04-01T12:00:00", now=now), "1y")
+
+    def test_high_five_route_is_registered(self):
+        routes = {rule.rule for rule in zapp.app.url_map.iter_rules()}
+
+        self.assertIn("/profile/<username>/high-five", routes)
 
     def test_social_list_renders_scrollable_people_panel(self):
         with zapp.app.test_request_context("/profile/demo/followers"):

@@ -27,7 +27,7 @@
             <p class="last-message">{{ conv.last_message }}</p>
           </div>
           {% if conv.streak_count > 0 %}
-          <span class="streak-badge" title="{{ conv.streak_count }}-day streak">🔥 {{ conv.streak_count }}</span>
+          <span class="streak-badge high-five-streak" title="{{ conv.streak_count }}-day high-five streak">🖐 {{ conv.streak_count }}</span>
           {% endif %}
         </a>
       {% endfor %}
@@ -49,9 +49,9 @@
         </a>
         {% set target_streak_count = target_user.streak_count|default(0)|int %}
         {% if target_streak_count > 0 %}
-        <span class="streak-badge streak-badge-header" data-chat-streak title="{{ target_streak_count }}-day streak with {{ target_user.display_name }}">🔥 {{ target_streak_count }}</span>
+        <span class="streak-badge streak-badge-header high-five-streak" data-chat-streak title="{{ target_streak_count }}-day high-five streak with {{ target_user.display_name }}">🖐 {{ target_streak_count }}</span>
         {% else %}
-        <span class="streak-badge streak-badge-header streak-badge-zero" data-chat-streak title="Message daily to build a streak!">🔥 0</span>
+        <span class="streak-badge streak-badge-header streak-badge-zero high-five-streak" data-chat-streak title="Message or high-five daily to build a streak!">🖐 0</span>
         {% endif %}
       </header>
 

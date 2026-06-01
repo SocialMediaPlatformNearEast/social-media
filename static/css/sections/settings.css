@@ -213,3 +213,68 @@
 .danger-button:focus-visible {
   background: var(--lvl-danger-hover);
 }
+
+@media (max-width: 720px) {
+  .settings-container {
+    width: 100%;
+    max-width: none;
+  }
+
+  .settings-content {
+    padding: 10px;
+  }
+
+  .premium-form,
+  .settings-content .form-section {
+    gap: 14px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .profile-preview-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .profile-preview-banner {
+    min-height: 92px;
+  }
+
+  .color-picker-wrapper {
+    display: grid;
+    grid-template-columns: var(--control-lg) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .hex-value {
+    width: 100%;
+  }
+
+  .form-actions {
+    position: sticky;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    z-index: 12;
+    margin-inline: -10px;
+    padding: 12px 10px 0;
+    background: linear-gradient(180deg, transparent, var(--lvl-black) 28%);
+  }
+
+  .form-actions .outline-button,
+  .form-actions .primary-button {
+    flex: 1;
+    text-align: center;
+  }
+
+  .danger-zone {
+    margin-inline: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+}

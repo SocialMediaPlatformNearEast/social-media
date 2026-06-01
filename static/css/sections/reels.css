@@ -674,12 +674,6 @@
   background: var(--lvl-white-22);
 }
 
-/* ─── Profile avatar size ────────────────────────────────────────────────── */
-.profile-avatar-large {
-  width: 80px;
-  height: 80px;
-}
-
 /* ─── Text overflow / layout safety ─────────────────────────────────────── */
 .post-author-link strong,
 .post-author-link span,

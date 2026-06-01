@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initBirthdayValidation();
     initProfilePreview();
     initProfileAvatarModal();
+    initWebBackButton();
     initHomeReelPanel();
     initCommunityTimeline();
     initReelsFeed();
@@ -173,12 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (typeof result.streak === 'number') {
                         const streakEl = document.querySelector('[data-chat-streak]');
                         if (streakEl) {
-                            streakEl.textContent = `🔥 ${result.streak}`;
-                            streakEl.title = `${result.streak}-day streak`;
+                            streakEl.textContent = `🖐 ${result.streak}`;
+                            streakEl.title = `${result.streak}-day high-five streak`;
                             streakEl.classList.toggle('streak-badge-zero', result.streak === 0);
                         }
                         if (result.streak_xp > 0) {
-                            showXpToasts([{ points: result.streak_xp, label: `🔥 ${result.streak}-day streak` }]);
+                            showXpToasts([{ points: result.streak_xp, label: `🖐 ${result.streak}-day high-five streak` }]);
                         }
                     }
                 } else {
@@ -1303,3 +1304,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+function initWebBackButton() {
+    document.querySelectorAll('[data-web-back]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+            window.location.href = '/';
+        });
+    });
+}

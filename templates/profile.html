@@ -31,6 +31,12 @@
         {% if is_own_profile %}
           <a class="outline-button" href="{{ url_for('settings') }}">Edit profile</a>
         {% else %}
+          <form action="{{ url_for('high_five_profile', username=profile.username) }}" method="post" class="profile-high-five-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="profile-high-five-button" type="submit" aria-label="High-five {{ profile.display_name }}" title="High-five">
+              <span aria-hidden="true">🖐</span>
+            </button>
+          </form>
           <form action="{{ url_for('toggle_follow') }}" method="post" class="ajax-action-form" data-action="follow">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_id" value="{{ profile.id }}">
@@ -98,18 +104,11 @@
     </div>
 
     <div class="profile-stats">
+      <a href="{{ url_for('profile', username=profile.username, m='posts') }}"><strong>{{ stats.posts }}</strong> Posts</a>
       <a href="{{ url_for('profile_social_list', username=profile.username, list_type='following') }}"><strong>{{ stats.following }}</strong> Following</a>
       <a href="{{ url_for('profile_social_list', username=profile.username, list_type='followers') }}"><strong>{{ stats.followers }}</strong> Followers</a>
       <a href="{{ url_for('profile_social_list', username=profile.username, list_type='friends') }}"><strong>{{ stats.friends }}</strong> Friends</a>
     </div>
-    
-    <section class="profile-account-card" aria-label="Profile activity stats">
-      <div><span>Posts</span><strong>{{ stats.posts }}</strong></div>
-      <div><span>Comments</span><strong>{{ stats.comments }}</strong></div>
-      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='friends') }}"><span>Friends</span><strong>{{ stats.friends }}</strong></a>
-      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='following') }}"><span>Following</span><strong>{{ stats.following }}</strong></a>
-      <a class="profile-metric-link" href="{{ url_for('profile_social_list', username=profile.username, list_type='followers') }}"><span>Followers</span><strong>{{ stats.followers }}</strong></a>
-    </section>
 
     <section class="profile-xp-card" aria-label="Profile XP summary">
       <div class="profile-xp-main">
