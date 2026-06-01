@@ -109,6 +109,69 @@
   color: inherit;
 }
 
+.community-lens-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(190px, 1fr);
+  gap: var(--space-4);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  padding-bottom: var(--space-1);
+}
+
+.community-lens-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon title"
+    "icon copy";
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  align-items: center;
+  min-height: 92px;
+  padding: var(--space-5);
+  border: var(--line-default);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+  background: var(--lvl-surface-4);
+  scroll-snap-align: start;
+}
+
+.community-lens-card:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 44%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--lvl-surface-4));
+}
+
+.community-lens-card > span {
+  grid-area: icon;
+  width: var(--control-md);
+  height: var(--control-md);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-xs);
+  color: var(--lvl-white);
+  font-weight: 900;
+  background: var(--accent-color);
+}
+
+.community-lens-card strong {
+  grid-area: title;
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.community-lens-card small {
+  grid-area: copy;
+  overflow: hidden;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
 .community-timeline-shell {
   overflow: hidden;
   border: var(--line-default);
@@ -331,6 +394,17 @@
     font-size: 14px;
   }
 
+  .community-lens-strip {
+    grid-auto-columns: minmax(210px, 82%);
+    margin-inline: calc(var(--space-4) * -1);
+    padding-inline: var(--space-4);
+  }
+
+  .community-lens-card {
+    min-height: 88px;
+    padding: var(--space-4);
+  }
+
   .community-feed-header {
     padding: var(--space-6);
   }
@@ -383,6 +457,15 @@
 
   .community-timeline-tabs a {
     min-height: 42px;
+  }
+
+  .community-lens-strip {
+    grid-auto-columns: minmax(180px, 1fr);
+  }
+
+  .community-lens-card {
+    min-height: 76px;
+    padding: var(--space-3);
   }
 
   .community-feed-header {

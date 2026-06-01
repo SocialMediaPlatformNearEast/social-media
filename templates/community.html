@@ -29,6 +29,29 @@
     </div>
   </section>
 
+  <section class="community-lens-strip" aria-label="Community shortcuts">
+    <a class="community-lens-card" href="{{ url_for('profile', username=viewer.username, m='posts') }}">
+      <span aria-hidden="true">↺</span>
+      <strong>History</strong>
+      <small>Your posts, replies, and profile activity.</small>
+    </a>
+    <a class="community-lens-card" href="{{ url_for('community', tab='community') }}">
+      <span aria-hidden="true">#</span>
+      <strong>Community</strong>
+      <small>Group threads and topic rooms across LvL.</small>
+    </a>
+    <a class="community-lens-card" href="{{ url_for('search', f='top') }}">
+      <span aria-hidden="true">↑</span>
+      <strong>Trends</strong>
+      <small>{{ metrics.posts }} posts and {{ metrics.follows }} follows shaping discovery.</small>
+    </a>
+    <a class="community-lens-card" href="{{ url_for('level_guide') }}">
+      <span aria-hidden="true">★</span>
+      <strong>News</strong>
+      <small>Reward changes, XP rules, and unlocks.</small>
+    </a>
+  </section>
+
   <nav class="community-timeline-tabs" aria-label="Community timelines">
     {% for tab in community_tabs %}
       <a id="community-tab-{{ tab.key }}"

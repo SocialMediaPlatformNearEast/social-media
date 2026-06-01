@@ -237,6 +237,10 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("Follower post", html)
         self.assertIn("Following post", html)
         self.assertIn("Community thread", html)
+        self.assertIn('class="community-lens-strip"', html)
+        self.assertIn("History", html)
+        self.assertIn("Trends", html)
+        self.assertIn("News", html)
         self.assertIn('data-community-pane="followers"', html)
         self.assertIn('aria-current="page"', html)
         self.assertRegex(html, r'data-community-pane="followers"[\s\S]+?hidden')
@@ -300,6 +304,17 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(context["counts"]["followers"], 1)
         self.assertEqual(context["counts"]["following"], 1)
         self.assertEqual(context["counts"]["community"], 0)
+
+    def test_static_asset_version_is_consistent(self):
+        styles = Path("static/css/styles.css").read_text()
+        service_worker = Path("static/service-worker.js").read_text()
+        expected_query = f"?v={zapp.ASSET_VERSION}"
+
+        for line in styles.splitlines():
+            if line.startswith("@import"):
+                self.assertIn(expected_query, line)
+
+        self.assertIn(f"const ASSET_VERSION = '{zapp.ASSET_VERSION}';", service_worker)
 
     def test_auth_page_includes_pwa_install_prompt(self):
         auth_html = self.client.get("/auth").data.decode()

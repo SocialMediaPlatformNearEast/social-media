@@ -98,7 +98,7 @@
   font-size: 14px;
 }
 
-.profile-avatar-large {
+.profile-header .avatar.profile-avatar-large {
   width: 148px;
   height: 148px;
 }

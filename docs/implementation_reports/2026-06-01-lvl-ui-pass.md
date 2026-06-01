@@ -18,6 +18,7 @@ This pass keeps desktop Home/Reels structure intact and focuses on the approved 
 - Mobile edit profile aspect-ratio and spacing cleanup.
 - Web back button.
 - Relative post time labels.
+- LvL-native community shortcuts for history, community, trends, and news.
 
 ## Checkpoints
 
@@ -26,12 +27,16 @@ This pass keeps desktop Home/Reels structure intact and focuses on the approved 
 - [x] Top bar and icon navigation implemented.
 - [x] Post actions and relative time implemented.
 - [x] Profile cleanup and high-five action implemented.
-- [ ] LvL Guide and settings mobile polish implemented.
-- [ ] Tests passed.
-- [ ] Rendered browser sanity check completed.
-- [ ] Final commit created.
+- [x] LvL Guide and settings mobile polish implemented.
+- [x] Community shortcut strip implemented.
+- [x] Tests passed.
+- [x] Rendered browser sanity check completed.
+- [x] Final commit created.
 
 ## Notes
 
 - High-five uses the existing interaction streak table for this pass so it does not introduce a new database table.
 - If a later review finds that message streaks and profile high-fives need separate streak histories, split them into separate tables in a follow-up migration.
+- The community shortcut strip uses real existing routes instead of placeholder panels: profile history, community timeline, top search trends, and the LvL guide.
+- Static assets were bumped to `v32` after CSS and JS updates so local service-worker/browser cache does not keep stale styling.
+- Rendered checks covered mobile `390x844`, landscape `844x390`, and desktop `1280x800`; no horizontal page overflow was detected in those checks.
