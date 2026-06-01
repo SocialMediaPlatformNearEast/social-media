@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initProfilePreview();
     initProfileAvatarModal();
     initWebBackButton();
+    initSwipeBack();
     initHomeReelPanel();
     initCommunityTimeline();
     initReelsFeed();
@@ -725,7 +726,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const cards = Array.from(feed.querySelectorAll('[data-reel-card]'));
         const viewed = new Set();
         const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const soundPreferenceKey = 'lvlReelsSoundOn';
+        let soundOn = false;
         let activeCard = null;
+
+        try {
+            soundOn = window.sessionStorage.getItem(soundPreferenceKey) === '1';
+        } catch (error) {
+            soundOn = false;
+        }
+
+        const saveSoundPreference = () => {
+            try {
+                window.sessionStorage.setItem(soundPreferenceKey, soundOn ? '1' : '0');
+            } catch (error) {
+                // Session storage can be unavailable in private or restricted contexts.
+            }
+        };
+
+        const updateMuteControl = (button, label, muted) => {
+            if (!button) return;
+            if (label) label.textContent = muted ? 'Muted' : 'Sound on';
+            button.classList.toggle('active', !muted);
+            button.setAttribute('aria-label', muted ? 'Unmute reels' : 'Mute reels');
+        };
+
+        const applySoundPreference = (card) => {
+            const video = card.querySelector('[data-reel-video]');
+            const muteButton = card.querySelector('[data-reel-mute]');
+            const muteLabel = card.querySelector('[data-reel-mute-icon]');
+            if (!video) return;
+            video.muted = !soundOn;
+            updateMuteControl(muteButton, muteLabel, video.muted);
+        };
+
+        const applySoundPreferenceToAll = () => {
+            cards.forEach(applySoundPreference);
+        };
 
         const pauseCard = (card) => {
             const video = card.querySelector('[data-reel-video]');
@@ -776,6 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('active');
             const video = card.querySelector('[data-reel-video]');
             if (!video) return;
+            applySoundPreference(card);
             if (video.paused) {
                 const playPromise = video.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
@@ -864,16 +902,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (playButton) playButton.addEventListener('click', togglePlay);
+            if (video) applySoundPreference(card);
             if (muteButton && video) {
                 muteButton.addEventListener('click', () => {
-                    video.muted = !video.muted;
-                    if (muteLabel) muteLabel.textContent = video.muted ? 'Muted' : 'Sound on';
-                    muteButton.classList.toggle('active', !video.muted);
-                    muteButton.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+                    soundOn = video.muted;
+                    saveSoundPreference();
+                    applySoundPreferenceToAll();
                 });
-                // Sync initial state
-                muteButton.classList.toggle('active', !video.muted);
-                if (muteLabel) muteLabel.textContent = video.muted ? 'Muted' : 'Sound on';
             }
 
             // Comment panel toggle
@@ -1315,4 +1350,31 @@ function initWebBackButton() {
             window.location.href = '/';
         });
     });
+}
+
+function initSwipeBack() {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    window.addEventListener('touchstart', (event) => {
+        if (!event.touches || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        if (touch.clientX > 28) return;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        tracking = true;
+    }, { passive: true });
+
+    window.addEventListener('touchend', (event) => {
+        if (!tracking || !event.changedTouches || event.changedTouches.length !== 1) return;
+        tracking = false;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = Math.abs(touch.clientY - startY);
+        if (deltaX < 84 || deltaY > 70) return;
+        if (window.history.length > 1) {
+            window.history.back();
+        }
+    }, { passive: true });
 }

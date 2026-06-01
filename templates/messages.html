@@ -93,7 +93,10 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="message_id" value="{{ msg.id }}">
                 <input type="hidden" name="redirect" value="{{ url_for('messages', u=target_user.username) }}">
-                <button type="submit" aria-label="Delete message">Delete message</button>
+                <button type="submit" aria-label="Delete message">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12ZM8 4h3l1-1h4l1 1h3v2H8V4Z"/></svg>
+                  <span class="sr-only">Delete message</span>
+                </button>
               </form>
             </div>
           </div>

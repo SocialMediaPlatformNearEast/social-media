@@ -6,8 +6,8 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <h1>Notifications</h1>
-    <p>Alerts generated from likes, reposts, comments, follows, friend requests, and messages.</p>
+    <h1>Alerts</h1>
+    <p>Short grouped updates for likes, comments, follows, messages, and high-fives.</p>
   </div>
   <form action="{{ url_for('mark_notifications_read') }}" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -24,7 +24,7 @@
   {% endif %}
   
   {% for notification in notifications %}
-    <div class="notification-item {% if not notification.is_read %}unread{% endif %}">
+    <article class="notification-item {% if not notification.is_read %}unread{% endif %}">
       <div class="notification-icon type-{{ notification.type }}">
         {% if notification.type == 'like' %}❤️{% endif %}
         {% if notification.type == 'follow' %}👤{% endif %}
@@ -38,7 +38,7 @@
       <div class="notification-body">
         <div class="notification-header">
           <a href="{{ url_for('profile', username=notification.actor_username) }}" class="actor-link">
-            <strong>{{ notification.actor_name }}</strong>
+            <strong>{{ notification.actor_summary or notification.actor_name }}</strong>
           </a>
           <span class="notification-text">
             {% if notification.type == 'like' %}liked your post
@@ -52,15 +52,16 @@
             {% else %}{{ notification.type }}
             {% endif %}
           </span>
-          <span class="time">· {{ notification.created_at[:10] }}</span>
+          {% if notification.stack_count and notification.stack_count > 1 %}
+            <span class="notification-stack">{{ notification.stack_count }} total</span>
+          {% endif %}
+          <span class="time">· {{ relative_time(notification.created_at) }}</span>
         </div>
         
         {% if notification.post_id %}
-          <a href="{{ url_for('post', id=notification.post_id) }}" class="notification-preview">
-            {{ notification.post_content[:140] }}{% if notification.post_content|length > 140 %}...{% endif %}
-          </a>
+          <a href="{{ url_for('post', id=notification.post_id) }}" class="notification-action">Open post</a>
         {% elif notification.type == 'message' %}
-          <a href="{{ url_for('messages', u=notification.actor_username) }}" class="notification-action">View message</a>
+          <a href="{{ url_for('messages', u=notification.actor_username) }}" class="notification-action">Open chat</a>
         {% elif notification.type == 'friend_request' and notification.friendship_status == 'pending' and notification.friendship_action_user_id != viewer.id %}
           <div class="notification-actions">
             <form action="{{ url_for('respond_friend_request') }}" method="post">
@@ -78,7 +79,7 @@
           </div>
         {% endif %}
       </div>
-    </div>
+    </article>
   {% endfor %}
 </section>
 {% endblock %}

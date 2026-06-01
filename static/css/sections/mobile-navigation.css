@@ -82,20 +82,7 @@
   }
 
   .mobile-reels-upload-cta {
-    position: sticky;
-    top: 74px;
-    z-index: 11;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--control-lg);
-    margin: 10px 14px 0;
-    border: 1px solid var(--lvl-white-18);
-    border-radius: var(--radius-pill);
-    background: var(--text-primary);
-    color: var(--lvl-text-inverse);
-    font-weight: 900;
-    text-decoration: none;
+    display: none;
   }
 
   .reel-upload-page {

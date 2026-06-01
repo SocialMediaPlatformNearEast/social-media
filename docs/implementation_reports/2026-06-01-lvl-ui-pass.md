@@ -40,3 +40,21 @@ This pass keeps desktop Home/Reels structure intact and focuses on the approved 
 - The community shortcut strip uses real existing routes instead of placeholder panels: profile history, community timeline, top search trends, and the LvL guide.
 - Static assets were bumped to `v32` after CSS and JS updates so local service-worker/browser cache does not keep stale styling.
 - Rendered checks covered mobile `390x844`, landscape `844x390`, and desktop `1280x800`; no horizontal page overflow was detected in those checks.
+
+## Second Checkpoint
+
+Reference after the first checkpoint: `14f080d` (`Complete LvL UI polish checkpoint`)
+
+- [x] Added an Activity page for posts, comments, likes, reposts, and reels history.
+- [x] Added Activity to the icon-only hamburger/sidebar navigation.
+- [x] Grouped stackable alerts and removed post-content previews from alert rows.
+- [x] Marked alerts as read when the Alerts page is viewed so the red badge clears until new alerts arrive.
+- [x] Tightened Messages layout and converted message delete to an icon control.
+- [x] Kept Reels sound preference for the current browser session.
+- [x] Removed the extra sticky mobile Reels upload pill; mobile upload stays on the bottom `+` action.
+- [x] Tightened Reels frame sizing so landscape and phone views keep a clean vertical aspect.
+- [x] Added edge swipe-back behavior for mobile browsers.
+- [x] Static assets were bumped to `v33`.
+- [x] Focused tests passed.
+- [x] Full test suite passed: 57 tests, 1 expected skip.
+- [x] Rendered browser checks passed on mobile `390x844`, landscape `844x390`, and desktop `1280x800`.

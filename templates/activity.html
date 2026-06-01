@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% set active_page = "activity" %}
+{% set show_highlights = True %}
+{% set title = "Activity" %}
+
+{% block content %}
+<header class="page-header activity-header">
+  <div>
+    <span class="panel-kicker">Your history</span>
+    <h1>Activity</h1>
+    <p>Posts, replies, likes, reposts, and reels you touched recently.</p>
+  </div>
+</header>
+
+<section class="activity-panel panel" aria-label="Recent activity">
+  {% if not activity_items %}
+    <div class="empty-state compact-empty">
+      <h2>Nothing here yet</h2>
+      <p>Post, comment, like, repost, or upload a reel to build your LvL history.</p>
+    </div>
+  {% endif %}
+
+  {% for item in activity_items %}
+    {% if item.url %}
+      <a class="activity-row" href="{{ item.url }}">
+    {% else %}
+      <div class="activity-row">
+    {% endif %}
+        <span class="activity-icon" aria-hidden="true">{{ item.emoji }}</span>
+        <span class="activity-copy">
+          <strong>{{ item.title }}</strong>
+          <small>{{ item.description }}</small>
+        </span>
+        {% if item.created_at %}
+          <time datetime="{{ item.created_at }}">{{ relative_time(item.created_at) }}</time>
+        {% endif %}
+    {% if item.url %}
+      </a>
+    {% else %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

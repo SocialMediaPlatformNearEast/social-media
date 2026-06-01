@@ -132,6 +132,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("/delete_message", routes)
         self.assertIn("/delete_account", routes)
         self.assertIn("/profile", routes)
+        self.assertIn("/activity", routes)
 
     def sample_reel(self, reel_id=1, user_id=7):
         return {
@@ -315,6 +316,14 @@ class AppRouteTests(unittest.TestCase):
                 self.assertIn(expected_query, line)
 
         self.assertIn(f"const ASSET_VERSION = '{zapp.ASSET_VERSION}';", service_worker)
+        self.assertIn("sections/activity.css", styles)
+
+    def test_reels_script_keeps_sound_preference_for_session(self):
+        script = Path("static/js/script.js").read_text()
+
+        self.assertIn("lvlReelsSoundOn", script)
+        self.assertIn("sessionStorage.setItem", script)
+        self.assertIn("applySoundPreferenceToAll", script)
 
     def test_auth_page_includes_pwa_install_prompt(self):
         auth_html = self.client.get("/auth").data.decode()
@@ -496,6 +505,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('data-web-back', html)
         self.assertIn('aria-label="Messages"', html)
         self.assertIn('aria-label="Alerts"', html)
+        self.assertIn('aria-label="Activity"', html)
         self.assertIn('class="nav-label sr-only"', html)
         self.assertIn('class="mobile-nav-label sr-only"', html)
 
@@ -521,6 +531,39 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(shortcuts["Messages"], "/messages")
         self.assertEqual(shortcuts["Notifications"], "/notifications")
         self.assertEqual(shortcuts["Profile"], "/profile")
+
+    def test_activity_template_groups_recent_user_history(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        with zapp.app.test_request_context("/activity"):
+            html = zapp.render_template(
+                "activity.html",
+                viewer=viewer,
+                highlights=[],
+                activity_items=[
+                    zapp.activity_item("post", "Post", "Shared a status", "2026-06-01T12:00:00", "/post/1", "📝"),
+                    zapp.activity_item("like", "Like", "You liked a post.", "2026-06-01T11:00:00", "/post/2", "👍"),
+                ],
+            )
+
+        self.assertIn("Activity", html)
+        self.assertIn("Shared a status", html)
+        self.assertIn("You liked a post.", html)
+        self.assertIn('class="activity-row"', html)
+
+    def test_notification_stacking_creates_short_grouped_items(self):
+        notifications = [
+            {"type": "like", "post_id": 5, "actor_name": "Ada", "is_read": False},
+            {"type": "like", "post_id": 5, "actor_name": "Sam", "is_read": True},
+            {"type": "comment", "post_id": 5, "actor_name": "Mina", "is_read": False},
+        ]
+
+        stacked = zapp.stack_notifications(notifications)
+
+        self.assertEqual(len(stacked), 2)
+        like_item = next(item for item in stacked if item["type"] == "like")
+        self.assertEqual(like_item["stack_count"], 2)
+        self.assertEqual(like_item["actor_summary"], "Ada and Sam")
+        self.assertFalse(like_item["is_read"])
 
     def test_profile_stats_are_ordered_without_duplicate_metric_card(self):
         fake_user = {

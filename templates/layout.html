@@ -73,6 +73,12 @@
           </span>
           <span class="nav-label sr-only">Alerts</span>
         </a>
+        <a class="{% if active_page == 'activity' %}active{% endif %}" href="{{ url_for('activity') }}" aria-label="Activity" title="Activity">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M13 3a9 9 0 1 1-8.95 10H2l3-3.5L8 13H6.06A7 7 0 1 0 13 5v4l4 2-1 1.73-5-2.5V3h2Z"/></svg>
+          </span>
+          <span class="nav-label sr-only">Activity</span>
+        </a>
         <a class="{% if active_page == 'community' %}active{% endif %}" href="{{ url_for('community') }}" aria-label="Community" title="Community">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7.5 11a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm9 0a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM2 20c.38-3.35 2.63-6 5.5-6s5.12 2.65 5.5 6H2Zm9.75 0c.24-1.86 1.06-3.48 2.25-4.6.72-.88 1.57-1.4 2.5-1.4 2.87 0 5.12 2.65 5.5 6H11.75Z"/></svg>

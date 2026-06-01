@@ -57,8 +57,8 @@
 
 .reel-video-frame {
   position: relative;
-  width: min(420px, 100%);
-  height: min(86vh, calc((100vw - 40px) * 16 / 9));
+  width: min(calc(86svh * 9 / 16), 420px, 100%);
+  height: auto;
   max-height: 86vh;
   aspect-ratio: 9 / 16;
   overflow: hidden;

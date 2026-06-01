@@ -1,0 +1,87 @@
+/* Activity history */
+.activity-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.activity-panel {
+  display: grid;
+  gap: 0;
+  margin: 16px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.activity-row:last-child {
+  border-bottom: 0;
+}
+
+.activity-row:hover,
+.activity-row:focus-visible {
+  background: var(--hover-bg);
+  text-decoration: none;
+}
+
+.activity-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--lvl-white-12);
+  border-radius: var(--radius-sm);
+  background: var(--lvl-white-05);
+  font-size: 20px;
+}
+
+.activity-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.activity-copy strong,
+.activity-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-copy small,
+.activity-row time {
+  color: var(--text-secondary);
+}
+
+.activity-row time {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.compact-empty {
+  padding: 34px 18px;
+}
+
+@media (max-width: 640px) {
+  .activity-panel {
+    margin: 12px;
+  }
+
+  .activity-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .activity-row time {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

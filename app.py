@@ -57,7 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "32"
+ASSET_VERSION = "33"
 
 GENDER_OPTIONS = GENDER_THEME
 COMMUNITY_DEFAULT_TAB = 'following'
@@ -1296,6 +1296,106 @@ def get_explore_context(viewer):
         })
     return context
 
+def activity_item(kind, title, description, created_at=None, url=None, emoji='•'):
+    return {
+        'kind': kind,
+        'title': title,
+        'description': description,
+        'created_at': created_at or '',
+        'url': url,
+        'emoji': emoji
+    }
+
+def get_user_activity(viewer, limit=36):
+    items = []
+    viewer_id = viewer['id']
+
+    try:
+        posts_res = supabase.table('posts').select('id,content,created_at').eq('user_id', viewer_id).is_('deleted_at', 'null').order('created_at', desc=True).limit(12).execute()
+        for post in posts_res.data or []:
+            text = post.get('content') or 'Picture post'
+            items.append(activity_item('post', 'Post', text[:120], post.get('created_at'), url_for('post', id=post['id']), '📝'))
+    except Exception:
+        pass
+
+    try:
+        comments_res = supabase.table('comments').select('id,post_id,comment,created_at').eq('user_id', viewer_id).order('created_at', desc=True).limit(12).execute()
+        for comment in comments_res.data or []:
+            post_id = comment.get('post_id')
+            items.append(activity_item('comment', 'Comment', (comment.get('comment') or '')[:120], comment.get('created_at'), url_for('post', id=post_id) if post_id else None, '💬'))
+    except Exception:
+        pass
+
+    try:
+        likes_res = supabase.table('likes').select('post_id,created_at').eq('user_id', viewer_id).order('created_at', desc=True).limit(12).execute()
+        for like in likes_res.data or []:
+            post_id = like.get('post_id')
+            items.append(activity_item('like', 'Like', 'You liked a post.', like.get('created_at'), url_for('post', id=post_id) if post_id else None, '👍'))
+    except Exception:
+        pass
+
+    try:
+        reposts_res = supabase.table('reposts').select('post_id,created_at').eq('user_id', viewer_id).order('created_at', desc=True).limit(12).execute()
+        for repost in reposts_res.data or []:
+            post_id = repost.get('post_id')
+            items.append(activity_item('repost', 'Repost', 'You reposted something to your network.', repost.get('created_at'), url_for('post', id=post_id) if post_id else None, '🔁'))
+    except Exception:
+        pass
+
+    try:
+        reels_res = supabase.table('reels').select('id,caption,created_at').eq('user_id', viewer_id).is_('deleted_at', 'null').order('created_at', desc=True).limit(12).execute()
+        for reel in reels_res.data or []:
+            text = reel.get('caption') or 'You uploaded a reel.'
+            items.append(activity_item('reel', 'Reel', text[:120], reel.get('created_at'), f"{url_for('reels')}#reel-{reel['id']}", '▶'))
+    except Exception:
+        pass
+
+    items.sort(key=lambda item: item.get('created_at') or '', reverse=True)
+    return items[:limit]
+
+STACKABLE_NOTIFICATION_TYPES = {'like', 'repost', 'comment', 'high_five'}
+
+def actor_summary(names, count):
+    clean_names = [name for name in names if name]
+    if count <= 1:
+        return clean_names[0] if clean_names else 'Someone'
+    if len(clean_names) >= 2 and count == 2:
+        return f"{clean_names[0]} and {clean_names[1]}"
+    if len(clean_names) >= 2:
+        return f"{clean_names[0]}, {clean_names[1]}, and {count - 2} others"
+    if clean_names:
+        return f"{clean_names[0]} and {count - 1} others"
+    return f"{count} people"
+
+def stack_notifications(notifications):
+    stacked = []
+    stack_map = {}
+    for notification in notifications:
+        notification['stack_count'] = 1
+        notification['stack_actor_names'] = [notification.get('actor_name') or 'Someone']
+        notification['actor_summary'] = actor_summary(notification['stack_actor_names'], 1)
+
+        notif_type = notification.get('type')
+        if notif_type not in STACKABLE_NOTIFICATION_TYPES:
+            stacked.append(notification)
+            continue
+
+        key = (notif_type, notification.get('post_id') or 'global')
+        existing = stack_map.get(key)
+        if not existing:
+            stack_map[key] = notification
+            stacked.append(notification)
+            continue
+
+        existing['stack_count'] += 1
+        existing['is_read'] = existing.get('is_read') and notification.get('is_read')
+        name = notification.get('actor_name') or 'Someone'
+        if name not in existing['stack_actor_names']:
+            existing['stack_actor_names'].append(name)
+        existing['actor_summary'] = actor_summary(existing['stack_actor_names'], existing['stack_count'])
+
+    return stacked
+
 @app.route('/')
 def index():
     viewer = get_current_user()
@@ -2402,6 +2502,17 @@ def level_guide():
                            reward_product_table=LEVEL_REWARD_PRODUCT_TABLE,
                            achievements=ACHIEVEMENT_DEFINITIONS)
 
+@app.route('/activity')
+def activity():
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+
+    return render_template('activity.html',
+                           viewer=viewer,
+                           highlights=get_community_highlights(),
+                           activity_items=get_user_activity(viewer))
+
 @app.route('/profile/<username>')
 def profile(username):
     viewer = get_current_user()
@@ -2769,6 +2880,7 @@ def notifications():
             n['friendship_status'] = 'pending'
             n['friendship_action_user_id'] = actor.get('id')
             formatted.append(n)
+        formatted = stack_notifications(formatted)
         post_ids = [item['post_id'] for item in formatted if item.get('post_id')]
         if post_ids:
             posts_res = supabase.table('posts').select('id, content').in_('id', list(set(post_ids))).execute()
@@ -2783,6 +2895,9 @@ def notifications():
                 if friend_res.data:
                     item['friendship_status'] = friend_res.data[0].get('status')
                     item['friendship_action_user_id'] = friend_res.data[0].get('action_user_id')
+
+        if any(not item.get('is_read') for item in formatted):
+            supabase.table('notifications').update({'is_read': True}).eq('user_id', viewer['id']).eq('is_read', False).execute()
             
     except Exception as e:
         flash(handle_db_error(e), "error")
