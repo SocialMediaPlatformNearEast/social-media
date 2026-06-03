@@ -6,6 +6,28 @@
   background: var(--lvl-black);
 }
 
+/* Desktop: reels takes full available width */
+@media (min-width: 1001px) {
+  .app-shell:has(.timeline-reels) {
+    max-width: 100% !important;
+    grid-template-columns: auto 1fr 0 !important;
+  }
+
+  .app-shell:has(.timeline-reels) .right-rail-wrapper {
+    display: none !important;
+  }
+
+  .timeline-reels {
+    max-width: none;
+    border-right: 0;
+  }
+
+  .reels-page {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+}
+
 .reels-page {
   min-height: 100vh;
   background: radial-gradient(circle at top, var(--lvl-primary-soft-12), transparent 34%), var(--lvl-black);

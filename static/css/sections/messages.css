@@ -365,6 +365,28 @@
   max-width: 320px;
 }
 
+/* Desktop: messages takes full available width */
+@media (min-width: 1001px) {
+  .app-shell:has(.timeline-messages) {
+    max-width: 100% !important;
+    grid-template-columns: auto 1fr 0 !important;
+  }
+
+  .app-shell:has(.timeline-messages) .right-rail-wrapper {
+    display: none !important;
+  }
+
+  .timeline-messages {
+    max-width: none;
+    border-right: 0;
+  }
+
+  .messages-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
 @media (max-width: 1000px) {
   .messages-container {
     height: calc(100vh - 53px);
