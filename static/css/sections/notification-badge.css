@@ -5,10 +5,18 @@
   display: inline-flex;
 }
 
+.nav-list a:has(.nav-badge) {
+  position: relative;
+}
+
 .nav-badge {
   position: absolute;
-  top: -6px;
-  right: -8px;
+  top: 7px;
+  right: 7px;
+  display: inline-grid;
+  place-items: center;
+  width: auto;
+  flex: none;
   min-width: 17px;
   height: 17px;
   padding: 0 4px;
@@ -20,6 +28,7 @@
   font-weight: 800;
   line-height: 13px;
   text-align: center;
+  z-index: 2;
   pointer-events: none;
 }
 

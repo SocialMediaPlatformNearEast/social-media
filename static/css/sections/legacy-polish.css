@@ -856,7 +856,7 @@ button {
 }
 
 .message-bubble-wrapper {
-  max-width: min(72%, 560px);
+  max-width: min(68%, 300px);
 }
 
 .message-bubble {

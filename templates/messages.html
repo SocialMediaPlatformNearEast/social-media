@@ -34,8 +34,8 @@
     </div>
   </aside>
 
-  <main class="chat-window">
-    {% if target_user %}
+  {% if target_user %}
+    <main class="chat-window">
       <header class="chat-header" style="--chat-color: {{ display_profile_color(target_user) }}">
         <a href="{{ url_for('messages') }}" class="chat-back-link" aria-label="Back to people">
           <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22" fill="currentColor"><path d="M20 11v2H7.83l5.59 5.59L12 20 4 12l8-8 1.42 1.41L7.83 11H20Z"/></svg>
@@ -67,8 +67,7 @@
 
         {% for msg in messages_list %}
           <div class="message-bubble-wrapper {% if msg.sender_id == viewer.id %}own{% endif %}" data-message-id="{{ msg.id }}">
-            <div class="message-bubble" title="{{ msg.created_at }}">
-              {% if msg.shared_post %}
+            <div class="message-bubble" title="{{ msg.created_at }}">{% if msg.shared_post %}
                  <div class="shared-post-label">Shared a post:</div>
                  <div class="shared-post-card">
                    <a href="{{ url_for('post', id=msg.shared_post.id) }}" class="shared-post-link">
@@ -83,10 +82,7 @@
                      {% endif %}
                    </a>
                  </div>
-              {% else %}
-                 {{ msg.content }}
-              {% endif %}
-            </div>
+              {% else %}{{ msg.content }}{% endif %}</div>
             <div class="message-meta">
               <span class="message-time">{{ msg.created_at[11:16] }}</span>
               <form action="{{ url_for('delete_message') }}" method="post" class="message-delete-form">
@@ -114,61 +110,8 @@
           </button>
         </form>
       </footer>
-    {% else %}
-      <div class="chat-unselected">
-        <h2>Select a message</h2>
-        <p>Choose from your existing conversations, or start a new one from the list below.</p>
-
-        <section class="message-discovery-grid" aria-label="Community suggestions">
-          <div class="message-discovery-panel">
-            <h3>Suggested groups</h3>
-            {% if suggested_communities %}
-              {% for item in suggested_communities %}
-                <a class="community-card compact" href="{{ url_for('community_detail', slug=item.slug) }}" style="--community-color: {{ item.accent_color or theme_colors.primary }};">
-                  <span class="community-card-mark">{{ item.name[:1] }}</span>
-                  <span>
-                    <strong>{{ item.name }}</strong>
-                    <small>{{ item.description or 'A community on LvL.' }}</small>
-                  </span>
-                </a>
-              {% endfor %}
-            {% else %}
-              <p class="muted-copy">Create a group to fill this space with community activity.</p>
-            {% endif %}
-          </div>
-
-          <div class="message-discovery-panel">
-            <h3>People to follow</h3>
-            {% for user in message_people %}
-              <a class="mini-user-row" href="{{ url_for('messages', u=user.username) }}">
-                <img class="avatar small-avatar" src="{{ user.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-                <span>
-                  <strong>{{ user.display_name }}</strong>
-                  <small>@{{ user.username }}</small>
-                </span>
-              </a>
-            {% endfor %}
-          </div>
-        </section>
-
-        <div class="new-chat-section" id="new-chat">
-          <h3>Start a new conversation</h3>
-          <div class="user-selection-list">
-            {% for u in all_users %}
-              <a href="{{ url_for('messages', u=u.username) }}" class="user-select-item">
-                <img class="avatar small-avatar" src="{{ u.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-                <div class="user-select-info">
-                  <strong>{{ u.display_name }}</strong>
-                  <span>@{{ u.username }}</span>
-                </div>
-                <span class="select-arrow">-&gt;</span>
-              </a>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    {% endif %}
-  </main>
+    </main>
+  {% endif %}
 </div>
 
 <div class="new-chat-panel" id="new-chat-panel" hidden>

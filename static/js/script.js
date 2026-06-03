@@ -468,15 +468,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="hidden" name="csrf_token" value="${escapeHTML(csrfToken)}">
                     <input type="hidden" name="message_id" value="${escapeHTML(String(message.id))}">
                     <input type="hidden" name="redirect" value="${escapeHTML(redirectUrl)}">
-                    <button type="submit" aria-label="Delete message">Delete message</button>
+                    <button type="submit" aria-label="Delete message">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12ZM8 4h3l1-1h4l1 1h3v2H8V4Z"/></svg>
+                        <span class="sr-only">Delete message</span>
+                    </button>
                 </form>
             `
             : '';
 
         wrapper.innerHTML = `
-            <div class="message-bubble" title="${escapeHTML(message.created_at || '')}">
-                ${escapeHTML(message.content || '').replace(/\n/g, '<br>')}
-            </div>
+            <div class="message-bubble" title="${escapeHTML(message.created_at || '')}">${escapeHTML(message.content || '').replace(/\n/g, '<br>')}</div>
             <div class="message-meta">
                 <span class="message-time">${timeStr}</span>
                 ${deleteForm}

@@ -67,10 +67,10 @@
           <span class="nav-label sr-only">Messages</span>
         </a>
         <a class="{% if active_page == 'notifications' %}active{% endif %}" href="{{ url_for('notifications') }}" aria-label="Alerts" title="Alerts">
-          <span class="nav-icon nav-icon-badge" aria-hidden="true">
+          <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 22a2.75 2.75 0 0 0 2.58-1.8H9.42A2.75 2.75 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .2.8.8H6.2l.8-.8V11a5 5 0 1 1 10 0v5.2Z"/></svg>
-            {% if unread_notification_count > 0 %}<span class="nav-badge" aria-label="{{ unread_notification_count }} unread notifications">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>{% endif %}
           </span>
+          {% if unread_notification_count > 0 %}<span class="nav-badge" aria-label="{{ unread_notification_count }} unread notifications">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>{% endif %}
           <span class="nav-label sr-only">Alerts</span>
         </a>
         <a class="{% if active_page == 'activity' %}active{% endif %}" href="{{ url_for('activity') }}" aria-label="Activity" title="Activity">
@@ -133,17 +133,6 @@
         </span>
         <input id="global-search-input" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search LvL">
       </form>
-      <div class="topbar-actions" aria-label="Quick actions">
-        <a class="topbar-action {% if active_page == 'messages' %}active{% endif %}" href="{{ url_for('messages') }}" aria-label="Messages" title="Messages">
-          <svg viewBox="0 0 24 24" aria-hidden="true" width="21" height="21" fill="currentColor"><path d="M4 4h16v12H7.8L4 19.35V4Zm2 2v8.93L7.04 14H18V6H6Z"/></svg>
-        </a>
-        <a class="topbar-action {% if active_page == 'notifications' %}active{% endif %}" href="{{ url_for('notifications') }}" aria-label="Alerts" title="Alerts">
-          <span class="nav-icon-badge">
-            <svg viewBox="0 0 24 24" aria-hidden="true" width="21" height="21" fill="currentColor"><path d="M12 22a2.75 2.75 0 0 0 2.58-1.8H9.42A2.75 2.75 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .2.8.8H6.2l.8-.8V11a5 5 0 1 1 10 0v5.2Z"/></svg>
-            {% if unread_notification_count > 0 %}<span class="nav-badge" aria-label="{{ unread_notification_count }} unread notifications">{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>{% endif %}
-          </span>
-        </a>
-      </div>
     </header>
 {% endif %}
 
