@@ -146,8 +146,7 @@
   transform: translateY(1px) rotate(-8deg);
 }
 
-.left-rail .nav-label.sr-only,
-.left-rail.menu-open .nav-label.sr-only,
+/* Hide labels only when menu is CLOSED or on bottom nav */
 .left-rail:not(.menu-open) .nav-label.sr-only,
 .mobile-bottom-nav .mobile-nav-label.sr-only {
   position: absolute !important;
@@ -161,10 +160,33 @@
   border: 0 !important;
 }
 
-.left-rail.menu-open .nav-list a,
-.left-rail .nav-list a {
+/* When menu is open, show labels properly */
+.left-rail.menu-open .nav-label {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+  white-space: nowrap !important;
+  display: block !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+}
+
+/* Center icons only when menu is CLOSED; left-align with label when open */
+.left-rail:not(.menu-open) .nav-list a {
   justify-content: center !important;
   padding-inline: 0 !important;
+}
+
+.left-rail.menu-open .nav-list a {
+  justify-content: flex-start !important;
+  padding-inline: 14px !important;
+  gap: 14px !important;
 }
 
 .profile-stats a {
@@ -274,7 +296,7 @@
 @media (max-width: 720px) {
   html,
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   .post {
