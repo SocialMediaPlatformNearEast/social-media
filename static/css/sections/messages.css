@@ -404,12 +404,39 @@
 }
 
 @media (max-width: 760px) {
+  /*
+   * Flex-based layout instead of calc() height.
+   * timeline-messages fills (100dvh - bottom-nav), mobile-header shrinks
+   * to its natural height, messages-container takes the rest via flex:1.
+   */
+  .timeline-messages {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 64px); /* 64px = fixed mobile bottom nav */
+    overflow: hidden;
+  }
+
+  /* mobile-header inside timeline must not flex-grow */
+  .mobile-header {
+    flex-shrink: 0;
+  }
+
   .messages-container {
-    height: calc(100svh - 128px);
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden;
   }
 
   .conversations-sidebar {
     width: 76px;
+  }
+
+  /* Hide sidebar entirely when a chat is open — single-column on small phones */
+  @media (max-width: 480px) {
+    .messages-container:has(.messages-feed) .conversations-sidebar {
+      display: none;
+    }
   }
 
   .chat-header {
@@ -425,13 +452,20 @@
   }
 
   .chat-footer {
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
+  .timeline-messages {
+    height: calc(100dvh - 54px);
+  }
+
   .messages-container {
-    height: calc(100svh - 62px);
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
 
   .messages-feed {
