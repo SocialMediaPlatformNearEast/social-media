@@ -77,17 +77,27 @@
 }
 
 @media (max-width: 640px) {
+  /* Wrapper becomes invisible so left-rail can overlay the page */
   .left-rail-wrapper,
   .left-rail-wrapper:has(.left-rail.menu-open) {
     display: contents !important;
   }
 
+  /* Closed: fully hidden — takes NO layout space */
   .left-rail:not(.menu-open) {
-    pointer-events: none !important;
+    display: none !important;
   }
 
+  /* Open: slides in as a fixed overlay from the left */
   .left-rail.menu-open {
-    pointer-events: auto !important;
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100dvh !important;
     z-index: 1200 !important;
+    pointer-events: auto !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.5) !important;
   }
 }
