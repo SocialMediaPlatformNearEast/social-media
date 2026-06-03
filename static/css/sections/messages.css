@@ -366,6 +366,29 @@
   max-width: 320px;
 }
 
+/* Mobile: force messages page to 100% viewport width, hide rails */
+@media (max-width: 1000px) {
+  .app-shell:has(.timeline-messages) {
+    display: block !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell:has(.timeline-messages) .left-rail-wrapper,
+  .app-shell:has(.timeline-messages) .right-rail-wrapper {
+    display: none !important;
+    width: 0 !important;
+  }
+
+  .timeline-messages {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+}
+
 /* Desktop: messages takes full available width */
 @media (min-width: 1001px) {
   .app-shell:has(.timeline-messages) {
