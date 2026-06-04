@@ -57,7 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "55"
+ASSET_VERSION = "56"
 
 GENDER_OPTIONS = GENDER_THEME
 COMMUNITY_DEFAULT_TAB = 'following'

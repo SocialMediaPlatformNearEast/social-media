@@ -146,9 +146,8 @@
   transform: translateY(1px) rotate(-8deg);
 }
 
-/* Hide labels only when menu is CLOSED or on bottom nav */
-.left-rail:not(.menu-open) .nav-label.sr-only,
-.mobile-bottom-nav .mobile-nav-label.sr-only {
+/* Hide labels only when menu is CLOSED */
+.left-rail:not(.menu-open) .nav-label.sr-only {
   position: absolute !important;
   width: 1px !important;
   height: 1px !important;
