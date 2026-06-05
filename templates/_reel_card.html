@@ -33,8 +33,18 @@
             <strong>{{ author.display_name or 'LvL' }}</strong>
             <small>@{{ author.username or 'demo' }}</small>
           </span>
+          {% if author.level %}
+            <span class="reel-level-badge" style="--badge-color: {{ author.badge_color or theme_colors.muted }};" title="{{ level_title(author.level or 1) }}">LvL {{ author.level or 1 }}</span>
+          {% endif %}
           {% if is_demo %}
             <em>Demo</em>
+          {% endif %}
+          {% if not is_demo and author.id != viewer.id and reel.user_id != viewer.id %}
+            <form action="{{ url_for('toggle_follow') }}" method="post" class="ajax-action-form reel-follow-form" data-action="follow">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="target_id" value="{{ author.id or reel.user_id }}">
+              <button class="follow-chip reel-follow-chip {% if reel.author_followed %}active{% endif %}" type="submit">{{ 'Unfollow' if reel.author_followed else 'Follow' }}</button>
+            </form>
           {% endif %}
         </div>
         {% if reel.community %}

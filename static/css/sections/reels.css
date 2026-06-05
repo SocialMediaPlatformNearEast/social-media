@@ -1,6 +1,8 @@
 /* Reels tabs, cards, comments, and modal helpers */
 /* Reels page and upload layout */
 .timeline-reels {
+  --reels-topbar-offset: 69px;
+  --reels-header-block: 80px;
   max-width: min(980px, 100%);
   border-inline: 1px solid var(--border-color);
   background: var(--lvl-black);
@@ -29,18 +31,19 @@
 }
 
 .reels-page {
-  min-height: 100vh;
+  min-height: calc(100svh - var(--reels-topbar-offset));
   background: radial-gradient(circle at top, var(--lvl-primary-soft-12), transparent 34%), var(--lvl-black);
 }
 
 .reels-header {
   position: sticky;
-  top: 64px;
+  top: var(--reels-topbar-offset);
   z-index: 12;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: var(--reels-header-block);
   padding: 14px 18px;
   border-bottom: 1px solid var(--border-color);
   background: var(--lvl-black-86);
@@ -59,7 +62,7 @@
 }
 
 .reels-feed {
-  height: calc(100svh - 72px);
+  height: calc(100svh - var(--reels-topbar-offset) - var(--reels-header-block));
   overflow-y: auto;
   overscroll-behavior-y: contain;
   scroll-snap-type: y mandatory;
@@ -70,9 +73,25 @@
   display: none;
 }
 
+.reels-empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 .reels-feed > div,
 .reel-card {
-  min-height: calc(100svh - 72px);
+  min-height: calc(100svh - var(--reels-topbar-offset) - var(--reels-header-block));
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
@@ -164,6 +183,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .reel-author a {
@@ -187,6 +207,22 @@
   color: var(--lvl-white-75);
 }
 
+.reel-author .reel-level-badge {
+  flex: 0 0 auto;
+  min-height: var(--badge-height-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--badge-color, var(--lvl-white)) 52%, var(--lvl-white-14));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--badge-color, var(--lvl-white)) 72%, var(--lvl-black-45));
+  color: var(--lvl-white);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .reel-author em,
 .reel-community-chip {
   display: inline-flex;
@@ -200,6 +236,25 @@
   font-size: 12px;
   font-style: normal;
   font-weight: 900;
+}
+
+.reel-follow-form {
+  margin: 0;
+  pointer-events: auto;
+}
+
+.reel-follow-chip {
+  min-height: 24px;
+  padding: 4px 9px;
+  border-color: var(--lvl-white-20);
+  background: var(--lvl-white);
+  color: var(--lvl-black);
+  font-size: 12px;
+}
+
+.reel-follow-chip.active {
+  background: var(--lvl-white-14);
+  color: var(--lvl-white);
 }
 
 .reel-community-chip {
@@ -747,8 +802,15 @@
   white-space: nowrap;
 }
 
+@media (min-width: 641px) and (max-width: 1000px) {
+  .timeline-reels {
+    --reels-topbar-offset: 64px;
+  }
+}
+
 @media (max-width: 640px) {
   .timeline-reels {
+    --reels-topbar-offset: 0px;
     border-inline: 0;
   }
 
@@ -760,6 +822,7 @@
 
   .reels-header {
     position: relative;
+    top: auto;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
@@ -806,12 +869,12 @@
   }
 
   .reels-feed {
-    height: calc(100dvh - 61px - 58px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
+    height: calc(100dvh - 64px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
   }
 
   .reels-feed > div,
   .reel-card {
-    min-height: calc(100dvh - 61px - 58px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
+    min-height: calc(100dvh - 64px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
   }
 
   .reel-card {
@@ -820,14 +883,14 @@
 
   .reel-video-frame {
     width: 100%;
-    height: calc(100dvh - 61px - 58px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
+    height: calc(100dvh - 64px - var(--reels-mobile-header) - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom));
     max-height: none;
     border: 0;
     border-radius: 0;
   }
 
   .reel-video {
-    object-fit: contain;
+    object-fit: cover;
   }
 
   .reel-overlay {

@@ -128,3 +128,44 @@
 .profile-stats strong {
   color: var(--text-primary);
 }
+
+.profile-streak-card {
+  width: min(100%, 560px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--lvl-white-12);
+  border-radius: var(--radius-md);
+  background: var(--lvl-white-04);
+  color: var(--text-secondary);
+}
+
+.profile-streak-card.is-friend {
+  border-color: var(--accent-color);
+  background: var(--lvl-primary-soft);
+}
+
+.profile-streak-icon {
+  width: var(--control-md);
+  height: var(--control-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-round);
+  background: var(--lvl-white-08);
+  font-size: 20px;
+}
+
+.profile-streak-card strong {
+  display: block;
+  color: var(--text-primary);
+}
+
+.profile-streak-card p {
+  margin: 3px 0 0;
+  font-size: 14px;
+  line-height: 1.35;
+}

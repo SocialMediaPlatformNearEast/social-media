@@ -61,9 +61,70 @@
 }
 
 /* Mobile messages repair: keep people names visible and the composer reachable. */
+@media (max-width: 1000px) {
+  .app-topbar {
+    display: none;
+  }
+
+  .mobile-header {
+    display: grid;
+    grid-template-columns: 36px 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 64px;
+    padding: 10px 12px;
+  }
+
+  .mobile-sidebar-toggle {
+    width: 36px;
+    height: 36px;
+    margin-right: 0;
+  }
+
+  .mobile-header-search {
+    min-width: 0;
+    min-height: 40px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding-inline: 11px;
+    border: 1px solid var(--lvl-white-12);
+    border-radius: var(--radius-pill);
+    background: var(--lvl-white-06);
+    color: var(--text-secondary);
+  }
+
+  .mobile-header-search input {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 15px;
+  }
+
+  .mobile-header-search input::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .mobile-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mobile-header-actions .topbar-action {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 @media (max-width: 640px) {
   .timeline-messages {
-    height: calc(100dvh - 61px - 58px - 76px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 64px - 76px - env(safe-area-inset-bottom));
     min-height: 0;
     overflow: hidden;
   }
@@ -208,7 +269,8 @@
 
 /* ─── Mobile bottom nav — prevent overflow from extra item ──────────────── */
 .mobile-bottom-nav {
-  overflow-x: auto;
+  display: none;
+  overflow-x: hidden;
   scrollbar-width: none;
 }
 
@@ -217,7 +279,7 @@
 }
 
 .mobile-bottom-nav a {
-  min-width: 44px;
+  min-width: 0;
   flex-shrink: 0;
 }
 
@@ -239,13 +301,31 @@
 
 @media (max-width: 640px) {
   .mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    padding-inline: 8px;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border-color);
+    background: var(--lvl-black-94);
+    backdrop-filter: blur(18px);
     overflow-x: hidden;
   }
 
   .mobile-bottom-nav a {
-    min-height: var(--control-xl);
+    min-height: 60px;
+    display: grid;
+    place-items: center;
+    gap: 2px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 600;
   }
 
   .mobile-bottom-nav a svg {
@@ -253,9 +333,31 @@
     height: 24px;
   }
 
+  .mobile-brand-logo-only {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--lvl-white-12);
+    border-radius: var(--radius-md);
+    background: var(--lvl-white-04);
+    overflow: hidden;
+  }
+
+  .mobile-brand-logo-only img {
+    width: 31px;
+    height: 31px;
+    display: block;
+    object-fit: contain;
+  }
+
   .mobile-bottom-nav a span {
     font-size: 10px;
     line-height: 1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mobile-bottom-nav a.active {
@@ -276,7 +378,14 @@
 
   .mobile-compose-action,
   .mobile-compose-action.mobile-reel-upload-action {
+    width: var(--control-xl);
+    height: var(--control-xl);
+    margin-inline: auto;
+    border-radius: var(--radius-round);
     background: var(--text-primary);
+    color: var(--lvl-text-inverse) !important;
+    font-size: 30px !important;
+    line-height: 1;
     box-shadow: 0 12px 34px var(--lvl-black-58);
   }
 
@@ -322,5 +431,28 @@
 
   .reel-upload-form .post-submit-btn {
     min-width: 148px;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-header {
+    grid-template-columns: 34px 38px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .mobile-brand-logo-only,
+  .mobile-header-actions .topbar-action {
+    width: 38px;
+    height: 38px;
+  }
+
+  .mobile-header-search {
+    min-height: 38px;
+    padding-inline: 9px;
+  }
+
+  .mobile-header-search input {
+    font-size: 14px;
   }
 }

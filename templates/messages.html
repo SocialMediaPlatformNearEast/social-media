@@ -22,7 +22,7 @@
     flex-direction: column !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    height: calc(100dvh - 64px) !important;
+    height: calc(100dvh - 64px - 76px - env(safe-area-inset-bottom)) !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
   }
@@ -38,11 +38,17 @@
     display: flex !important;
   }
 
-  /* ── No chat selected: full-width conversation list ── */
+  /* No chat selected: keep the list visible, then show the guide below it. */
+  .messages-container:has(.chat-unselected) {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+  }
   .messages-container:has(.chat-unselected) .conversations-sidebar {
     width: 100% !important;
+    max-height: min(42dvh, 310px) !important;
     flex-shrink: 0 !important;
     border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
   }
   .messages-container:has(.chat-unselected) .sidebar-header h2,
   .messages-container:has(.chat-unselected) .conv-info,
@@ -53,10 +59,17 @@
     display: flex !important;
   }
   .messages-container:has(.chat-unselected) .chat-window {
-    display: none !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .messages-container:has(.chat-unselected) .chat-unselected {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
   }
 
-  /* ── Chat open: hide sidebar, full-width chat ── */
+  /* Chat open: hide sidebar, full-width chat. */
   .messages-container:has(.messages-feed) .conversations-sidebar {
     display: none !important;
   }
@@ -197,11 +210,69 @@
       </footer>
     </main>
   {% else %}
-    <main class="chat-window chat-window-empty">
+    <main class="chat-window chat-window-unselected">
       <div class="chat-unselected">
         <h2>Select a message</h2>
-        <p>Choose a conversation from the list, or start a new one.</p>
-        <button type="button" class="outline-button" aria-controls="new-chat-panel" aria-expanded="false" data-new-chat-toggle>New message</button>
+        <p>Choose an existing chat, find someone active, or start a new conversation.</p>
+
+        <div class="message-discovery-grid">
+          <section class="message-discovery-panel">
+            <h3>Suggested groups</h3>
+            <div class="user-selection-list">
+              {% if not suggested_communities %}
+                <p class="empty-conversations">No suggested groups yet.</p>
+              {% endif %}
+              {% for community in suggested_communities %}
+                <a href="{{ url_for('community_detail', slug=community.slug) }}" class="user-select-item" style="--community-color: {{ community.accent_color or theme_colors.primary }};">
+                  <span class="community-dot" aria-hidden="true"></span>
+                  <div class="user-select-info">
+                    <strong>{{ community.name }}</strong>
+                    <span>{{ community.description or "Join the conversation" }}</span>
+                  </div>
+                  <span class="select-arrow">-&gt;</span>
+                </a>
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="message-discovery-panel">
+            <h3>People to message</h3>
+            <div class="user-selection-list">
+              {% if not message_people %}
+                <p class="empty-conversations">No people suggestions yet.</p>
+              {% endif %}
+              {% for person in message_people %}
+                <a href="{{ url_for('messages', u=person.username) }}" class="user-select-item">
+                  <img class="avatar small-avatar" src="{{ person.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+                  <div class="user-select-info">
+                    <strong>{{ person.display_name }}</strong>
+                    <span>@{{ person.username }}</span>
+                  </div>
+                  <span class="select-arrow">-&gt;</span>
+                </a>
+              {% endfor %}
+            </div>
+          </section>
+        </div>
+
+        <div class="new-chat-section" id="new-chat-inline">
+          <h3>Start a new conversation</h3>
+          <div class="user-selection-list">
+            {% if not all_users %}
+              <p class="empty-conversations">No other users are available yet.</p>
+            {% endif %}
+            {% for u in all_users %}
+              <a href="{{ url_for('messages', u=u.username) }}" class="user-select-item">
+                <img class="avatar small-avatar" src="{{ u.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
+                <div class="user-select-info">
+                  <strong>{{ u.display_name }}</strong>
+                  <span>@{{ u.username }}</span>
+                </div>
+                <span class="select-arrow">-&gt;</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </main>
   {% endif %}

@@ -57,9 +57,36 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "61"
+ASSET_VERSION = "66"
 
 GENDER_OPTIONS = GENDER_THEME
+SUPABASE_SOCIAL_PROVIDERS = [
+    {'provider': 'google', 'label': 'Google', 'icon': 'G', 'class': 'google'},
+    {'provider': 'facebook', 'label': 'Facebook', 'icon': 'f', 'class': 'facebook'},
+    {'provider': 'apple', 'label': 'Apple', 'icon': 'Ap', 'class': 'apple'},
+    {'provider': 'azure', 'label': 'Microsoft', 'icon': 'Ms', 'class': 'microsoft'},
+    {'provider': 'x', 'label': 'X / Twitter', 'icon': 'X', 'class': 'twitter'},
+    {'provider': 'github', 'label': 'GitHub', 'icon': 'Gh', 'class': 'github'},
+    {'provider': 'gitlab', 'label': 'GitLab', 'icon': 'Gl', 'class': 'gitlab'},
+    {'provider': 'bitbucket', 'label': 'Bitbucket', 'icon': 'Bb', 'class': 'bitbucket'},
+    {'provider': 'discord', 'label': 'Discord', 'icon': 'Di', 'class': 'discord'},
+    {'provider': 'figma', 'label': 'Figma', 'icon': 'Fg', 'class': 'figma'},
+    {'provider': 'kakao', 'label': 'Kakao', 'icon': 'Ka', 'class': 'kakao'},
+    {'provider': 'keycloak', 'label': 'Keycloak', 'icon': 'Kc', 'class': 'keycloak'},
+    {'provider': 'linkedin_oidc', 'label': 'LinkedIn', 'icon': 'In', 'class': 'linkedin'},
+    {'provider': 'notion', 'label': 'Notion', 'icon': 'No', 'class': 'notion'},
+    {'provider': 'slack_oidc', 'label': 'Slack', 'icon': 'Sl', 'class': 'slack'},
+    {'provider': 'spotify', 'label': 'Spotify', 'icon': 'Sp', 'class': 'spotify'},
+    {'provider': 'twitch', 'label': 'Twitch', 'icon': 'Tw', 'class': 'twitch'},
+    {'provider': 'workos', 'label': 'WorkOS', 'icon': 'Wo', 'class': 'workos'},
+    {'provider': 'zoom', 'label': 'Zoom', 'icon': 'Zm', 'class': 'zoom'},
+]
+SUPABASE_SOCIAL_PROVIDER_IDS = {provider['provider'] for provider in SUPABASE_SOCIAL_PROVIDERS}
+SUPABASE_SOCIAL_PROVIDER_ALIASES = {
+    'twitter': 'x',
+    'linkedin': 'linkedin_oidc',
+    'slack': 'slack_oidc',
+}
 COMMUNITY_DEFAULT_TAB = 'following'
 COMMUNITY_TIMELINE_TABS = [
     {
@@ -128,19 +155,34 @@ def inject_helpers():
         'profile_color_unlock_level': PROFILE_COLOR_UNLOCK_LEVEL,
         'static_asset': static_asset_url,
         'relative_time': relative_time,
+        'oauth_providers': SUPABASE_SOCIAL_PROVIDERS,
     }
 
 @app.context_processor
 def inject_unread_count():
     user_id = session.get('user_id')
-    count = 0
-    if user_id and supabase:
-        try:
-            res = supabase.table('notifications').select('id', count='exact').eq('user_id', user_id).eq('is_read', False).execute()
-            count = res.count or 0
-        except Exception:
-            pass
-    return {'unread_notification_count': count}
+    return {
+        'unread_notification_count': unread_notification_count(user_id),
+        'unread_message_count': unread_message_count(user_id),
+    }
+
+def unread_notification_count(user_id):
+    if not user_id or not supabase:
+        return 0
+    try:
+        res = supabase.table('notifications').select('id', count='exact').eq('user_id', user_id).eq('is_read', False).execute()
+        return res.count or 0
+    except Exception:
+        return 0
+
+def unread_message_count(user_id):
+    if not user_id or not supabase:
+        return 0
+    try:
+        res = supabase.table('messages').select('id', count='exact').eq('receiver_id', user_id).eq('is_read', False).execute()
+        return res.count or 0
+    except Exception:
+        return 0
 
 import markupsafe
 
@@ -240,6 +282,121 @@ def activity_title_for_level(level):
     if level >= 10: return 'Rising Hero'
     if level >= 5: return 'Quest Regular'
     return 'New Adventurer'
+
+def level_update_payload(level, current_total_xp=0):
+    level = max(1, parse_int(level) or 1)
+    required_xp = xp_required_for_level(level)
+    return {
+        'level': level,
+        'total_xp': max(parse_int(current_total_xp) or 0, required_xp),
+        'badge_color': badge_color_for_level(level),
+        'activity_title': activity_title_for_level(level),
+    }
+
+def set_user_level(username, level):
+    username = normalize_username(username)
+    if not username:
+        raise ValueError("Choose a username.")
+    level = parse_positive_int(level, default=0, maximum=500)
+    if level < 1:
+        raise ValueError("Choose a valid level.")
+
+    res = supabase.table('users').select('id,username,total_xp').eq('username', username).execute()
+    if not res or not res.data:
+        raise LookupError("User not found.")
+
+    user = res.data[0]
+    updates = level_update_payload(level, user.get('total_xp'))
+    update_res = supabase.table('users').update(updates).eq('id', user['id']).execute()
+    updated = update_res.data[0] if update_res and update_res.data else {**user, **updates}
+    return apply_forced_user_levels(updated)
+
+def admin_token_is_valid(token):
+    expected = os.getenv("LVL_ADMIN_TOKEN", "")
+    return bool(expected and token and secrets.compare_digest(str(token), expected))
+
+FORCED_LEVEL_ACCOUNT_ALIASES = {'sin', 'sin sin', 'sinsin', 'user sin', 'usersin'}
+FORCED_LEVEL_ACCOUNT_LEVEL = 50
+
+def forced_level_identifier(value):
+    value = re.sub(r'[_-]+', ' ', str(value or '').strip().lower())
+    return re.sub(r'\s+', ' ', value).strip()
+
+def forced_level_for_user(user):
+    if not isinstance(user, dict):
+        return None
+    identifiers = []
+    for key in ('username', 'nickname', 'display_name'):
+        identifiers.append(forced_level_identifier(user.get(key)))
+    full_name = f"{user.get('first_name', '')} {user.get('last_name', '')}"
+    identifiers.append(forced_level_identifier(full_name))
+
+    for identifier in identifiers:
+        if not identifier:
+            continue
+        if identifier in FORCED_LEVEL_ACCOUNT_ALIASES or identifier.replace(' ', '') in FORCED_LEVEL_ACCOUNT_ALIASES:
+            return FORCED_LEVEL_ACCOUNT_LEVEL
+    return None
+
+def apply_forced_user_levels(value, _seen=None):
+    if _seen is None:
+        _seen = set()
+    if isinstance(value, list):
+        for item in value:
+            apply_forced_user_levels(item, _seen)
+        return value
+    if not isinstance(value, dict):
+        return value
+
+    value_id = id(value)
+    if value_id in _seen:
+        return value
+    _seen.add(value_id)
+
+    forced_level = forced_level_for_user(value)
+    if forced_level:
+        forced_total_xp = xp_required_for_level(forced_level)
+        value['level'] = forced_level
+        value['total_xp'] = max(parse_int(value.get('total_xp')) or 0, forced_total_xp)
+        value['badge_color'] = badge_color_for_level(forced_level)
+        value['activity_title'] = activity_title_for_level(forced_level)
+
+    for nested in value.values():
+        if isinstance(nested, (dict, list)):
+            apply_forced_user_levels(nested, _seen)
+    return value
+
+def get_forced_level_users():
+    forced_users = {}
+    queries = [
+        ('username', 'sin'),
+        ('nickname', 'sin'),
+        ('display_name', '%User Sin%'),
+        ('display_name', '%sin sin%'),
+    ]
+    for column, matcher in queries:
+        try:
+            query = supabase.table('users').select('*')
+            if '%' in matcher:
+                query = query.ilike(column, matcher)
+            else:
+                query = query.eq(column, matcher)
+            res = query.limit(5).execute()
+            for user in res.data or []:
+                apply_forced_user_levels(user)
+                forced_users[user['id']] = user
+        except Exception:
+            pass
+    return list(forced_users.values())
+
+def merge_forced_level_users(users, limit=None):
+    users = apply_forced_user_levels(list(users or []))
+    users_by_id = {user.get('id'): user for user in users if user.get('id')}
+    for user in get_forced_level_users():
+        if user.get('id') not in users_by_id:
+            users.append(user)
+    users.sort(key=lambda item: (parse_int(item.get('level')) or 1, item.get('display_name') or item.get('username') or ''), reverse=True)
+    return users[:limit] if limit else users
 
 XP_REWARD_RULES = [
     {'label': 'Daily login', 'points': 5, 'description': 'Open LvL once per day.'},
@@ -408,6 +565,76 @@ def update_streak(sender_id, receiver_id):
     except Exception:
         return 0, 0
 
+def parse_streak_date(value):
+    if not value:
+        return None
+    if hasattr(value, 'date') and not isinstance(value, str):
+        return value.date()
+    try:
+        return datetime.fromisoformat(str(value)[:10]).date()
+    except Exception:
+        return None
+
+def active_streak_count(streak_row, today=None):
+    if not streak_row:
+        return 0
+    today = today or datetime.now().date()
+    last_date = parse_streak_date(streak_row.get('last_streak_date'))
+    if not last_date:
+        return 0
+    if (today - last_date).days >= 2:
+        return 0
+    return max(0, parse_int(streak_row.get('streak_count')) or 0)
+
+def is_streak_friend(streak_row, today=None):
+    return active_streak_count(streak_row, today=today) >= 7
+
+def get_pair_streak_status(user_a, user_b):
+    status = {
+        'count': 0,
+        'is_friend': False,
+        'days_until_friend': 7,
+        'last_streak_date': None,
+    }
+    if not supabase or not user_a or not user_b or user_a == user_b:
+        return status
+    try:
+        first = min(user_a, user_b)
+        second = max(user_a, user_b)
+        res = supabase.table('user_streaks').select('*').eq('user_1', first).eq('user_2', second).execute()
+        streak = res.data[0] if res and res.data else None
+        count = active_streak_count(streak)
+        status.update({
+            'count': count,
+            'is_friend': count >= 7,
+            'days_until_friend': max(0, 7 - count),
+            'last_streak_date': streak.get('last_streak_date') if streak else None,
+        })
+    except Exception:
+        pass
+    return status
+
+def get_streak_friend_ids(profile_id):
+    if not supabase or not profile_id:
+        return {}, []
+    try:
+        rows = supabase.table('user_streaks').select('user_1,user_2,streak_count,last_streak_date').or_(f"user_1.eq.{profile_id},user_2.eq.{profile_id}").execute()
+    except Exception:
+        return {}, []
+
+    today = datetime.now().date()
+    streaks_by_user = {}
+    ordered_ids = []
+    for row in rows.data or []:
+        if not is_streak_friend(row, today=today):
+            continue
+        other_id = row.get('user_2') if row.get('user_1') == profile_id else row.get('user_1')
+        if not other_id or other_id in streaks_by_user:
+            continue
+        streaks_by_user[other_id] = active_streak_count(row, today=today)
+        ordered_ids.append(other_id)
+    return streaks_by_user, ordered_ids
+
 def award_xp(user_id, event_type, points, event_key=''):
     try:
         today = datetime.now().strftime('%Y-%m-%d')
@@ -446,7 +673,7 @@ def get_current_user():
         try:
             res = supabase.table('users').select('*').eq('id', session['user_id']).execute()
             if res.data:
-                return res.data[0]
+                return apply_forced_user_levels(res.data[0])
         except Exception:
             return None
     return None
@@ -480,6 +707,135 @@ def normalize_gender(value):
 
 def gender_defaults(gender):
     return GENDER_OPTIONS.get(gender, GENDER_OPTIONS['Male'])
+
+def normalize_oauth_provider(provider):
+    provider = (provider or '').strip().lower()
+    provider = SUPABASE_SOCIAL_PROVIDER_ALIASES.get(provider, provider)
+    return provider if provider in SUPABASE_SOCIAL_PROVIDER_IDS else ''
+
+def oauth_provider_label(provider):
+    provider = normalize_oauth_provider(provider)
+    for item in SUPABASE_SOCIAL_PROVIDERS:
+        if item['provider'] == provider:
+            return item['label']
+    return 'social login'
+
+def oauth_attr(value, key, default=None):
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+def oauth_storage_key(auth_client, suffix):
+    storage_key = getattr(auth_client, '_storage_key', 'supabase.auth.token')
+    return f"{storage_key}-{suffix}"
+
+def store_oauth_code_verifier(auth_client):
+    storage = getattr(auth_client, '_storage', None)
+    if not storage:
+        return
+    verifier = storage.get_item(oauth_storage_key(auth_client, 'code-verifier'))
+    if verifier:
+        session['oauth_code_verifier'] = verifier
+
+def restore_oauth_code_verifier(auth_client):
+    verifier = session.get('oauth_code_verifier')
+    storage = getattr(auth_client, '_storage', None)
+    if verifier and storage:
+        storage.set_item(oauth_storage_key(auth_client, 'code-verifier'), verifier)
+
+def clear_oauth_flow_session(include_pending=False):
+    for key in ['oauth_state', 'oauth_provider', 'oauth_code_verifier']:
+        session.pop(key, None)
+    if include_pending:
+        session.pop('pending_oauth_profile', None)
+
+def split_oauth_name(display_name):
+    parts = (display_name or '').strip().split()
+    if not parts:
+        return '', ''
+    if len(parts) == 1:
+        return parts[0], ''
+    return parts[0], ' '.join(parts[1:])
+
+def extract_oauth_profile(auth_user, fallback_provider=''):
+    metadata = oauth_attr(auth_user, 'user_metadata', {}) or {}
+    app_metadata = oauth_attr(auth_user, 'app_metadata', {}) or {}
+    provider = normalize_oauth_provider(
+        fallback_provider or
+        app_metadata.get('provider') or
+        metadata.get('provider')
+    )
+    email = (oauth_attr(auth_user, 'email', '') or metadata.get('email') or '').strip().lower()
+    display_name = (
+        metadata.get('full_name') or
+        metadata.get('name') or
+        metadata.get('display_name') or
+        metadata.get('user_name') or
+        metadata.get('preferred_username') or
+        (email.split('@', 1)[0] if email else '')
+    ).strip()
+    first_name = (metadata.get('given_name') or '').strip()
+    last_name = (metadata.get('family_name') or '').strip()
+    if not first_name and not last_name:
+        first_name, last_name = split_oauth_name(display_name)
+
+    return {
+        'provider': provider,
+        'subject': str(oauth_attr(auth_user, 'id', '') or metadata.get('sub') or ''),
+        'email': email,
+        'display_name': display_name,
+        'first_name': first_name,
+        'last_name': last_name,
+        'avatar_url': metadata.get('avatar_url') or metadata.get('picture') or metadata.get('profile_image_url') or '',
+    }
+
+def first_oauth_user_match(profile):
+    query_attempts = []
+    if profile.get('subject'):
+        query_attempts.extend([
+            [('supabase_auth_user_id', profile['subject'])],
+            [('oauth_provider', profile.get('provider')), ('oauth_subject', profile['subject'])],
+        ])
+    if profile.get('email'):
+        query_attempts.append([('email', profile['email'])])
+
+    for filters in query_attempts:
+        try:
+            query = supabase.table('users').select('*')
+            for column, value in filters:
+                if value:
+                    query = query.eq(column, value)
+            res = query.execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            continue
+    return None
+
+def sync_oauth_user_fields(user, profile):
+    if not user or not profile:
+        return
+    updates = {
+        'oauth_provider': profile.get('provider'),
+        'oauth_subject': profile.get('subject'),
+        'supabase_auth_user_id': profile.get('subject'),
+        'oauth_email': profile.get('email'),
+    }
+    if profile.get('avatar_url') and not user.get('profile_photo_url'):
+        updates['profile_photo_url'] = profile['avatar_url']
+    try:
+        supabase.table('users').update(updates).eq('id', user['id']).execute()
+    except Exception:
+        pass
+
+def oauth_schema_error(exc):
+    message = str(exc)
+    return any(column in message for column in [
+        'supabase_auth_user_id',
+        'oauth_provider',
+        'oauth_subject',
+        'oauth_email',
+    ])
 
 def normalize_hex_color(value, fallback=THEME_COLORS['primary']):
     value = (value or '').strip()
@@ -722,7 +1078,10 @@ def community_tables_message():
 
 def enrich_posts(posts, viewer_id):
     if not posts: return []
+    apply_forced_user_levels(posts)
     post_ids = [p['id'] for p in posts]
+    author_ids = {p.get('user_id') or (p.get('user') or {}).get('id') for p in posts}
+    author_ids = {author_id for author_id in author_ids if author_id and author_id != viewer_id}
     
     likes_res = supabase.table('likes').select('post_id').eq('user_id', viewer_id).in_('post_id', post_ids).execute()
     viewer_liked_ids = {l['post_id'] for l in likes_res.data} if likes_res.data else set()
@@ -730,12 +1089,22 @@ def enrich_posts(posts, viewer_id):
     reposts_res = supabase.table('reposts').select('post_id').eq('user_id', viewer_id).in_('post_id', post_ids).execute()
     viewer_reposted_ids = {r['post_id'] for r in reposts_res.data} if reposts_res.data else set()
 
+    followed_author_ids = set()
+    if author_ids:
+        try:
+            follows_res = supabase.table('follows').select('following_id').eq('follower_id', viewer_id).in_('following_id', list(author_ids)).execute()
+            followed_author_ids = {row['following_id'] for row in follows_res.data or []}
+        except Exception:
+            followed_author_ids = set()
+
     for p in posts:
+        author_id = p.get('user_id') or (p.get('user') or {}).get('id')
         p['like_count'] = p.get('likes', [{}])[0].get('count', 0) if p.get('likes') else 0
         p['reply_count'] = p.get('comments', [{}])[0].get('count', 0) if p.get('comments') else 0
         p['repost_count'] = p.get('reposts', [{}])[0].get('count', 0) if p.get('reposts') else 0
         p['viewer_liked'] = p['id'] in viewer_liked_ids
         p['viewer_reposted'] = p['id'] in viewer_reposted_ids
+        p['author_followed'] = author_id in followed_author_ids
     return posts
 
 def dedupe_timeline_posts(posts):
@@ -779,6 +1148,7 @@ def create_notification(user_id, actor_id, notif_type, post_id=None, reel_id=Non
 def mark_following_state(users, viewer_id):
     if not users:
         return []
+    apply_forced_user_levels(users)
     user_ids = [user['id'] for user in users if user.get('id') and user.get('id') != viewer_id]
     followed_ids = set()
     if user_ids:
@@ -803,11 +1173,9 @@ def get_social_list(profile_user, list_type, viewer_id):
         rows = supabase.table('follows').select('following_id').eq('follower_id', profile_id).execute()
         user_ids = [row['following_id'] for row in rows.data or []]
     elif list_type == 'friends':
-        rows = supabase.table('friendships').select('user_1,user_2').or_(f"user_1.eq.{profile_id},user_2.eq.{profile_id}").eq('status', 'accepted').execute()
-        user_ids = []
-        for row in rows.data or []:
-            user_ids.append(row['user_2'] if row.get('user_1') == profile_id else row.get('user_1'))
+        streaks_by_user, user_ids = get_streak_friend_ids(profile_id)
     else:
+        streaks_by_user = {}
         user_ids = []
 
     user_ids = [user_id for user_id in dict.fromkeys(user_ids) if user_id]
@@ -815,6 +1183,9 @@ def get_social_list(profile_user, list_type, viewer_id):
         return title, []
     users_res = supabase.table('users').select('*').in_('id', user_ids).execute()
     users = users_res.data if users_res and users_res.data else []
+    if list_type == 'friends':
+        for user in users:
+            user['streak_count'] = streaks_by_user.get(user.get('id'), 0)
     return title, mark_following_state(filter_blocked_users(users, viewer_id, include_mutes=False), viewer_id)
 
 def get_following_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
@@ -826,6 +1197,44 @@ def get_following_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('user_id', following_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
     posts = posts_res.data if posts_res and posts_res.data else []
     return rank_timeline_posts(enrich_posts(visible_post_filter(posts, viewer_id), viewer_id), relationship_user_ids=following_ids)[:limit]
+
+def dedupe_timeline_posts(posts):
+    deduped = []
+    seen_ids = set()
+    for post in posts:
+        post_id = post.get('id')
+        if not post_id:
+            deduped.append(post)
+            continue
+        if post_id in seen_ids:
+            continue
+        seen_ids.add(post_id)
+        deduped.append(post)
+    return deduped
+
+def create_notification(user_id, actor_id, notif_type, post_id=None, reel_id=None, message_id=None):
+    if not user_id or not actor_id or user_id == actor_id:
+        return
+    if interaction_blocked(actor_id, user_id):
+        return
+    payload = {
+        'user_id': user_id,
+        'actor_id': actor_id,
+        'type': notif_type,
+    }
+    if post_id:
+        payload['post_id'] = post_id
+    if reel_id:
+        payload['reel_id'] = reel_id
+    if message_id:
+        payload['message_id'] = message_id
+    try:
+        supabase.table('notifications').insert(payload).execute()
+    except Exception:
+        if not reel_id:
+            raise
+        payload.pop('reel_id', None)
+        supabase.table('notifications').insert(payload).execute()
 
 def get_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     offset = (page - 1) * limit
@@ -993,7 +1402,7 @@ def unique_ids(rows, key):
 def get_community_highlights():
     try:
         res = supabase.table('users').select('*').order('level', desc=True).limit(3).execute()
-        return res.data if res.data else []
+        return merge_forced_level_users(res.data if res and res.data else [], limit=3)
     except Exception:
         return []
 
@@ -1001,6 +1410,7 @@ def get_communities(limit=6):
     try:
         res = supabase.table('communities').select('*, owner:users!communities_owner_id_fkey(*)').order('created_at', desc=True).limit(limit).execute()
         communities = res.data if res and res.data else []
+        apply_forced_user_levels(communities)
         for item in communities:
             item['member_count'] = item.get('member_count', 0)
         return communities
@@ -1010,7 +1420,7 @@ def get_communities(limit=6):
 def get_community_by_slug(slug):
     try:
         res = supabase.table('communities').select('*, owner:users!communities_owner_id_fkey(*)').eq('slug', slug).execute()
-        return res.data[0] if res and res.data else None
+        return apply_forced_user_levels(res.data[0]) if res and res.data else None
     except Exception:
         return None
 
@@ -1020,7 +1430,7 @@ def get_short_videos(limit=8, community_id=None):
         if community_id:
             query = query.eq('community_id', community_id)
         res = query.order('created_at', desc=True).limit(limit).execute()
-        return res.data if res and res.data else []
+        return apply_forced_user_levels(res.data if res and res.data else [])
     except Exception:
         return []
 
@@ -1032,10 +1442,25 @@ def get_trending_posts(viewer_id, limit=5):
     except Exception:
         return []
 
+def get_recent_posts(viewer_id, limit=3):
+    try:
+        res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
+        posts = res.data if res and res.data else []
+        return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+    except Exception:
+        return []
+
+def get_search_discovery_context(viewer, people_limit=4, posts_limit=3):
+    return {
+        'suggested_users': get_popular_users(viewer['id'], people_limit),
+        'recent_posts': get_recent_posts(viewer['id'], posts_limit),
+    }
+
 def get_popular_users(viewer_id, limit=5):
     try:
         res = supabase.table('users').select('*').order('level', desc=True).limit(limit).execute()
         users = res.data if res and res.data else []
+        users = merge_forced_level_users(users, limit=limit)
         return mark_following_state(filter_blocked_users(users, viewer_id, include_mutes=False), viewer_id)
     except Exception:
         return []
@@ -1057,7 +1482,7 @@ def get_community_posts(community_id, viewer_id, limit=20):
 def get_community_members(community_id, limit=8):
     try:
         res = supabase.table('community_members').select('*, user:users!community_members_user_id_fkey(*)').eq('community_id', community_id).order('created_at', desc=True).limit(limit).execute()
-        return res.data if res and res.data else []
+        return apply_forced_user_levels(res.data if res and res.data else [])
     except Exception:
         return []
 
@@ -1176,11 +1601,14 @@ def visible_reel_filter(reels, viewer_id):
 def enrich_reels(reels, viewer_id):
     if not reels:
         return []
+    apply_forced_user_levels(reels)
 
     reel_ids = [row['id'] for row in reels if isinstance(row.get('id'), int)]
+    author_ids = {row.get('user_id') for row in reels if row.get('user_id') and row.get('user_id') != viewer_id}
     viewer_liked_ids = set()
     like_counts = {}
     comment_counts = {}
+    followed_author_ids = set()
 
     if reel_ids:
         try:
@@ -1205,6 +1633,13 @@ def enrich_reels(reels, viewer_id):
         except Exception:
             comment_counts = {}
 
+    if author_ids:
+        try:
+            follows_res = supabase.table('follows').select('following_id').eq('follower_id', viewer_id).in_('following_id', list(author_ids)).execute()
+            followed_author_ids = {row['following_id'] for row in follows_res.data or []}
+        except Exception:
+            followed_author_ids = set()
+
     for reel in reels:
         author = reel.get('user') or reel.get('author') or {}
         reel['author'] = author
@@ -1213,6 +1648,7 @@ def enrich_reels(reels, viewer_id):
         reel['comment_count'] = comment_counts.get(reel.get('id'), nested_count(reel.get('reel_comments')))
         reel['viewer_liked'] = reel.get('id') in viewer_liked_ids
         reel['is_owner'] = reel.get('user_id') == viewer_id
+        reel['author_followed'] = reel.get('user_id') in followed_author_ids
         reel['is_demo'] = False
     return reels
 
@@ -1350,7 +1786,7 @@ def get_explore_context(viewer):
 
     try:
         recent_res = supabase.table('users').select('*').order('created_at', desc=True).limit(8).execute()
-        context['recent_members'] = recent_res.data if recent_res and recent_res.data else []
+        context['recent_members'] = apply_forced_user_levels(recent_res.data if recent_res and recent_res.data else [])
     except Exception:
         pass
 
@@ -1429,6 +1865,74 @@ def get_user_activity(viewer, limit=36):
 
     items.sort(key=lambda item: item.get('created_at') or '', reverse=True)
     return items[:limit]
+
+def setup_health_check(label, ready, detail):
+    return {
+        'label': label,
+        'status': 'ready' if ready else 'needs_attention',
+        'detail': detail,
+    }
+
+def get_setup_health():
+    checks = []
+    checks.append(setup_health_check(
+        "Supabase connection",
+        bool(supabase),
+        "Client configured." if supabase else "Add SUPABASE_URL and SUPABASE_SECRET to .env."
+    ))
+
+    for table, label in [
+        ('users', 'Users table'),
+        ('posts', 'Posts table'),
+        ('reels', 'Reels table'),
+        ('communities', 'Communities table'),
+        ('user_safety_actions', 'Safety actions table'),
+    ]:
+        if not supabase:
+            checks.append(setup_health_check(label, False, "Supabase is not configured."))
+            continue
+        try:
+            supabase.table(table).select('id').limit(1).execute()
+            checks.append(setup_health_check(label, True, f"The {table} table is queryable."))
+        except Exception as exc:
+            if table == 'reels' and reels_table_not_ready(exc):
+                detail = "Run database/migrations/002_reels.sql in Supabase."
+            else:
+                detail = handle_db_error(exc, f"The {table} table could not be checked.")
+            checks.append(setup_health_check(label, False, detail))
+
+    if supabase:
+        try:
+            supabase.table('users').select('supabase_auth_user_id,oauth_provider,oauth_subject,oauth_email').limit(1).execute()
+            checks.append(setup_health_check("OAuth identity columns", True, "Social login identity columns are available."))
+        except Exception:
+            checks.append(setup_health_check("OAuth identity columns", False, "Run database/migrations/005_oauth_identity.sql in Supabase."))
+    else:
+        checks.append(setup_health_check("OAuth identity columns", False, "Supabase is not configured."))
+
+    if supabase:
+        try:
+            supabase.storage.get_bucket(STORAGE_BUCKET)
+            checks.append(setup_health_check("Media storage bucket", True, f"{STORAGE_BUCKET} is available."))
+        except Exception:
+            checks.append(setup_health_check("Media storage bucket", False, f"Create or allow the {STORAGE_BUCKET} Supabase storage bucket."))
+    else:
+        checks.append(setup_health_check("Media storage bucket", False, "Supabase is not configured."))
+
+    for relative_path, label in [
+        ('static/manifest.json', 'PWA manifest'),
+        ('static/service-worker.js', 'Service worker'),
+        ('static/assets/icon-192.png', 'PWA 192 icon'),
+        ('static/assets/icon-512.png', 'PWA 512 icon'),
+    ]:
+        full_path = os.path.join(app.root_path, relative_path)
+        checks.append(setup_health_check(
+            label,
+            os.path.exists(full_path),
+            f"{relative_path} exists." if os.path.exists(full_path) else f"{relative_path} is missing."
+        ))
+
+    return checks
 
 STACKABLE_NOTIFICATION_TYPES = {'like', 'repost', 'comment', 'high_five', 'reel_like', 'reel_comment'}
 
@@ -1525,7 +2029,7 @@ def reels():
         else:
             flash(handle_db_error(exc, "Could not load reels."), "error")
 
-    if not reels_list:
+    if not reels_list and not table_ready:
         reels_list = get_demo_reels()
         has_next = False
 
@@ -1805,8 +2309,179 @@ def verify_email(token):
             flash("Invalid or expired verification link. Please request a new one.", "error")
     except Exception as e:
         flash("An error occurred during verification.", "error")
-        
+
     return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/<provider>')
+def oauth_start(provider):
+    provider = normalize_oauth_provider(provider)
+    if not provider:
+        flash("That social login provider is not supported by LvL.", "error")
+        return redirect(url_for('auth'))
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
+    session['oauth_provider'] = provider
+
+    try:
+        response = supabase.auth.sign_in_with_oauth({
+            'provider': provider,
+            'options': {
+                'redirect_to': url_for('oauth_callback', _external=True),
+                'query_params': {
+                    'state': state,
+                },
+            },
+        })
+        store_oauth_code_verifier(supabase.auth)
+        return redirect(response.url)
+    except Exception as exc:
+        clear_oauth_flow_session()
+        flash(handle_db_error(exc, f"{oauth_provider_label(provider)} login could not start."), "error")
+        return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/callback')
+def oauth_callback():
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    oauth_error = request.args.get('error_description') or request.args.get('error')
+    if oauth_error:
+        clear_oauth_flow_session()
+        flash(f"Social login was cancelled or failed: {oauth_error}", "error")
+        return redirect(url_for('auth'))
+
+    expected_state = session.get('oauth_state')
+    returned_state = request.args.get('state')
+    if expected_state and returned_state and not secrets.compare_digest(expected_state, returned_state):
+        clear_oauth_flow_session()
+        flash("Social login expired. Try again.", "error")
+        return redirect(url_for('auth'))
+
+    code = request.args.get('code')
+    if not code:
+        clear_oauth_flow_session()
+        flash("Social login did not return an authorization code.", "error")
+        return redirect(url_for('auth'))
+
+    provider = normalize_oauth_provider(session.get('oauth_provider'))
+    try:
+        restore_oauth_code_verifier(supabase.auth)
+        response = supabase.auth.exchange_code_for_session({
+            'auth_code': code,
+            'redirect_to': url_for('oauth_callback', _external=True),
+        })
+        auth_user = response.user or (response.session.user if response.session else None)
+        if not auth_user:
+            raise RuntimeError("Supabase did not return a social login user.")
+
+        profile = extract_oauth_profile(auth_user, provider)
+        if not profile.get('provider'):
+            profile['provider'] = provider
+        if not profile.get('email'):
+            flash("This provider did not share an email address. Enable email access in the provider settings and try again.", "error")
+            clear_oauth_flow_session(include_pending=True)
+            return redirect(url_for('auth'))
+
+        app_user = first_oauth_user_match(profile)
+        if app_user:
+            sync_oauth_user_fields(app_user, profile)
+            session['user_id'] = app_user['id']
+            clear_oauth_flow_session(include_pending=True)
+            award_xp(app_user['id'], 'daily_login', 5)
+            flash(f"Signed in with {oauth_provider_label(profile['provider'])}.", "success")
+            return redirect(url_for('index'))
+
+        session['pending_oauth_profile'] = profile
+        clear_oauth_flow_session()
+        return redirect(url_for('oauth_onboarding'))
+    except Exception as exc:
+        clear_oauth_flow_session(include_pending=True)
+        flash(handle_db_error(exc, "Social login could not be completed."), "error")
+        return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/onboarding', methods=['GET', 'POST'])
+def oauth_onboarding():
+    profile = session.get('pending_oauth_profile')
+    if not profile:
+        flash("Start with a social login provider first.", "info")
+        return redirect(url_for('auth'))
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        nickname = normalize_username(request.form.get('nickname', ''))
+        email = (request.form.get('email') or profile.get('email') or '').strip().lower()
+        gender = normalize_gender(request.form.get('gender', ''))
+        birthday = request.form.get('birthday', '').strip()
+
+        if not all([first_name, last_name, nickname, email, gender]):
+            flash("All fields are required to finish social registration.", "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
+            flash("Username must be 3-24 characters: letters, numbers, or underscores only.", "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        birthday_value, birthday_error = validate_birthday(birthday, required=True)
+        if birthday_error:
+            flash(birthday_error, "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        existing_user = first_oauth_user_match({**profile, 'email': email})
+        if existing_user:
+            sync_oauth_user_fields(existing_user, profile)
+            session['user_id'] = existing_user['id']
+            session.pop('pending_oauth_profile', None)
+            award_xp(existing_user['id'], 'daily_login', 5)
+            flash("Your social login is now connected to your existing LvL account.", "success")
+            return redirect(url_for('index'))
+
+        defaults = gender_defaults(gender)
+        random_password = secrets.token_urlsafe(48)
+        profile_photo_url = profile.get('avatar_url') or url_for('static', filename=defaults['avatar'])
+        payload = {
+            'first_name': first_name,
+            'last_name': last_name,
+            'nickname': nickname,
+            'username': nickname,
+            'display_name': f"{first_name} {last_name}",
+            'email': email,
+            'password_hash': bcrypt.hashpw(random_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+            'gender': gender,
+            'birthday': birthday_value.isoformat(),
+            'profile_photo_url': profile_photo_url,
+            'theme_color': defaults['theme_color'],
+            'avatar_color': defaults['theme_color'],
+            'is_verified': True,
+            'oauth_provider': profile.get('provider'),
+            'oauth_subject': profile.get('subject'),
+            'supabase_auth_user_id': profile.get('subject'),
+            'oauth_email': email,
+        }
+
+        try:
+            new_user = supabase.table('users').insert(payload).execute()
+            if new_user.data:
+                session['user_id'] = new_user.data[0]['id']
+                session.pop('pending_oauth_profile', None)
+                award_xp(new_user.data[0]['id'], 'account_created', 20)
+                flash(f"Welcome to LvL, {first_name}! Your social login is connected.", "success")
+                return redirect(url_for('index'))
+        except Exception as exc:
+            if oauth_schema_error(exc):
+                flash("Run database/migrations/005_oauth_identity.sql in Supabase before finishing social login.", "error")
+            else:
+                flash(handle_db_error(exc), "error")
+
+    return render_template('oauth_onboarding.html', profile=profile)
 
 @app.route('/auth', methods=['GET', 'POST'])
 def auth():
@@ -1862,7 +2537,7 @@ def auth():
                 return render_template('auth.html')
                 
             if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
-                flash("Username must be 3-24 characters and use only letters, numbers, or underscores.", "error")
+                flash("Username must be 3-24 characters: letters, numbers, or underscores only.", "error")
                 return render_template('auth.html')
 
             birthday_value, birthday_error = validate_birthday(birthday, required=True)
@@ -2063,7 +2738,7 @@ def share_post(post_id):
                 
     try:
         all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
-        users = all_users_res.data if all_users_res.data else []
+        users = apply_forced_user_levels(all_users_res.data if all_users_res.data else [])
     except Exception:
         users = []
         
@@ -2074,7 +2749,7 @@ def add_comment():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     post_id = parse_int(request.form.get('post_id'))
     comment = request.form.get('comment', '').strip()
 
@@ -2248,54 +2923,11 @@ def request_friend():
     if not viewer:
         return redirect(url_for('auth'))
 
-    target_id = request.form.get('target_id')
-    target_user_id = parse_int(target_id)
     is_ajax = request.form.get('ajax') == '1'
-
-    if not target_user_id or target_user_id == viewer['id']:
-        if is_ajax:
-            return jsonify({'success': False, 'error': 'Invalid target.'}), 400
-        return redirect(safe_redirect_url())
-
-    try:
-        if interaction_blocked(viewer['id'], target_user_id):
-            if is_ajax:
-                return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
-            flash("You cannot interact with this user.", "error")
-            return redirect(safe_redirect_url())
-        first = min(viewer['id'], target_user_id)
-        second = max(viewer['id'], target_user_id)
-
-        res = supabase.table('friendships').select('*').eq('user_1', first).eq('user_2', second).execute()
-        if not res.data:
-            supabase.table('friendships').insert({
-                'user_1': first,
-                'user_2': second,
-                'action_user_id': viewer['id'],
-                'status': 'pending'
-            }).execute()
-            create_notification(target_user_id, viewer['id'], 'friend_request')
-            if is_ajax:
-                return jsonify({'success': True, 'status': 'pending', 'label': 'Requested'})
-            flash("Friend request sent.", "success")
-        elif res.data[0].get('status') == 'pending':
-            if res.data[0].get('action_user_id') == viewer['id']:
-                supabase.table('friendships').delete().eq('user_1', first).eq('user_2', second).execute()
-                if is_ajax:
-                    return jsonify({'success': True, 'status': None, 'label': 'Add friend'})
-                flash("Friend request cancelled.", "success")
-            else:
-                if is_ajax:
-                    return jsonify({'success': True, 'status': 'pending_incoming', 'label': 'Accept friend'})
-                flash("This person already sent you a request. Accept it from notifications.", "info")
-        elif res.data[0].get('status') == 'accepted':
-            if is_ajax:
-                return jsonify({'success': True, 'status': 'accepted', 'label': 'Friend'})
-            flash("You are already friends.", "info")
-    except Exception as e:
-        if is_ajax:
-            return jsonify({'success': False, 'error': handle_db_error(e)}), 400
-        flash(handle_db_error(e), "error")
+    message = "Friends are earned through 7-day high-five or message streaks."
+    if is_ajax:
+        return jsonify({'success': True, 'status': 'streak_based', 'label': 'High-five', 'message': message})
+    flash(message, "info")
 
     return redirect(safe_redirect_url())
 
@@ -2316,7 +2948,7 @@ def respond_friend_request():
             if not friendship.data or friendship.data[0].get('action_user_id') == viewer['id']:
                 flash("There is no friend request for you to respond to.", "error")
                 return redirect(url_for('notifications'))
-            
+
             if decision == 'accept':
                 if interaction_blocked(viewer['id'], target_user_id):
                     flash("You cannot interact with this user.", "error")
@@ -2433,6 +3065,36 @@ def mark_notifications_read():
         except Exception:
             pass
     return redirect(url_for('notifications'))
+
+@app.route('/admin/users/level', methods=['POST'])
+def admin_update_user_level():
+    viewer = get_current_user()
+    if not viewer:
+        return jsonify({'success': False, 'error': 'Authentication required.'}), 401
+
+    token = request.form.get('admin_token') or request.headers.get('X-LvL-Admin-Token')
+    if not admin_token_is_valid(token):
+        return jsonify({'success': False, 'error': 'Admin token is missing or invalid.'}), 403
+
+    try:
+        updated_user = set_user_level(request.form.get('username', ''), request.form.get('level'))
+        return jsonify({'success': True, 'user': updated_user})
+    except LookupError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception as exc:
+        return jsonify({'success': False, 'error': handle_db_error(exc, "Could not update that user's level.")}), 400
+
+@app.route('/setup-health')
+def setup_health():
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+    return render_template('setup_health.html',
+                           viewer=viewer,
+                           checks=get_setup_health(),
+                           highlights=get_community_highlights())
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -2578,7 +3240,7 @@ def onboarding():
 
     try:
         suggested_res = supabase.table('users').select('*').neq('id', viewer['id']).order('level', desc=True).limit(6).execute()
-        suggested_users = suggested_res.data if suggested_res and suggested_res.data else []
+        suggested_users = merge_forced_level_users(suggested_res.data if suggested_res and suggested_res.data else [], limit=6)
     except Exception:
         suggested_users = []
 
@@ -2633,35 +3295,29 @@ def profile(username):
         if not res.data:
             return "Profile not found.", 404
             
-        profile_user = res.data[0]
+        profile_user = apply_forced_user_levels(res.data[0])
         is_own_profile = viewer['id'] == profile_user['id']
         safety_state = get_user_safety_state(viewer['id'], profile_user['id'])
         
         is_following = False
         friend_status = None
         friend_action_user_id = None
+        streak_status = get_pair_streak_status(viewer['id'], profile_user['id'])
         
         if not is_own_profile:
             follow_res = supabase.table('follows').select('*').eq('follower_id', viewer['id']).eq('following_id', profile_user['id']).execute()
             is_following = len(follow_res.data) > 0
-            
-            first = min(viewer['id'], profile_user['id'])
-            second = max(viewer['id'], profile_user['id'])
-            friend_res = supabase.table('friendships').select('*').eq('user_1', first).eq('user_2', second).execute()
-            if friend_res.data:
-                friend_status = friend_res.data[0]['status']
-                friend_action_user_id = friend_res.data[0]['action_user_id']
                 
         posts_count = supabase.table('posts').select('id', count='exact').eq('user_id', profile_user['id']).is_('deleted_at', 'null').execute()
         comments_count = supabase.table('comments').select('id', count='exact').eq('user_id', profile_user['id']).execute()
         followers_count = supabase.table('follows').select('id', count='exact').eq('following_id', profile_user['id']).execute()
         following_count = supabase.table('follows').select('id', count='exact').eq('follower_id', profile_user['id']).execute()
-        friends_count = supabase.table('friendships').select('user_1', count='exact').or_(f"user_1.eq.{profile_user['id']},user_2.eq.{profile_user['id']}").eq('status', 'accepted').execute()
+        _, streak_friend_ids = get_streak_friend_ids(profile_user['id'])
         
         stats = {
             'following': following_count.count if following_count else 0, 
             'followers': followers_count.count if followers_count else 0, 
-            'friends': friends_count.count if friends_count else 0,
+            'friends': len(streak_friend_ids),
             'posts': posts_count.count if posts_count else 0, 
             'comments': comments_count.count if comments_count else 0
         }
@@ -2702,6 +3358,7 @@ def profile(username):
                            is_following=is_following,
                            friend_status=friend_status,
                            friend_action_user_id=friend_action_user_id,
+                           streak_status=streak_status,
                            safety_state=safety_state,
                            stats=stats,
                            posts=posts,
@@ -2767,7 +3424,7 @@ def profile_social_list(username, list_type):
         profile_res = supabase.table('users').select('*').eq('username', normalize_username(username)).execute()
         if not profile_res.data:
             return "Profile not found.", 404
-        profile_user = profile_res.data[0]
+        profile_user = apply_forced_user_levels(profile_res.data[0])
         list_title, users = get_social_list(profile_user, list_type, viewer['id'])
         highlights = get_community_highlights()
     except Exception as e:
@@ -2850,6 +3507,7 @@ def attach_shared_posts(messages_list):
     if post_ids:
         try:
             p_res = supabase.table('posts').select('*, user:users!posts_user_id_fkey(*)').in_('id', list(set(post_ids))).execute()
+            apply_forced_user_levels(p_res.data if p_res and p_res.data else [])
             posts_by_id = {p['id']: p for p in p_res.data} if p_res and p_res.data else {}
             for msg in messages_list:
                 match = re.search(r'/post/(\d+)', msg.get('content', ''))
@@ -2874,7 +3532,7 @@ def messages():
         if target_username:
             res = supabase.table('users').select('*').eq('username', target_username).execute()
             if res.data:
-                target_user = res.data[0]
+                target_user = apply_forced_user_levels(res.data[0])
                 if target_user['id'] == viewer['id']:
                     flash("Choose someone else to message.", "error")
                     target_user = None
@@ -2886,7 +3544,7 @@ def messages():
                     supabase.table('messages').update({'is_read': True}).eq('sender_id', target_user['id']).eq('receiver_id', viewer['id']).execute()
                 
         all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
-        all_users_raw = all_users_res.data if all_users_res.data else []
+        all_users_raw = apply_forced_user_levels(all_users_res.data if all_users_res.data else [])
         all_users = filter_blocked_users(all_users_raw, viewer['id'], include_mutes=False)
         all_users_by_id = {user['id']: user for user in all_users_raw}
 
@@ -2959,7 +3617,7 @@ def api_messages(username):
         target_res = supabase.table('users').select('*').eq('username', username).execute()
         if not target_res.data:
             return jsonify({'success': False, 'error': 'User not found.'}), 404
-        target_user = target_res.data[0]
+        target_user = apply_forced_user_levels(target_res.data[0])
         if target_user['id'] == viewer['id']:
             return jsonify({'success': False, 'error': 'Choose someone else to message.'}), 400
 
@@ -2975,6 +3633,17 @@ def api_messages(username):
     except Exception as e:
         return jsonify({'success': False, 'error': handle_db_error(e)}), 400
 
+@app.route('/api/live-status')
+def api_live_status():
+    viewer = get_current_user()
+    if not viewer:
+        return jsonify({'success': False, 'error': 'Authentication required.'}), 401
+    return jsonify({
+        'success': True,
+        'unread_notifications': unread_notification_count(viewer['id']),
+        'unread_messages': unread_message_count(viewer['id']),
+    })
+
 @app.route('/notifications')
 def notifications():
     viewer = get_current_user()
@@ -2983,10 +3652,10 @@ def notifications():
         
     try:
         notif_res = supabase.table('notifications').select('*, actor:users!actor_id(*)').eq('user_id', viewer['id']).order('created_at', desc=True).limit(50).execute()
-        raw_notifications = notif_res.data if notif_res and notif_res.data else []
+        raw_notifications = apply_forced_user_levels(notif_res.data if notif_res and notif_res.data else [])
         hidden_actor_ids = blocked_user_ids_for_viewer(viewer['id'], [item.get('actor_id') for item in raw_notifications], include_mutes=False)
         raw_notifications = [item for item in raw_notifications if item.get('actor_id') not in hidden_actor_ids]
-        
+
         formatted = []
         for n in raw_notifications:
             actor = n.get('actor', {})
@@ -3245,14 +3914,9 @@ def search():
                 posts = res.data if res.data else []
                 posts = enrich_posts(visible_post_filter(posts, viewer['id']), viewer['id'])
         else:
-            sug_res = supabase.table('users').select('*').neq('id', viewer['id']).limit(4).execute()
-            suggested_users = sug_res.data if sug_res and sug_res.data else []
-            suggested_users = filter_blocked_users(suggested_users, viewer['id'], include_mutes=False)
-            suggested_users = mark_following_state(suggested_users, viewer['id'])
-            
-            rec_res = supabase.table('posts').select(select_query).is_('deleted_at', 'null').order('created_at', desc=True).limit(3).execute()
-            recent_posts = rec_res.data if rec_res and rec_res.data else []
-            recent_posts = enrich_posts(visible_post_filter(recent_posts, viewer['id']), viewer['id'])
+            discovery = get_search_discovery_context(viewer)
+            suggested_users = discovery['suggested_users']
+            recent_posts = discovery['recent_posts']
     except Exception as e:
         flash(handle_db_error(e), "error")
         
@@ -3281,14 +3945,14 @@ def post(id):
             return render_template('post.html', viewer=viewer, post=None)
         if interaction_blocked(viewer['id'], post_res.data[0].get('user_id')):
             return render_template('post.html', viewer=viewer, post=None)
-            
+
         post_data = enrich_posts(post_res.data, viewer['id'])[0]
-        
+
         com_res = supabase.table('comments').select('*, user:users(*)').eq('post_id', id).order('created_at', desc=False).execute()
-        comments = com_res.data if com_res and com_res.data else []
+        comments = apply_forced_user_levels(com_res.data if com_res and com_res.data else [])
         hidden_commenter_ids = blocked_user_ids_for_viewer(viewer['id'], [comment.get('user_id') for comment in comments], include_mutes=False)
         comments = [comment for comment in comments if comment.get('user_id') not in hidden_commenter_ids]
-        
+
         return render_template('post.html', viewer=viewer, post=post_data, comments=comments)
     except Exception as e:
         flash(handle_db_error(e), "error")

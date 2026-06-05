@@ -16,10 +16,10 @@ class AppUtilsTests(unittest.TestCase):
         self.assertEqual(validate_birthday("not-a-date", today=today)[1], "Birthday must use a real date in YYYY-MM-DD format.")
 
     def test_validate_birthday_enforces_minimum_age(self):
-        birthday, error = validate_birthday("2015-05-14", today=date(2026, 5, 14))
+        birthday, error = validate_birthday("2013-05-15", today=date(2026, 5, 14))
 
         self.assertIsNone(birthday)
-        self.assertEqual(error, "You must be at least 13 years old to use LvL.")
+        self.assertEqual(error, "You must be at least 14 years old to use LvL.")
 
     def test_validate_birthday_accepts_realistic_dates(self):
         birthday, error = validate_birthday("2001-08-20", today=date(2026, 5, 14))
@@ -31,7 +31,7 @@ class AppUtilsTests(unittest.TestCase):
         limits = birthday_date_limits(date(2026, 5, 14))
 
         self.assertEqual(limits['min'].isoformat(), "1906-05-14")
-        self.assertEqual(limits['max'].isoformat(), "2013-05-14")
+        self.assertEqual(limits['max'].isoformat(), "2012-05-14")
 
     def test_profile_banner_level_tiers(self):
         self.assertEqual(profile_banner_for_level(1)['class'], "level-1")
@@ -39,6 +39,8 @@ class AppUtilsTests(unittest.TestCase):
         self.assertEqual(profile_banner_for_level(5)['class'], "level-3")
         self.assertEqual(profile_banner_for_level(10)['class'], "level-4")
         self.assertEqual(profile_banner_for_level(20)['class'], "level-5")
+        self.assertEqual(profile_banner_for_level(30)['class'], "level-6")
+        self.assertEqual(profile_banner_for_level(50)['class'], "level-7")
 
 
 if __name__ == "__main__":

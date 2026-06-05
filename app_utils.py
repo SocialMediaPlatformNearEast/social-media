@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 
-MIN_AGE = 13
+MIN_AGE = 14
 MAX_AGE = 120
 
 
@@ -49,6 +49,18 @@ def validate_birthday(value, required=False, today=None):
 
 def profile_banner_for_level(level):
     level = max(1, int(level or 1))
+    if level >= 50:
+        return {
+            'class': 'level-7',
+            'label': 'Icon Legend',
+            'description': 'A prestige banner for Level 50 accounts and long-term LvL icons.',
+        }
+    if level >= 30:
+        return {
+            'class': 'level-6',
+            'label': 'Mythic Orbit',
+            'description': 'A stronger high-rank banner for mythic LvL status.',
+        }
     if level >= 20:
         return {
             'class': 'level-5',

@@ -63,21 +63,6 @@
             <input type="hidden" name="action_type" value="block">
             <button class="outline-button danger-action {% if safety_state.blocked %}active{% endif %}" type="submit">{{ 'Unblock' if safety_state.blocked else 'Block' }}</button>
           </form>
-          {% if not safety_state.interaction_blocked %}
-          <form action="{{ url_for('request_friend') }}" method="post" class="ajax-action-form" data-action="friend">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="target_id" value="{{ profile.id }}">
-            <button class="outline-button {% if friend_status %}active{% endif %}" type="submit">
-              {% if friend_status == 'accepted' %}
-                Friend
-              {% elif friend_status == 'pending' %}
-                {% if friend_action_user_id == viewer.id %}Requested{% else %}Accept friend{% endif %}
-              {% else %}
-                Add friend
-              {% endif %}
-            </button>
-          </form>
-          {% endif %}
         {% endif %}
       </div>
     </div>
@@ -117,6 +102,25 @@
       <a href="{{ url_for('profile_social_list', username=profile.username, list_type='followers') }}"><strong>{{ stats.followers }}</strong> Followers</a>
       <a href="{{ url_for('profile_social_list', username=profile.username, list_type='friends') }}"><strong>{{ stats.friends }}</strong> Friends</a>
     </div>
+
+    {% if not is_own_profile %}
+      {% set streak = streak_status|default({'count': 0, 'is_friend': false, 'days_until_friend': 7}) %}
+      <div class="profile-streak-card {% if streak.is_friend %}is-friend{% endif %}">
+        <span class="profile-streak-icon" aria-hidden="true">🖐</span>
+        <div>
+          {% if streak.is_friend %}
+            <strong>Friend streak active</strong>
+            <p>You are friends because your streak is {{ streak.count }} days. Keep it alive daily.</p>
+          {% elif streak.count > 0 %}
+            <strong>{{ streak.count }} day high-five streak</strong>
+            <p>{{ streak.days_until_friend }} more daily interactions to become friends.</p>
+          {% else %}
+            <strong>Friendship starts with a streak</strong>
+            <p>High-five or trade messages daily for 7 days to become friends.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
 
     <section class="profile-xp-card" aria-label="Profile XP summary">
       <div class="profile-xp-main">

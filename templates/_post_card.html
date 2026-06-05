@@ -19,6 +19,13 @@
       {% if post_time %}
         <span class="post-time" title="{{ post_time }}">· {{ relative_time(post_time) }}</span>
       {% endif %}
+      {% if post.user.id != viewer.id and post.user_id != viewer.id %}
+        <form action="{{ url_for('toggle_follow') }}" method="post" class="ajax-action-form inline-follow-form" data-action="follow">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="target_id" value="{{ post.user.id or post.user_id }}">
+          <button class="follow-chip {% if post.author_followed %}active{% endif %}" type="submit">{{ 'Unfollow' if post.author_followed else 'Follow' }}</button>
+        </form>
+      {% endif %}
       <div class="post-menu-wrap">
         <button class="post-menu-toggle" type="button" data-post-menu-toggle aria-expanded="false" aria-label="Post options">...</button>
         <div class="post-menu" data-post-menu hidden>

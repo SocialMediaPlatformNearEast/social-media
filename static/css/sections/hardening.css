@@ -188,6 +188,29 @@
   gap: 14px !important;
 }
 
+.left-rail.menu-open .mini-profile {
+  justify-content: flex-start !important;
+  gap: 12px !important;
+}
+
+.left-rail.menu-open .mini-profile div {
+  display: flex !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  overflow: hidden !important;
+}
+
+.left-rail.menu-open .mini-profile strong,
+.left-rail.menu-open .mini-profile span {
+  display: block !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
 .profile-stats a {
   color: inherit;
   text-decoration: none;
@@ -195,6 +218,34 @@
 
 .profile-stats a:hover {
   text-decoration: underline;
+}
+
+.message-bubble-wrapper {
+  max-width: min(74%, 540px);
+}
+
+.message-bubble {
+  padding: 10px 15px;
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 8px 22px var(--lvl-black-34), inset 0 1px 0 var(--lvl-white-08);
+}
+
+.own .message-bubble {
+  background: linear-gradient(135deg, var(--accent-color), color-mix(in srgb, var(--accent-color) 78%, var(--lvl-white) 22%));
+  color: var(--lvl-text-inverse);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.message-bubble-wrapper:not(.own) .message-bubble {
+  background: linear-gradient(180deg, var(--lvl-surface-9), var(--lvl-surface-5));
+  color: var(--text-primary);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+@media (max-width: 640px) {
+  .timeline-messages .message-bubble-wrapper {
+    max-width: min(86%, 260px);
+  }
 }
 
 .profile-banner.level-4 {
@@ -209,6 +260,22 @@
     radial-gradient(circle at 20% 20%, var(--lvl-warning-soft-46), transparent 24%),
     radial-gradient(circle at 82% 78%, var(--lvl-female-soft-38), transparent 30%),
     linear-gradient(135deg, var(--lvl-surface-31), var(--lvl-surface-32) 72%);
+}
+
+.profile-banner.level-6 {
+  background:
+    radial-gradient(circle at 16% 26%, var(--lvl-purple-strong-soft-40), transparent 26%),
+    radial-gradient(circle at 82% 18%, var(--lvl-cyan-soft-42), transparent 30%),
+    radial-gradient(circle at 72% 82%, var(--lvl-warning-soft-34), transparent 24%),
+    linear-gradient(135deg, var(--lvl-surface-30), var(--lvl-surface-29) 72%);
+}
+
+.profile-banner.level-7 {
+  background:
+    radial-gradient(circle at 18% 22%, var(--lvl-warning-soft-46), transparent 24%),
+    radial-gradient(circle at 82% 18%, var(--lvl-purple-strong-soft-40), transparent 26%),
+    radial-gradient(circle at 70% 84%, var(--lvl-cyan-soft-42), transparent 28%),
+    linear-gradient(135deg, var(--lvl-surface-31), var(--lvl-surface-32) 74%);
 }
 
 .checkbox-row {

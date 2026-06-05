@@ -20,21 +20,34 @@
   <a class="mobile-reels-upload-cta" href="{{ url_for('reel_upload') }}">Upload reel</a>
 
   <section class="reels-feed" data-reels-feed aria-label="Reels feed">
-    {% for reel in reels %}
-      <div id="reel-{{ reel.id }}">
-        {% include "_reel_card.html" %}
+    {% if reels %}
+      {% for reel in reels %}
+        <div id="reel-{{ reel.id }}">
+          {% include "_reel_card.html" %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state reels-empty-state">
+        <h2>No real reels yet</h2>
+        <p>Upload the first real LvL reel or check Setup Health if uploads are not appearing.</p>
+        <div class="empty-state-actions">
+          <a class="primary-button" href="{{ url_for('reel_upload') }}">Upload reel</a>
+          <a class="outline-button" href="{{ url_for('setup_health') }}">Setup Health</a>
+        </div>
       </div>
-    {% endfor %}
+    {% endif %}
   </section>
 
-  <nav class="reels-pagination" aria-label="Reels pagination">
-    {% if page > 1 %}
-      <a class="outline-button" href="{{ url_for('reels', page=page-1, tab=tab) }}">Previous</a>
-    {% endif %}
-    {% if has_next %}
-      <a class="outline-button" href="{{ url_for('reels', page=page+1, tab=tab) }}">More reels</a>
-    {% endif %}
-  </nav>
+  {% if page > 1 or has_next %}
+    <nav class="reels-pagination" aria-label="Reels pagination">
+      {% if page > 1 %}
+        <a class="outline-button" href="{{ url_for('reels', page=page-1, tab=tab) }}">Previous</a>
+      {% endif %}
+      {% if has_next %}
+        <a class="outline-button" href="{{ url_for('reels', page=page+1, tab=tab) }}">More reels</a>
+      {% endif %}
+    </nav>
+  {% endif %}
   <p class="reels-end-note" data-reels-end hidden>No more reels</p>
 </section>
 {% endblock %}

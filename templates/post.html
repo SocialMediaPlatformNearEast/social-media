@@ -49,7 +49,7 @@
     </article>
   </section>
   
-  <form id="composer" class="composer" action="{{ url_for('add_comment') }}" method="post">
+  <form id="composer" class="composer comment-composer" action="{{ url_for('add_comment') }}" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="post_id" value="{{ post.id }}">
     <div class="composer-avatar-column">
@@ -64,7 +64,11 @@
     </div>
   </form>
   
-  <section class="feed">
+  <section class="feed thread-comments">
+    <div class="thread-section-label">
+      <strong>Replies</strong>
+      <span>{{ comments|length }} {{ 'reply' if comments|length == 1 else 'replies' }}</span>
+    </div>
     {% if not comments %}
       <div class="empty-state">
         <h2>No comments yet</h2>

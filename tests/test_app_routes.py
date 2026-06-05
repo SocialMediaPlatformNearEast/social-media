@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from werkzeug.datastructures import FileStorage
 
@@ -104,6 +105,243 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"', settings_html)
         self.assertIn('name="remove_profile_photo"', settings_html)
 
+    def test_auth_page_lists_all_supabase_social_providers(self):
+        auth_html = self.client.get("/auth").data.decode()
+
+        self.assertIn("Continue with Supabase social login", auth_html)
+        for provider in zapp.SUPABASE_SOCIAL_PROVIDERS:
+            self.assertIn(provider["label"], auth_html)
+            self.assertIn(f'/auth/oauth/{provider["provider"]}', auth_html)
+
+    def test_oauth_start_redirects_to_supabase_provider(self):
+        class FakeStorage:
+            def __init__(self):
+                self.items = {}
+
+            def get_item(self, key):
+                return self.items.get(key)
+
+            def set_item(self, key, value):
+                self.items[key] = value
+
+        class FakeAuth:
+            def __init__(self):
+                self.calls = []
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+
+            def sign_in_with_oauth(self, credentials):
+                self.calls.append(credentials)
+                self._storage.set_item("supabase.auth.token-code-verifier", "test-verifier")
+                return SimpleNamespace(url="https://project.supabase.co/auth/v1/authorize?provider=google")
+
+        fake = SimpleNamespace(auth=FakeAuth())
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/google")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "https://project.supabase.co/auth/v1/authorize?provider=google")
+        credentials = fake.auth.calls[0]
+        self.assertEqual(credentials["provider"], "google")
+        self.assertTrue(credentials["options"]["redirect_to"].endswith("/auth/oauth/callback"))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["oauth_provider"], "google")
+            self.assertEqual(sess["oauth_code_verifier"], "test-verifier")
+            self.assertEqual(credentials["options"]["query_params"]["state"], sess["oauth_state"])
+
+    def test_oauth_callback_logs_in_existing_user_by_email(self):
+        class FakeStorage:
+            def __init__(self):
+                self.items = {}
+
+            def set_item(self, key, value):
+                self.items[key] = value
+
+            def get_item(self, key):
+                return self.items.get(key)
+
+            def remove_item(self, key):
+                self.items.pop(key, None)
+
+        class FakeAuth:
+            def __init__(self):
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+                self.exchange_params = None
+
+            def exchange_code_for_session(self, params):
+                self.exchange_params = params
+                user = SimpleNamespace(
+                    id="11111111-1111-1111-1111-111111111111",
+                    email="oauth@example.com",
+                    user_metadata={
+                        "full_name": "OAuth Member",
+                        "avatar_url": "https://example.com/avatar.png",
+                    },
+                    app_metadata={"provider": "google"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
+
+        class FakeUsersTable:
+            def __init__(self, fake):
+                self.fake = fake
+                self.filters = {}
+                self.mode = "select"
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.mode = "select"
+                return self
+
+            def update(self, payload):
+                self.mode = "update"
+                self.payload = payload
+                return self
+
+            def eq(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def execute(self):
+                if self.mode == "update":
+                    self.fake.updated_payload = self.payload
+                    return SimpleNamespace(data=[])
+                if self.filters.get("supabase_auth_user_id"):
+                    return SimpleNamespace(data=[])
+                if self.filters.get("email") == "oauth@example.com":
+                    return SimpleNamespace(data=[{"id": 44, "email": "oauth@example.com", "username": "oauthmember"}])
+                return SimpleNamespace(data=[])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.auth = FakeAuth()
+                self.updated_payload = None
+
+            def table(self, name):
+                self.table_name = name
+                return FakeUsersTable(self)
+
+        fake = FakeSupabase()
+        with self.client.session_transaction() as sess:
+            sess["oauth_state"] = "expected-state"
+            sess["oauth_provider"] = "google"
+            sess["oauth_code_verifier"] = "stored-verifier"
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123&state=expected-state")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/"))
+        self.assertEqual(fake.auth.exchange_params["auth_code"], "abc123")
+        self.assertEqual(fake.auth._storage.items["supabase.auth.token-code-verifier"], "stored-verifier")
+        self.assertEqual(fake.updated_payload["oauth_provider"], "google")
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["user_id"], 44)
+            self.assertNotIn("pending_oauth_profile", sess)
+
+    def test_oauth_callback_sends_new_user_to_social_onboarding(self):
+        class FakeAuth:
+            _storage_key = "supabase.auth.token"
+
+            class Storage:
+                def set_item(self, *_args):
+                    pass
+
+            _storage = Storage()
+
+            def exchange_code_for_session(self, _params):
+                user = SimpleNamespace(
+                    id="22222222-2222-2222-2222-222222222222",
+                    email="new@example.com",
+                    user_metadata={"name": "New OAuth"},
+                    app_metadata={"provider": "github"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
+
+        class FakeUsersTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake = SimpleNamespace(auth=FakeAuth(), table=lambda _name: FakeUsersTable())
+        with self.client.session_transaction() as sess:
+            sess["oauth_state"] = "expected-state"
+            sess["oauth_provider"] = "github"
+            sess["oauth_code_verifier"] = "stored-verifier"
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123&state=expected-state")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/auth/oauth/onboarding"))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["pending_oauth_profile"]["email"], "new@example.com")
+            self.assertEqual(sess["pending_oauth_profile"]["provider"], "github")
+            self.assertEqual(sess["pending_oauth_profile"]["first_name"], "New")
+
+    def test_oauth_onboarding_creates_lvl_user(self):
+        class FakeUsersTable:
+            def __init__(self, fake, name):
+                self.fake = fake
+                self.name = name
+                self.payload = None
+
+            def insert(self, payload):
+                self.payload = payload
+                return self
+
+            def execute(self):
+                if self.name == "users":
+                    self.fake.inserted_payload = self.payload
+                return SimpleNamespace(data=[{"id": 55, **self.payload}])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.inserted_payload = None
+
+            def table(self, name):
+                self.table_name = name
+                return FakeUsersTable(self, name)
+
+        fake = FakeSupabase()
+        with self.client.session_transaction() as sess:
+            sess["pending_oauth_profile"] = {
+                "provider": "google",
+                "subject": "33333333-3333-3333-3333-333333333333",
+                "email": "join@example.com",
+                "first_name": "Join",
+                "last_name": "Member",
+                "display_name": "Join Member",
+                "avatar_url": "",
+            }
+        csrf_token = self.csrf()
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.post("/auth/oauth/onboarding", data={
+                "csrf_token": csrf_token,
+                "first_name": "Join",
+                "last_name": "Member",
+                "nickname": "joinmember",
+                "email": "join@example.com",
+                "birthday": "2000-01-01",
+                "gender": "Male",
+            })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/"))
+        self.assertEqual(fake.inserted_payload["oauth_provider"], "google")
+        self.assertEqual(fake.inserted_payload["supabase_auth_user_id"], "33333333-3333-3333-3333-333333333333")
+        self.assertEqual(fake.inserted_payload["username"], "joinmember")
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["user_id"], 55)
+            self.assertNotIn("pending_oauth_profile", sess)
+
     def test_shared_post_card_has_menu_actions(self):
         with zapp.app.test_request_context("/"):
             html = zapp.render_template("_post_card.html", viewer={"id": 7}, post={
@@ -152,8 +390,13 @@ class AppRouteTests(unittest.TestCase):
         routes = {rule.rule for rule in zapp.app.url_map.iter_rules()}
 
         self.assertIn("/profile/<username>/<list_type>", routes)
+        self.assertIn("/admin/users/level", routes)
+        self.assertIn("/setup-health", routes)
         self.assertIn("/level-guide", routes)
         self.assertIn("/reels", routes)
+        self.assertIn("/auth/oauth/<provider>", routes)
+        self.assertIn("/auth/oauth/callback", routes)
+        self.assertIn("/auth/oauth/onboarding", routes)
         self.assertIn("/reels/upload", routes)
         self.assertIn("/reels/<int:reel_id>/like", routes)
         self.assertIn("/delete_post", routes)
@@ -161,6 +404,18 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("/delete_account", routes)
         self.assertIn("/profile", routes)
         self.assertIn("/activity", routes)
+
+    def test_timeline_dedupe_keeps_newest_post_instance(self):
+        posts = [
+            {"id": 1, "timeline_created_at": "2026-06-05T12:00:00", "is_repost": True},
+            {"id": 1, "timeline_created_at": "2026-06-05T11:00:00", "is_repost": False},
+            {"id": 2, "timeline_created_at": "2026-06-05T10:00:00", "is_repost": False},
+        ]
+
+        deduped = zapp.dedupe_timeline_posts(posts)
+
+        self.assertEqual([post["id"] for post in deduped], [1, 2])
+        self.assertTrue(deduped[0]["is_repost"])
 
     def sample_reel(self, reel_id=1, user_id=7):
         return {
@@ -208,6 +463,121 @@ class AppRouteTests(unittest.TestCase):
         self.assertFalse(conversation["unlocked"])
         self.assertEqual(conversation["progress_label"], "4 / 10")
         self.assertTrue(rising["unlocked"])
+
+    def test_forced_sin_account_level_override(self):
+        user = {
+            "id": 9,
+            "username": "sin",
+            "nickname": "sin",
+            "display_name": "sin sin",
+            "level": 2,
+            "total_xp": 74,
+        }
+
+        zapp.apply_forced_user_levels(user)
+
+        self.assertEqual(user["level"], 50)
+        self.assertGreaterEqual(user["total_xp"], zapp.xp_required_for_level(50))
+        self.assertEqual(user["activity_title"], "Icon Legend")
+
+    def test_reel_author_renders_forced_level_badge(self):
+        reel = self.sample_reel(user_id=9)
+        reel["author"].update({
+            "username": "sin",
+            "nickname": "sin",
+            "display_name": "sin sin",
+            "level": 2,
+            "total_xp": 74,
+        })
+        reel["user"] = reel["author"]
+        zapp.apply_forced_user_levels(reel)
+
+        with zapp.app.test_request_context("/reels"):
+            html = zapp.render_template("_reel_card.html", viewer={"id": 7, "display_name": "Viewer", "username": "viewer"}, reel=reel)
+
+        self.assertIn("reel-level-badge", html)
+        self.assertIn("LvL 50", html)
+
+    def test_admin_level_update_requires_token_and_updates_user_level(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, db, name):
+                self.db = db
+                self.name = name
+                self.action = None
+                self.values = None
+                self.filters = []
+
+            def select(self, *_args, **_kwargs):
+                self.action = "select"
+                return self
+
+            def update(self, values):
+                self.action = "update"
+                self.values = values
+                self.db.updated = values
+                return self
+
+            def eq(self, key, value):
+                self.filters.append((key, value))
+                return self
+
+            def execute(self):
+                self.db.calls.append((self.name, self.action, self.values, tuple(self.filters)))
+                if self.name == "users" and self.action == "select":
+                    return Result([{
+                        "id": 9,
+                        "username": "sin",
+                        "display_name": "sin sin",
+                        "level": 2,
+                        "total_xp": 74,
+                    }])
+                return Result([{"id": 9, **(self.values or {})}])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.calls = []
+                self.updated = None
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        fake = FakeSupabase()
+        with self.client.session_transaction() as sess:
+            sess["csrf_token"] = "token"
+        with patch.dict(os.environ, {"LVL_ADMIN_TOKEN": "secret"}), \
+             patch.object(zapp, "get_current_user", return_value={"id": 7, "username": "admin"}), \
+             patch.object(zapp, "supabase", fake):
+            response = self.client.post("/admin/users/level", data={
+                "csrf_token": "token",
+                "admin_token": "secret",
+                "username": "sin",
+                "level": "50",
+            })
+
+        payload = response.get_json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(fake.updated["level"], 50)
+        self.assertEqual(fake.updated["total_xp"], zapp.xp_required_for_level(50))
+        self.assertEqual(fake.updated["activity_title"], "Icon Legend")
+        self.assertEqual(fake.updated["badge_color"], zapp.badge_color_for_level(50))
+
+        with self.client.session_transaction() as sess:
+            sess["csrf_token"] = "token"
+        with patch.dict(os.environ, {"LVL_ADMIN_TOKEN": "secret"}), \
+             patch.object(zapp, "get_current_user", return_value={"id": 7, "username": "admin"}), \
+             patch.object(zapp, "supabase", fake):
+            denied = self.client.post("/admin/users/level", data={
+                "csrf_token": "token",
+                "admin_token": "wrong",
+                "username": "sin",
+                "level": "50",
+            })
+
+        self.assertEqual(denied.status_code, 403)
 
     def test_level_guide_page_explains_xp_and_rewards(self):
         fake_user = {
@@ -358,6 +728,7 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn('data-install-prompt', auth_html)
         self.assertIn('data-install-action', auth_html)
+        self.assertIn('data-install-manual', auth_html)
         self.assertIn('Install LvL', auth_html)
         self.assertIn('Add to Home Screen', auth_html)
 
@@ -379,6 +750,25 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('mobile-reels-upload-cta', html)
         self.assertIn('mobile-reel-upload-action', html)
         self.assertIn("hello reel", html)
+        self.assertNotIn('aria-label="Reels pagination"', html)
+
+    def test_reels_empty_real_feed_does_not_use_demo_when_table_ready(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        with patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "get_reels", return_value=([], False)):
+            html = self.client.get("/reels").data.decode()
+
+        self.assertIn("No real reels yet", html)
+        self.assertNotIn("Demo reel", html)
+
+    def test_reels_uses_demo_fallback_only_when_table_unavailable(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        with patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "get_reels", side_effect=RuntimeError("reels relation does not exist")):
+            html = self.client.get("/reels").data.decode()
+
+        self.assertIn("Demo reel", html)
+        self.assertIn("Reels database table is not ready", html)
 
     def test_reel_upload_renders_for_authenticated_user(self):
         viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
@@ -528,14 +918,81 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn('/reels', html)
         self.assertIn('Reels', html)
-        self.assertIn('class="app-topbar"', html)
+        self.assertIn('class="app-topbar topbar-search-only"', html)
+        self.assertIn('topbar-search-only', html)
         self.assertIn('class="topbar-search"', html)
-        self.assertIn('data-web-back', html)
+        self.assertNotIn('data-web-back', html)
+        self.assertIn('class="topbar-actions"', html)
+        self.assertIn('class="topbar-action', html)
         self.assertIn('aria-label="Messages"', html)
         self.assertIn('aria-label="Alerts"', html)
         self.assertIn('aria-label="Activity"', html)
+        self.assertIn('class="mobile-header-search"', html)
+        self.assertIn('class="mobile-header-actions"', html)
         self.assertIn('class="nav-label sr-only"', html)
         self.assertIn('class="mobile-nav-label sr-only"', html)
+        mobile_nav = html.split('<nav class="mobile-bottom-nav"', 1)[1]
+        self.assertNotIn('href="/messages"', mobile_nav)
+        self.assertNotIn('href="/notifications"', mobile_nav)
+        mobile_order = [
+            mobile_nav.index('aria-label="Home"'),
+            mobile_nav.index('aria-label="Community"'),
+            mobile_nav.index('aria-label="Create post"'),
+            mobile_nav.index('aria-label="Reels"'),
+            mobile_nav.index('aria-label="Profile"'),
+        ]
+        self.assertEqual(sorted(mobile_order), mobile_order)
+
+        with zapp.app.test_request_context("/search"):
+            search_html = zapp.render_template(
+                "search.html",
+                viewer=viewer,
+                query="",
+                tab="top",
+                posts=[],
+                users=[],
+                suggested_users=[],
+                recent_posts=[],
+                highlights=[],
+                page=1,
+                has_next=False,
+            )
+        self.assertIn('data-web-back', search_html)
+        self.assertIn('class="topbar-actions"', search_html)
+
+    def test_mobile_reels_keep_immersive_video_fit(self):
+        css = Path("static/css/sections/reels.css").read_text()
+
+        self.assertIn(".reel-video", css)
+        self.assertRegex(css, r"(?s)\.reel-video\s*\{[^}]*object-fit:\s*cover")
+        self.assertNotRegex(css, r"(?s)\.reel-video\s*\{[^}]*object-fit:\s*contain")
+
+    def test_reels_header_reserves_shared_topbar_space(self):
+        css = Path("static/css/sections/reels.css").read_text()
+
+        self.assertIn("--reels-topbar-offset: 69px", css)
+        self.assertIn("--reels-header-block: 80px", css)
+        self.assertIn("min-height: calc(100svh - var(--reels-topbar-offset))", css)
+        self.assertIn("top: var(--reels-topbar-offset)", css)
+        self.assertIn("height: calc(100svh - var(--reels-topbar-offset) - var(--reels-header-block))", css)
+        self.assertIn("min-height: calc(100svh - var(--reels-topbar-offset) - var(--reels-header-block))", css)
+        self.assertIn("--reels-topbar-offset: 64px", css)
+        self.assertIn("calc(100dvh - 64px - var(--reels-mobile-header)", css)
+        self.assertNotIn("--reels-topbar-offset: 119px", css)
+        self.assertIn("top: auto", css)
+
+    def test_sidebar_labels_are_visible_only_when_menu_is_open(self):
+        css = Path("static/css/sections/navigation.css").read_text()
+        hardening_css = Path("static/css/sections/hardening.css").read_text()
+
+        self.assertIn(".left-rail:not(.menu-open) .nav-list a .sr-only", css)
+        self.assertIn(".mobile-bottom-nav a .sr-only", css)
+        self.assertIn(".left-rail.menu-open .nav-list a", css)
+        self.assertIn("justify-content: flex-start", css)
+        self.assertIn("gap: 14px", css)
+        self.assertIn(".left-rail.menu-open .mini-profile div", hardening_css)
+        self.assertIn("display: flex !important", hardening_css)
+        self.assertIn("text-overflow: ellipsis", hardening_css)
 
     def test_post_actions_are_icon_first_controls(self):
         with zapp.app.test_request_context("/"):
@@ -559,6 +1016,37 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(shortcuts["Messages"], "/messages")
         self.assertEqual(shortcuts["Notifications"], "/notifications")
         self.assertEqual(shortcuts["Profile"], "/profile")
+
+    def test_search_discovery_context_uses_ranked_people_and_recent_posts(self):
+        viewer = {"id": 7}
+        popular = [{"id": 8, "username": "ranked", "display_name": "Ranked User"}]
+        recent = [self.sample_post(12, 8, "ranked", "recent")]
+
+        with patch.object(zapp, "get_popular_users", return_value=popular) as popular_users, \
+             patch.object(zapp, "get_recent_posts", return_value=recent) as recent_posts:
+            context = zapp.get_search_discovery_context(viewer, people_limit=4, posts_limit=3)
+
+        popular_users.assert_called_once_with(7, 4)
+        recent_posts.assert_called_once_with(7, 3)
+        self.assertEqual(context["suggested_users"], popular)
+        self.assertEqual(context["recent_posts"], recent)
+
+    def test_setup_health_page_renders_safe_project_checks(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        checks = [
+            {"label": "Supabase connection", "status": "ready", "detail": "Client configured."},
+            {"label": "Reels table", "status": "ready", "detail": "The reels table is queryable."},
+            {"label": "PWA manifest", "status": "ready", "detail": "Manifest file exists."},
+        ]
+        with patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "get_setup_health", return_value=checks), \
+             patch.object(zapp, "get_community_highlights", return_value=[]):
+            html = self.client.get("/setup-health").data.decode()
+
+        self.assertIn("Setup Health", html)
+        self.assertIn("Supabase connection", html)
+        self.assertIn("Reels table", html)
+        self.assertIn("PWA manifest", html)
 
     def test_activity_template_groups_recent_user_history(self):
         viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
@@ -592,6 +1080,20 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(like_item["stack_count"], 2)
         self.assertEqual(like_item["actor_summary"], "Ada and Sam")
         self.assertFalse(like_item["is_read"])
+
+    def test_notification_stacking_uses_reel_id_for_reel_events(self):
+        notifications = [
+            {"type": "reel_like", "reel_id": 9, "actor_name": "Ada", "is_read": False},
+            {"type": "reel_like", "reel_id": 9, "actor_name": "Sam", "is_read": True},
+            {"type": "reel_like", "reel_id": 10, "actor_name": "Mina", "is_read": False},
+        ]
+
+        stacked = zapp.stack_notifications(notifications)
+
+        self.assertEqual(len(stacked), 2)
+        reel_9 = next(item for item in stacked if item["reel_id"] == 9)
+        self.assertEqual(reel_9["stack_count"], 2)
+        self.assertEqual(reel_9["actor_summary"], "Ada and Sam")
 
     def test_profile_stats_are_ordered_without_duplicate_metric_card(self):
         fake_user = {
@@ -716,6 +1218,8 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('class="profile-high-five-form"', html)
         self.assertIn('/profile/demo/high-five', html)
         self.assertIn('aria-label="High-five Demo User"', html)
+        self.assertIn("Friendship starts with a streak", html)
+        self.assertNotIn("Add friend", html)
 
     def test_relative_time_helper_formats_short_units(self):
         self.assertEqual(zapp.relative_time(None), "")
@@ -839,6 +1343,44 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('/delete_message', html)
         self.assertIn('name="message_id" value="42"', html)
         self.assertIn("Delete message", html)
+
+    def test_messages_empty_state_restores_discovery_content(self):
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+        with zapp.app.test_request_context("/messages"):
+            html = zapp.render_template(
+                "messages.html",
+                viewer=viewer,
+                target_username=None,
+                target_user=None,
+                conversations=[],
+                all_users=[{
+                    "id": 8,
+                    "username": "demo",
+                    "display_name": "Demo User",
+                    "profile_photo_url": "",
+                }],
+                messages_list=[],
+                suggested_communities=[{
+                    "name": "Design",
+                    "slug": "design",
+                    "description": "Creative posts.",
+                    "accent_color": "#1D9BF0",
+                }],
+                message_trending_posts=[],
+                message_people=[{
+                    "id": 9,
+                    "username": "friend",
+                    "display_name": "Friend User",
+                    "profile_photo_url": "",
+                }],
+            )
+
+        self.assertIn('class="chat-unselected"', html)
+        self.assertIn('class="message-discovery-grid"', html)
+        self.assertIn("Suggested groups", html)
+        self.assertIn("People to message", html)
+        self.assertIn("Start a new conversation", html)
+        self.assertIn("/messages?u=demo", html)
 
     def test_settings_template_includes_account_delete_form(self):
         fake_user = {

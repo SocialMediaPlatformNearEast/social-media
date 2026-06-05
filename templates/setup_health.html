@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% set active_page = "settings" %}
+{% set show_highlights = False %}
+{% set title = "Setup Health" %}
+
+{% block content %}
+<header class="page-header compact">
+  <div>
+    <span class="panel-kicker">Project checks</span>
+    <h1>Setup Health</h1>
+    <p>Quick checks for the app services, tables, storage, and PWA files.</p>
+  </div>
+</header>
+
+<section class="setup-health-list">
+  {% for check in checks %}
+    <article class="empty-state setup-health-card">
+      <div>
+        <h2>{{ check.label }}</h2>
+        <p>{{ check.detail }}</p>
+      </div>
+      <span class="level-badge setup-health-status">{{ "Ready" if check.status == "ready" else "Needs attention" }}</span>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

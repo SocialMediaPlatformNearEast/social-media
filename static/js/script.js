@@ -1,9 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+    initFlashMessages();
     initXpToasts();
     initGenderPreview();
     initNewChatPanel();
     initServiceWorker();
     initInstallPrompt();
+    initLiveStatusBadges();
     initBirthdayValidation();
     initProfilePreview();
     initProfileAvatarModal();
@@ -184,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 } else {
-                    alert(result.error || 'Failed to send message');
+                    showAppToast(result.error || 'Failed to send message');
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -265,9 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const actionButton = promptEl.querySelector('[data-install-action]');
         const dismissButton = promptEl.querySelector('[data-install-dismiss]');
         const iosSteps = promptEl.querySelector('[data-install-ios]');
+        const manualSteps = promptEl.querySelector('[data-install-manual]');
         const message = promptEl.querySelector('[data-install-message]');
         const dismissedKey = 'lvl-install-dismissed';
         let deferredPrompt = null;
+        let manualPromptTimer = null;
 
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         if (isStandalone || window.localStorage.getItem(dismissedKey) === '1') {
@@ -285,6 +289,20 @@ document.addEventListener('DOMContentLoaded', () => {
             promptEl.hidden = true;
         };
 
+        const showManualInstallHelp = () => {
+            if (deferredPrompt || promptEl.hidden === false) return;
+            if (actionButton) {
+                actionButton.hidden = true;
+            }
+            if (manualSteps) {
+                manualSteps.hidden = false;
+            }
+            if (message) {
+                message.textContent = 'Install LvL from your browser menu when the native install button is not available.';
+            }
+            showPrompt();
+        };
+
         if (isiOS) {
             if (message) {
                 message.textContent = 'Install LvL from Safari using Share, then Add to Home Screen.';
@@ -292,14 +310,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (iosSteps) {
                 iosSteps.hidden = false;
             }
+            if (manualSteps) {
+                manualSteps.hidden = false;
+            }
             showPrompt();
+        } else {
+            manualPromptTimer = window.setTimeout(showManualInstallHelp, 1600);
         }
 
         window.addEventListener('beforeinstallprompt', (event) => {
             event.preventDefault();
             deferredPrompt = event;
+            if (manualPromptTimer) {
+                window.clearTimeout(manualPromptTimer);
+                manualPromptTimer = null;
+            }
             if (iosSteps) {
                 iosSteps.hidden = true;
+            }
+            if (manualSteps) {
+                manualSteps.hidden = true;
             }
             if (actionButton) {
                 actionButton.hidden = false;
@@ -312,7 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (actionButton) {
             actionButton.addEventListener('click', async () => {
-                if (!deferredPrompt) return;
+                if (!deferredPrompt) {
+                    showManualInstallHelp();
+                    return;
+                }
                 deferredPrompt.prompt();
                 const choice = await deferredPrompt.userChoice;
                 deferredPrompt = null;
@@ -588,6 +621,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.setTimeout(() => item.remove(), 220);
             }, 2600 + index * 300);
         });
+    }
+
+    function initFlashMessages() {
+        document.querySelectorAll('.flash').forEach((flash, index) => {
+            if (flash.dataset.flashReady === '1') return;
+            flash.dataset.flashReady = '1';
+            flash.style.setProperty('--flash-index', index);
+            flash.setAttribute('tabindex', '0');
+            flash.setAttribute('role', flash.classList.contains('error') ? 'alert' : 'status');
+            flash.addEventListener('click', () => dismissFlash(flash));
+            flash.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    dismissFlash(flash);
+                }
+            });
+            window.setTimeout(() => dismissFlash(flash), 4800 + index * 150);
+        });
+    }
+
+    function dismissFlash(flash) {
+        if (!flash || flash.dataset.dismissed === '1') return;
+        flash.dataset.dismissed = '1';
+        flash.classList.add('is-hiding');
+        window.setTimeout(() => flash.remove(), 220);
+    }
+
+    function showAppToast(message, category = 'error') {
+        if (!message) return;
+        const flash = document.createElement('div');
+        flash.className = `flash ${category} app-toast`;
+        flash.textContent = message;
+        document.body.appendChild(flash);
+        initFlashMessages();
+    }
+
+    function initLiveStatusBadges() {
+        const badges = document.querySelectorAll('[data-live-badge]');
+        if (!badges.length) return;
+
+        const formatCount = (count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            return safeCount > 99 ? '99+' : String(safeCount);
+        };
+
+        const updateBadgeGroup = (name, count) => {
+            const safeCount = Number.isFinite(Number(count)) ? Math.max(0, Number(count)) : 0;
+            document.querySelectorAll(`[data-live-badge="${name}"]`).forEach((badge) => {
+                badge.hidden = safeCount <= 0;
+                badge.textContent = formatCount(safeCount);
+                badge.setAttribute('aria-label', `${safeCount} unread ${name}`);
+            });
+        };
+
+        const refresh = async () => {
+            try {
+                const response = await fetch('/api/live-status', { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) return;
+                const result = await response.json();
+                if (!result.success) return;
+                updateBadgeGroup('notifications', result.unread_notifications);
+                updateBadgeGroup('messages', result.unread_messages);
+            } catch (error) {
+                console.error('Live status refresh failed:', error);
+            }
+        };
+
+        refresh();
+        window.setInterval(refresh, 8000);
     }
 
     document.querySelectorAll('[data-post-menu-toggle]').forEach((toggle) => {
@@ -962,7 +1064,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 headers: { 'Accept': 'application/json' }
                             });
                             const result = await response.json();
-                            if (!result.success) return;
+                            if (!result.success) {
+                                showAppToast(result.error || 'Could not post comment.');
+                                return;
+                            }
                             const countEl = card.querySelector('[data-reel-comment-count]');
                             if (countEl) countEl.textContent = result.count || '0';
                             const commentData = result.comment || {};
@@ -994,7 +1099,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const response = await fetch(form.action, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } });
                     const result = await response.json();
-                    if (!result.success) return;
+                    if (!result.success) {
+                        showAppToast(result.error || 'Could not like reel.');
+                        return;
+                    }
                     if (btn) btn.classList.toggle('active', result.liked);
                     const count = form.querySelector('[data-reel-like-count]');
                     if (count) count.textContent = result.count || '0';
@@ -1043,7 +1151,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const result = await response.json();
             listEl.innerHTML = '';
-            if (!result.success || !result.comments || result.comments.length === 0) {
+            if (!result.success) {
+                listEl.innerHTML = `<p class="reel-comment-empty">${escapeHTML(result.error || 'Could not load comments.')}</p>`;
+                return;
+            }
+            if (!result.comments || result.comments.length === 0) {
                 listEl.innerHTML = '<p class="reel-comment-empty">No comments yet. Be the first!</p>';
                 return;
             }
@@ -1315,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (date > today) {
                     e.preventDefault();
-                    alert('Birthday cannot be in the future.');
+                    showAppToast('Birthday cannot be in the future.');
                     return;
                 }
 
@@ -1325,15 +1437,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     age--;
                 }
 
-                if (age < 13) {
+                if (age < 14) {
                     e.preventDefault();
-                    alert('You must be at least 13 years old to use this app.');
+                    showAppToast('You must be at least 14 years old to use LvL.');
                     return;
                 }
 
                 if (age > 120 || date.getFullYear() < 1900) {
                     e.preventDefault();
-                    alert('Please enter a realistic birthday.');
+                    showAppToast('Please enter a realistic birthday.');
                     return;
                 }
             });
