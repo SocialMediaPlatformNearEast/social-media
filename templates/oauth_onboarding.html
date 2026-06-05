@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <title>Login - LvL</title>
+  <title>Finish Social Login - LvL</title>
   <link rel="manifest" href="{{ static_asset('manifest.json') }}">
   <link rel="icon" href="{{ static_asset('assets/icon-192.png') }}" sizes="192x192" type="image/png">
   <link rel="icon" href="{{ static_asset('assets/icon-512.png') }}" sizes="512x512" type="image/png">
@@ -19,18 +19,24 @@
 <body>
 
 {% include "_install_prompt.html" %}
+{% set provider_label = namespace(value=profile.provider or 'social login') %}
+{% for provider in oauth_providers %}
+  {% if provider.provider == profile.provider %}
+    {% set provider_label.value = provider.label %}
+  {% endif %}
+{% endfor %}
 
 <main class="auth-layout">
   <section class="auth-hero">
     <div class="brand-lockup">
       <span class="brand-mark large">LvL</span>
     </div>
-    <h1>Level up every connection.</h1>
-    <p>Earn XP as you post, comment, like, and meet people. Build your profile rank, unlock stronger badges, and make every interaction count.</p>
+    <h1>Finish your LvL profile.</h1>
+    <p>{{ provider_label.value }} approved your identity. LvL still needs your nickname, age check, and profile basics before the account opens.</p>
     <div class="auth-metrics">
-      <span>XP</span>
-      <span>Ranks</span>
-      <span>Badges</span>
+      <span>Social login</span>
+      <span>14+</span>
+      <span>Profile ready</span>
     </div>
   </section>
   <section class="auth-panel">
@@ -41,51 +47,26 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-    
-    <div class="auth-tabs" role="tablist">
-      <button class="active" type="button" data-auth-tab="login">Login</button>
-      <button type="button" data-auth-tab="register">Register</button>
-    </div>
 
-    <div class="social-auth" aria-label="Supabase social login options">
-      <p>Continue with Supabase social login</p>
-      <div class="social-auth-grid">
-        {% for provider in oauth_providers %}
-          <a class="social-auth-button social-auth-{{ provider.class }}" href="{{ url_for('oauth_start', provider=provider.provider) }}">
-            <span class="social-auth-icon" aria-hidden="true">{{ provider.icon }}</span>
-            <span>{{ provider.label }}</span>
-          </a>
-        {% endfor %}
+    <div class="oauth-summary">
+      {% if profile.avatar_url %}
+        <img src="{{ profile.avatar_url }}" alt="">
+      {% endif %}
+      <div>
+        <strong>{{ profile.display_name or profile.email }}</strong>
+        <span>{{ provider_label.value }}</span>
       </div>
-      <small>New social accounts finish nickname, birthday, and gender after provider approval.</small>
     </div>
 
-    <div class="auth-divider"><span>or use password</span></div>
-    
-    <form class="auth-form active" data-auth-panel="login" action="{{ url_for('auth') }}" method="post">
+    <form class="auth-form active oauth-onboarding-form" action="{{ url_for('oauth_onboarding') }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="login">
-      <label>
-        Nickname or email
-        <input name="username" autocomplete="username" required>
-      </label>
-      <label>
-        Password
-        <input type="password" name="password" autocomplete="current-password" required>
-      </label>
-      <button type="submit">Login</button>
-    </form>
-    
-    <form class="auth-form" data-auth-panel="register" action="{{ url_for('auth') }}" method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="action" value="register">
       <label>
         First name
-        <input name="first_name" maxlength="60" autocomplete="given-name" required>
+        <input name="first_name" maxlength="60" autocomplete="given-name" value="{{ profile.first_name or '' }}" required>
       </label>
       <label>
         Last name
-        <input name="last_name" maxlength="60" autocomplete="family-name" required>
+        <input name="last_name" maxlength="60" autocomplete="family-name" value="{{ profile.last_name or '' }}" required>
       </label>
       <label>
         Nickname
@@ -93,16 +74,12 @@
       </label>
       <label>
         Email
-        <input type="email" name="email" autocomplete="email" required>
+        <input type="email" name="email" autocomplete="email" value="{{ profile.email or '' }}" required>
       </label>
       <label>
         Birthday
         {% set limits = birthday_limits() %}
         <input type="date" name="birthday" min="{{ limits.min.isoformat() }}" max="{{ limits.max.isoformat() }}" autocomplete="bday" required>
-      </label>
-      <label>
-        Password
-        <input type="password" name="password" minlength="8" autocomplete="new-password" required>
       </label>
       <fieldset class="gender-field">
         <legend>Gender</legend>
@@ -121,7 +98,7 @@
           <span data-gender-swatch aria-hidden="true"></span>
         </div>
       </fieldset>
-      <button type="submit">Create account</button>
+      <button type="submit">Finish account</button>
     </form>
   </section>
 </main>

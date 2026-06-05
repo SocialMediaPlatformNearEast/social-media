@@ -57,9 +57,36 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "56"
+ASSET_VERSION = "57"
 
 GENDER_OPTIONS = GENDER_THEME
+SUPABASE_SOCIAL_PROVIDERS = [
+    {'provider': 'google', 'label': 'Google', 'icon': 'G', 'class': 'google'},
+    {'provider': 'facebook', 'label': 'Facebook', 'icon': 'f', 'class': 'facebook'},
+    {'provider': 'apple', 'label': 'Apple', 'icon': 'Ap', 'class': 'apple'},
+    {'provider': 'azure', 'label': 'Microsoft', 'icon': 'Ms', 'class': 'microsoft'},
+    {'provider': 'x', 'label': 'X / Twitter', 'icon': 'X', 'class': 'twitter'},
+    {'provider': 'github', 'label': 'GitHub', 'icon': 'Gh', 'class': 'github'},
+    {'provider': 'gitlab', 'label': 'GitLab', 'icon': 'Gl', 'class': 'gitlab'},
+    {'provider': 'bitbucket', 'label': 'Bitbucket', 'icon': 'Bb', 'class': 'bitbucket'},
+    {'provider': 'discord', 'label': 'Discord', 'icon': 'Di', 'class': 'discord'},
+    {'provider': 'figma', 'label': 'Figma', 'icon': 'Fg', 'class': 'figma'},
+    {'provider': 'kakao', 'label': 'Kakao', 'icon': 'Ka', 'class': 'kakao'},
+    {'provider': 'keycloak', 'label': 'Keycloak', 'icon': 'Kc', 'class': 'keycloak'},
+    {'provider': 'linkedin_oidc', 'label': 'LinkedIn', 'icon': 'In', 'class': 'linkedin'},
+    {'provider': 'notion', 'label': 'Notion', 'icon': 'No', 'class': 'notion'},
+    {'provider': 'slack_oidc', 'label': 'Slack', 'icon': 'Sl', 'class': 'slack'},
+    {'provider': 'spotify', 'label': 'Spotify', 'icon': 'Sp', 'class': 'spotify'},
+    {'provider': 'twitch', 'label': 'Twitch', 'icon': 'Tw', 'class': 'twitch'},
+    {'provider': 'workos', 'label': 'WorkOS', 'icon': 'Wo', 'class': 'workos'},
+    {'provider': 'zoom', 'label': 'Zoom', 'icon': 'Zm', 'class': 'zoom'},
+]
+SUPABASE_SOCIAL_PROVIDER_IDS = {provider['provider'] for provider in SUPABASE_SOCIAL_PROVIDERS}
+SUPABASE_SOCIAL_PROVIDER_ALIASES = {
+    'twitter': 'x',
+    'linkedin': 'linkedin_oidc',
+    'slack': 'slack_oidc',
+}
 COMMUNITY_DEFAULT_TAB = 'following'
 COMMUNITY_TIMELINE_TABS = [
     {
@@ -112,7 +139,7 @@ def check_supabase():
             return redirect(safe_redirect_url(url_for('index')))
     if not supabase and request.endpoint == 'auth':
         flash("Supabase connection failed. Add SUPABASE_URL and SUPABASE_SECRET to your .env file.", "error")
-    elif not supabase and not app.config.get('TESTING') and request.endpoint not in {'static', 'service_worker', 'auth'}:
+    elif not supabase and not app.config.get('TESTING') and request.endpoint not in {'static', 'service_worker', 'auth', 'oauth_start', 'oauth_callback', 'oauth_onboarding'}:
         flash("Database connection error.", "error")
         return redirect(url_for('auth'))
 
@@ -128,6 +155,7 @@ def inject_helpers():
         'profile_color_unlock_level': PROFILE_COLOR_UNLOCK_LEVEL,
         'static_asset': static_asset_url,
         'relative_time': relative_time,
+        'oauth_providers': SUPABASE_SOCIAL_PROVIDERS,
     }
 
 @app.context_processor
@@ -480,6 +508,135 @@ def normalize_gender(value):
 
 def gender_defaults(gender):
     return GENDER_OPTIONS.get(gender, GENDER_OPTIONS['Male'])
+
+def normalize_oauth_provider(provider):
+    provider = (provider or '').strip().lower()
+    provider = SUPABASE_SOCIAL_PROVIDER_ALIASES.get(provider, provider)
+    return provider if provider in SUPABASE_SOCIAL_PROVIDER_IDS else ''
+
+def oauth_provider_label(provider):
+    provider = normalize_oauth_provider(provider)
+    for item in SUPABASE_SOCIAL_PROVIDERS:
+        if item['provider'] == provider:
+            return item['label']
+    return 'social login'
+
+def oauth_attr(value, key, default=None):
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+def oauth_storage_key(auth_client, suffix):
+    storage_key = getattr(auth_client, '_storage_key', 'supabase.auth.token')
+    return f"{storage_key}-{suffix}"
+
+def store_oauth_code_verifier(auth_client):
+    storage = getattr(auth_client, '_storage', None)
+    if not storage:
+        return
+    verifier = storage.get_item(oauth_storage_key(auth_client, 'code-verifier'))
+    if verifier:
+        session['oauth_code_verifier'] = verifier
+
+def restore_oauth_code_verifier(auth_client):
+    verifier = session.get('oauth_code_verifier')
+    storage = getattr(auth_client, '_storage', None)
+    if verifier and storage:
+        storage.set_item(oauth_storage_key(auth_client, 'code-verifier'), verifier)
+
+def clear_oauth_flow_session(include_pending=False):
+    for key in ['oauth_state', 'oauth_provider', 'oauth_code_verifier']:
+        session.pop(key, None)
+    if include_pending:
+        session.pop('pending_oauth_profile', None)
+
+def split_oauth_name(display_name):
+    parts = (display_name or '').strip().split()
+    if not parts:
+        return '', ''
+    if len(parts) == 1:
+        return parts[0], ''
+    return parts[0], ' '.join(parts[1:])
+
+def extract_oauth_profile(auth_user, fallback_provider=''):
+    metadata = oauth_attr(auth_user, 'user_metadata', {}) or {}
+    app_metadata = oauth_attr(auth_user, 'app_metadata', {}) or {}
+    provider = normalize_oauth_provider(
+        fallback_provider or
+        app_metadata.get('provider') or
+        metadata.get('provider')
+    )
+    email = (oauth_attr(auth_user, 'email', '') or metadata.get('email') or '').strip().lower()
+    display_name = (
+        metadata.get('full_name') or
+        metadata.get('name') or
+        metadata.get('display_name') or
+        metadata.get('user_name') or
+        metadata.get('preferred_username') or
+        (email.split('@', 1)[0] if email else '')
+    ).strip()
+    first_name = (metadata.get('given_name') or '').strip()
+    last_name = (metadata.get('family_name') or '').strip()
+    if not first_name and not last_name:
+        first_name, last_name = split_oauth_name(display_name)
+
+    return {
+        'provider': provider,
+        'subject': str(oauth_attr(auth_user, 'id', '') or metadata.get('sub') or ''),
+        'email': email,
+        'display_name': display_name,
+        'first_name': first_name,
+        'last_name': last_name,
+        'avatar_url': metadata.get('avatar_url') or metadata.get('picture') or metadata.get('profile_image_url') or '',
+    }
+
+def first_oauth_user_match(profile):
+    query_attempts = []
+    if profile.get('subject'):
+        query_attempts.extend([
+            [('supabase_auth_user_id', profile['subject'])],
+            [('oauth_provider', profile.get('provider')), ('oauth_subject', profile['subject'])],
+        ])
+    if profile.get('email'):
+        query_attempts.append([('email', profile['email'])])
+
+    for filters in query_attempts:
+        try:
+            query = supabase.table('users').select('*')
+            for column, value in filters:
+                if value:
+                    query = query.eq(column, value)
+            res = query.execute()
+            if res.data:
+                return res.data[0]
+        except Exception:
+            continue
+    return None
+
+def sync_oauth_user_fields(user, profile):
+    if not user or not profile:
+        return
+    updates = {
+        'oauth_provider': profile.get('provider'),
+        'oauth_subject': profile.get('subject'),
+        'supabase_auth_user_id': profile.get('subject'),
+        'oauth_email': profile.get('email'),
+    }
+    if profile.get('avatar_url') and not user.get('profile_photo_url'):
+        updates['profile_photo_url'] = profile['avatar_url']
+    try:
+        supabase.table('users').update(updates).eq('id', user['id']).execute()
+    except Exception:
+        pass
+
+def oauth_schema_error(exc):
+    message = str(exc)
+    return any(column in message for column in [
+        'supabase_auth_user_id',
+        'oauth_provider',
+        'oauth_subject',
+        'oauth_email',
+    ])
 
 def normalize_hex_color(value, fallback=THEME_COLORS['primary']):
     value = (value or '').strip()
@@ -1718,8 +1875,179 @@ def verify_email(token):
             flash("Invalid or expired verification link. Please request a new one.", "error")
     except Exception as e:
         flash("An error occurred during verification.", "error")
-        
+
     return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/<provider>')
+def oauth_start(provider):
+    provider = normalize_oauth_provider(provider)
+    if not provider:
+        flash("That social login provider is not supported by LvL.", "error")
+        return redirect(url_for('auth'))
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
+    session['oauth_provider'] = provider
+
+    try:
+        response = supabase.auth.sign_in_with_oauth({
+            'provider': provider,
+            'options': {
+                'redirect_to': url_for('oauth_callback', _external=True),
+                'query_params': {
+                    'state': state,
+                },
+            },
+        })
+        store_oauth_code_verifier(supabase.auth)
+        return redirect(response.url)
+    except Exception as exc:
+        clear_oauth_flow_session()
+        flash(handle_db_error(exc, f"{oauth_provider_label(provider)} login could not start."), "error")
+        return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/callback')
+def oauth_callback():
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    oauth_error = request.args.get('error_description') or request.args.get('error')
+    if oauth_error:
+        clear_oauth_flow_session()
+        flash(f"Social login was cancelled or failed: {oauth_error}", "error")
+        return redirect(url_for('auth'))
+
+    expected_state = session.get('oauth_state')
+    returned_state = request.args.get('state')
+    if expected_state and returned_state and not secrets.compare_digest(expected_state, returned_state):
+        clear_oauth_flow_session()
+        flash("Social login expired. Try again.", "error")
+        return redirect(url_for('auth'))
+
+    code = request.args.get('code')
+    if not code:
+        clear_oauth_flow_session()
+        flash("Social login did not return an authorization code.", "error")
+        return redirect(url_for('auth'))
+
+    provider = normalize_oauth_provider(session.get('oauth_provider'))
+    try:
+        restore_oauth_code_verifier(supabase.auth)
+        response = supabase.auth.exchange_code_for_session({
+            'auth_code': code,
+            'redirect_to': url_for('oauth_callback', _external=True),
+        })
+        auth_user = response.user or (response.session.user if response.session else None)
+        if not auth_user:
+            raise RuntimeError("Supabase did not return a social login user.")
+
+        profile = extract_oauth_profile(auth_user, provider)
+        if not profile.get('provider'):
+            profile['provider'] = provider
+        if not profile.get('email'):
+            flash("This provider did not share an email address. Enable email access in the provider settings and try again.", "error")
+            clear_oauth_flow_session(include_pending=True)
+            return redirect(url_for('auth'))
+
+        app_user = first_oauth_user_match(profile)
+        if app_user:
+            sync_oauth_user_fields(app_user, profile)
+            session['user_id'] = app_user['id']
+            clear_oauth_flow_session(include_pending=True)
+            award_xp(app_user['id'], 'daily_login', 5)
+            flash(f"Signed in with {oauth_provider_label(profile['provider'])}.", "success")
+            return redirect(url_for('index'))
+
+        session['pending_oauth_profile'] = profile
+        clear_oauth_flow_session()
+        return redirect(url_for('oauth_onboarding'))
+    except Exception as exc:
+        clear_oauth_flow_session(include_pending=True)
+        flash(handle_db_error(exc, "Social login could not be completed."), "error")
+        return redirect(url_for('auth'))
+
+@app.route('/auth/oauth/onboarding', methods=['GET', 'POST'])
+def oauth_onboarding():
+    profile = session.get('pending_oauth_profile')
+    if not profile:
+        flash("Start with a social login provider first.", "info")
+        return redirect(url_for('auth'))
+    if not supabase:
+        flash("Supabase connection is required for social login.", "error")
+        return redirect(url_for('auth'))
+
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        nickname = normalize_username(request.form.get('nickname', ''))
+        email = (request.form.get('email') or profile.get('email') or '').strip().lower()
+        gender = normalize_gender(request.form.get('gender', ''))
+        birthday = request.form.get('birthday', '').strip()
+
+        if not all([first_name, last_name, nickname, email, gender]):
+            flash("All fields are required to finish social registration.", "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
+            flash("Username must be 3-24 characters: letters, numbers, or underscores only.", "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        birthday_value, birthday_error = validate_birthday(birthday, required=True)
+        if birthday_error:
+            flash(birthday_error, "error")
+            return render_template('oauth_onboarding.html', profile=profile)
+
+        existing_user = first_oauth_user_match({**profile, 'email': email})
+        if existing_user:
+            sync_oauth_user_fields(existing_user, profile)
+            session['user_id'] = existing_user['id']
+            session.pop('pending_oauth_profile', None)
+            award_xp(existing_user['id'], 'daily_login', 5)
+            flash("Your social login is now connected to your existing LvL account.", "success")
+            return redirect(url_for('index'))
+
+        defaults = gender_defaults(gender)
+        random_password = secrets.token_urlsafe(48)
+        profile_photo_url = profile.get('avatar_url') or url_for('static', filename=defaults['avatar'])
+        payload = {
+            'first_name': first_name,
+            'last_name': last_name,
+            'nickname': nickname,
+            'username': nickname,
+            'display_name': f"{first_name} {last_name}",
+            'email': email,
+            'password_hash': bcrypt.hashpw(random_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'),
+            'gender': gender,
+            'birthday': birthday_value.isoformat(),
+            'profile_photo_url': profile_photo_url,
+            'theme_color': defaults['theme_color'],
+            'avatar_color': defaults['theme_color'],
+            'is_verified': True,
+            'oauth_provider': profile.get('provider'),
+            'oauth_subject': profile.get('subject'),
+            'supabase_auth_user_id': profile.get('subject'),
+            'oauth_email': email,
+        }
+
+        try:
+            new_user = supabase.table('users').insert(payload).execute()
+            if new_user.data:
+                session['user_id'] = new_user.data[0]['id']
+                session.pop('pending_oauth_profile', None)
+                award_xp(new_user.data[0]['id'], 'account_created', 20)
+                flash(f"Welcome to LvL, {first_name}! Your social login is connected.", "success")
+                return redirect(url_for('index'))
+        except Exception as exc:
+            if oauth_schema_error(exc):
+                flash("Run database/migrations/005_oauth_identity.sql in Supabase before finishing social login.", "error")
+            else:
+                flash(handle_db_error(exc), "error")
+
+    return render_template('oauth_onboarding.html', profile=profile)
 
 @app.route('/auth', methods=['GET', 'POST'])
 def auth():

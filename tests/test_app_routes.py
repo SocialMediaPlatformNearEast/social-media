@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 from werkzeug.datastructures import FileStorage
 
@@ -76,6 +77,243 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"', settings_html)
         self.assertIn('name="remove_profile_photo"', settings_html)
 
+    def test_auth_page_lists_all_supabase_social_providers(self):
+        auth_html = self.client.get("/auth").data.decode()
+
+        self.assertIn("Continue with Supabase social login", auth_html)
+        for provider in zapp.SUPABASE_SOCIAL_PROVIDERS:
+            self.assertIn(provider["label"], auth_html)
+            self.assertIn(f'/auth/oauth/{provider["provider"]}', auth_html)
+
+    def test_oauth_start_redirects_to_supabase_provider(self):
+        class FakeStorage:
+            def __init__(self):
+                self.items = {}
+
+            def get_item(self, key):
+                return self.items.get(key)
+
+            def set_item(self, key, value):
+                self.items[key] = value
+
+        class FakeAuth:
+            def __init__(self):
+                self.calls = []
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+
+            def sign_in_with_oauth(self, credentials):
+                self.calls.append(credentials)
+                self._storage.set_item("supabase.auth.token-code-verifier", "test-verifier")
+                return SimpleNamespace(url="https://project.supabase.co/auth/v1/authorize?provider=google")
+
+        fake = SimpleNamespace(auth=FakeAuth())
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/google")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.location, "https://project.supabase.co/auth/v1/authorize?provider=google")
+        credentials = fake.auth.calls[0]
+        self.assertEqual(credentials["provider"], "google")
+        self.assertTrue(credentials["options"]["redirect_to"].endswith("/auth/oauth/callback"))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["oauth_provider"], "google")
+            self.assertEqual(sess["oauth_code_verifier"], "test-verifier")
+            self.assertEqual(credentials["options"]["query_params"]["state"], sess["oauth_state"])
+
+    def test_oauth_callback_logs_in_existing_user_by_email(self):
+        class FakeStorage:
+            def __init__(self):
+                self.items = {}
+
+            def set_item(self, key, value):
+                self.items[key] = value
+
+            def get_item(self, key):
+                return self.items.get(key)
+
+            def remove_item(self, key):
+                self.items.pop(key, None)
+
+        class FakeAuth:
+            def __init__(self):
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+                self.exchange_params = None
+
+            def exchange_code_for_session(self, params):
+                self.exchange_params = params
+                user = SimpleNamespace(
+                    id="11111111-1111-1111-1111-111111111111",
+                    email="oauth@example.com",
+                    user_metadata={
+                        "full_name": "OAuth Member",
+                        "avatar_url": "https://example.com/avatar.png",
+                    },
+                    app_metadata={"provider": "google"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
+
+        class FakeUsersTable:
+            def __init__(self, fake):
+                self.fake = fake
+                self.filters = {}
+                self.mode = "select"
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.mode = "select"
+                return self
+
+            def update(self, payload):
+                self.mode = "update"
+                self.payload = payload
+                return self
+
+            def eq(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def execute(self):
+                if self.mode == "update":
+                    self.fake.updated_payload = self.payload
+                    return SimpleNamespace(data=[])
+                if self.filters.get("supabase_auth_user_id"):
+                    return SimpleNamespace(data=[])
+                if self.filters.get("email") == "oauth@example.com":
+                    return SimpleNamespace(data=[{"id": 44, "email": "oauth@example.com", "username": "oauthmember"}])
+                return SimpleNamespace(data=[])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.auth = FakeAuth()
+                self.updated_payload = None
+
+            def table(self, name):
+                self.table_name = name
+                return FakeUsersTable(self)
+
+        fake = FakeSupabase()
+        with self.client.session_transaction() as sess:
+            sess["oauth_state"] = "expected-state"
+            sess["oauth_provider"] = "google"
+            sess["oauth_code_verifier"] = "stored-verifier"
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123&state=expected-state")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/"))
+        self.assertEqual(fake.auth.exchange_params["auth_code"], "abc123")
+        self.assertEqual(fake.auth._storage.items["supabase.auth.token-code-verifier"], "stored-verifier")
+        self.assertEqual(fake.updated_payload["oauth_provider"], "google")
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["user_id"], 44)
+            self.assertNotIn("pending_oauth_profile", sess)
+
+    def test_oauth_callback_sends_new_user_to_social_onboarding(self):
+        class FakeAuth:
+            _storage_key = "supabase.auth.token"
+
+            class Storage:
+                def set_item(self, *_args):
+                    pass
+
+            _storage = Storage()
+
+            def exchange_code_for_session(self, _params):
+                user = SimpleNamespace(
+                    id="22222222-2222-2222-2222-222222222222",
+                    email="new@example.com",
+                    user_metadata={"name": "New OAuth"},
+                    app_metadata={"provider": "github"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
+
+        class FakeUsersTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake = SimpleNamespace(auth=FakeAuth(), table=lambda _name: FakeUsersTable())
+        with self.client.session_transaction() as sess:
+            sess["oauth_state"] = "expected-state"
+            sess["oauth_provider"] = "github"
+            sess["oauth_code_verifier"] = "stored-verifier"
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123&state=expected-state")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/auth/oauth/onboarding"))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["pending_oauth_profile"]["email"], "new@example.com")
+            self.assertEqual(sess["pending_oauth_profile"]["provider"], "github")
+            self.assertEqual(sess["pending_oauth_profile"]["first_name"], "New")
+
+    def test_oauth_onboarding_creates_lvl_user(self):
+        class FakeUsersTable:
+            def __init__(self, fake, name):
+                self.fake = fake
+                self.name = name
+                self.payload = None
+
+            def insert(self, payload):
+                self.payload = payload
+                return self
+
+            def execute(self):
+                if self.name == "users":
+                    self.fake.inserted_payload = self.payload
+                return SimpleNamespace(data=[{"id": 55, **self.payload}])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.inserted_payload = None
+
+            def table(self, name):
+                self.table_name = name
+                return FakeUsersTable(self, name)
+
+        fake = FakeSupabase()
+        with self.client.session_transaction() as sess:
+            sess["pending_oauth_profile"] = {
+                "provider": "google",
+                "subject": "33333333-3333-3333-3333-333333333333",
+                "email": "join@example.com",
+                "first_name": "Join",
+                "last_name": "Member",
+                "display_name": "Join Member",
+                "avatar_url": "",
+            }
+        csrf_token = self.csrf()
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.post("/auth/oauth/onboarding", data={
+                "csrf_token": csrf_token,
+                "first_name": "Join",
+                "last_name": "Member",
+                "nickname": "joinmember",
+                "email": "join@example.com",
+                "birthday": "2000-01-01",
+                "gender": "Male",
+            })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/"))
+        self.assertEqual(fake.inserted_payload["oauth_provider"], "google")
+        self.assertEqual(fake.inserted_payload["supabase_auth_user_id"], "33333333-3333-3333-3333-333333333333")
+        self.assertEqual(fake.inserted_payload["username"], "joinmember")
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["user_id"], 55)
+            self.assertNotIn("pending_oauth_profile", sess)
+
     def test_shared_post_card_has_menu_actions(self):
         with zapp.app.test_request_context("/"):
             html = zapp.render_template("_post_card.html", viewer={"id": 7}, post={
@@ -126,6 +364,9 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("/profile/<username>/<list_type>", routes)
         self.assertIn("/level-guide", routes)
         self.assertIn("/reels", routes)
+        self.assertIn("/auth/oauth/<provider>", routes)
+        self.assertIn("/auth/oauth/callback", routes)
+        self.assertIn("/auth/oauth/onboarding", routes)
         self.assertIn("/reels/upload", routes)
         self.assertIn("/reels/<int:reel_id>/like", routes)
         self.assertIn("/delete_post", routes)
