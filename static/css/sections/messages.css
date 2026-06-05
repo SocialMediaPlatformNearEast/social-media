@@ -308,6 +308,13 @@
   border-top: 1px solid var(--border-color);
 }
 
+.chat-blocked-note {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
 .chat-input-form {
   background-color: var(--lvl-surface-9);
   border-radius: var(--radius-bubble);
@@ -328,6 +335,11 @@
   outline: none;
   max-height: 150px;
   padding: 4px 0;
+}
+
+.chat-input-form textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .send-btn {
@@ -356,6 +368,11 @@
   overflow-y: auto;
   padding: 32px 32px 40px;
   text-align: center;
+}
+
+.send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .chat-window-empty .chat-unselected {

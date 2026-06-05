@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.textContent = result.active ? 'Muted' : 'Mute';
                     } else if (action === 'block') {
                         btn.classList.toggle('active', result.active);
-                        btn.textContent = result.active ? 'Blocked' : 'Block';
+                        btn.textContent = result.active ? 'Unblock' : 'Block';
                     } else if (action === 'friend') {
                         btn.classList.toggle('active', !!result.status);
                         btn.textContent = result.label || 'Add friend';

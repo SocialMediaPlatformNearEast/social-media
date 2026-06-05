@@ -31,6 +31,11 @@
         {% if is_own_profile %}
           <a class="outline-button" href="{{ url_for('settings') }}">Edit profile</a>
         {% else %}
+          {% if safety_state.interaction_blocked %}
+            <span class="profile-safety-note">
+              {% if safety_state.blocked %}Unblock to interact.{% else %}You can't interact with this user.{% endif %}
+            </span>
+          {% else %}
           <form action="{{ url_for('high_five_profile', username=profile.username) }}" method="post" class="profile-high-five-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="profile-high-five-button" type="submit" aria-label="High-five {{ profile.display_name }}" title="High-five">
@@ -45,6 +50,7 @@
             </button>
           </form>
           <a class="outline-button" href="{{ url_for('messages', u=profile.username) }}">Message</a>
+          {% endif %}
           <form action="{{ url_for('safety_action') }}" method="post" class="ajax-action-form" data-action="mute">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_user_id" value="{{ profile.id }}">
@@ -55,8 +61,9 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_user_id" value="{{ profile.id }}">
             <input type="hidden" name="action_type" value="block">
-            <button class="outline-button danger-action {% if safety_state.blocked %}active{% endif %}" type="submit">{{ 'Blocked' if safety_state.blocked else 'Block' }}</button>
+            <button class="outline-button danger-action {% if safety_state.blocked %}active{% endif %}" type="submit">{{ 'Unblock' if safety_state.blocked else 'Block' }}</button>
           </form>
+          {% if not safety_state.interaction_blocked %}
           <form action="{{ url_for('request_friend') }}" method="post" class="ajax-action-form" data-action="friend">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="target_id" value="{{ profile.id }}">
@@ -70,6 +77,7 @@
               {% endif %}
             </button>
           </form>
+          {% endif %}
         {% endif %}
       </div>
     </div>

@@ -57,7 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "60"
+ASSET_VERSION = "61"
 
 GENDER_OPTIONS = GENDER_THEME
 COMMUNITY_DEFAULT_TAB = 'following'
@@ -648,7 +648,7 @@ def upload_video_to_storage(file_storage, folder):
     raise RuntimeError("Video upload failed. Supabase Storage is not configured for video uploads.")
 
 def get_user_safety_state(viewer_id, target_user_id):
-    state = {'blocked': False, 'muted': False}
+    state = {'blocked': False, 'muted': False, 'blocked_by': False, 'interaction_blocked': False}
     if not viewer_id or not target_user_id or viewer_id == target_user_id:
         return state
     try:
@@ -660,19 +660,55 @@ def get_user_safety_state(viewer_id, target_user_id):
                 state['muted'] = True
     except Exception:
         pass
+    try:
+        incoming = supabase.table('user_safety_actions').select('id').eq('actor_id', target_user_id).eq('target_user_id', viewer_id).eq('action_type', 'block').limit(1).execute()
+        state['blocked_by'] = bool(incoming.data)
+    except Exception:
+        state['blocked_by'] = False
+    state['interaction_blocked'] = state['blocked'] or state['blocked_by']
     return state
+
+def blocked_user_ids_for_viewer(viewer_id, candidate_ids=None, include_mutes=True):
+    if not viewer_id:
+        return set()
+    candidate_set = {value for value in (candidate_ids or []) if value and value != viewer_id}
+    hidden_ids = set()
+    try:
+        query = supabase.table('user_safety_actions').select('actor_id,target_user_id,action_type').or_(f"actor_id.eq.{viewer_id},target_user_id.eq.{viewer_id}")
+        if include_mutes:
+            query = query.in_('action_type', ['block', 'mute'])
+        else:
+            query = query.eq('action_type', 'block')
+        res = query.execute()
+        for row in res.data or []:
+            actor_id = row.get('actor_id')
+            target_id = row.get('target_user_id')
+            action_type = row.get('action_type')
+            if action_type == 'block':
+                other_id = target_id if actor_id == viewer_id else actor_id
+                if other_id and (not candidate_set or other_id in candidate_set):
+                    hidden_ids.add(other_id)
+            elif include_mutes and action_type == 'mute' and actor_id == viewer_id:
+                if target_id and (not candidate_set or target_id in candidate_set):
+                    hidden_ids.add(target_id)
+    except Exception:
+        return set()
+    return hidden_ids
+
+def filter_blocked_users(users, viewer_id, include_mutes=True):
+    if not users:
+        return []
+    hidden_ids = blocked_user_ids_for_viewer(viewer_id, [user.get('id') for user in users], include_mutes=include_mutes)
+    return [user for user in users if user.get('id') not in hidden_ids]
+
+def interaction_blocked(viewer_id, target_user_id):
+    return get_user_safety_state(viewer_id, target_user_id).get('interaction_blocked', False)
 
 def visible_post_filter(posts, viewer_id):
     if not posts:
         return []
     author_ids = {post.get('user_id') for post in posts if post.get('user_id') and post.get('user_id') != viewer_id}
-    hidden_ids = set()
-    if author_ids:
-        try:
-            safety_res = supabase.table('user_safety_actions').select('target_user_id').eq('actor_id', viewer_id).in_('target_user_id', list(author_ids)).in_('action_type', ['block', 'mute']).execute()
-            hidden_ids = {row['target_user_id'] for row in safety_res.data or []}
-        except Exception:
-            hidden_ids = set()
+    hidden_ids = blocked_user_ids_for_viewer(viewer_id, author_ids, include_mutes=True)
     return [post for post in posts if post.get('user_id') not in hidden_ids]
 
 def slugify(value):
@@ -718,6 +754,8 @@ def dedupe_timeline_posts(posts):
 
 def create_notification(user_id, actor_id, notif_type, post_id=None, reel_id=None, message_id=None):
     if not user_id or not actor_id or user_id == actor_id:
+        return
+    if interaction_blocked(actor_id, user_id):
         return
     payload = {
         'user_id': user_id,
@@ -777,7 +815,7 @@ def get_social_list(profile_user, list_type, viewer_id):
         return title, []
     users_res = supabase.table('users').select('*').in_('id', user_ids).execute()
     users = users_res.data if users_res and users_res.data else []
-    return title, mark_following_state(users, viewer_id)
+    return title, mark_following_state(filter_blocked_users(users, viewer_id, include_mutes=False), viewer_id)
 
 def get_following_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     follows_res = supabase.table('follows').select('following_id').eq('follower_id', viewer_id).execute()
@@ -990,7 +1028,7 @@ def get_trending_posts(viewer_id, limit=5):
     try:
         posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
         posts = posts_res.data if posts_res and posts_res.data else []
-        return enrich_posts(posts, viewer_id)
+        return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
     except Exception:
         return []
 
@@ -998,7 +1036,7 @@ def get_popular_users(viewer_id, limit=5):
     try:
         res = supabase.table('users').select('*').order('level', desc=True).limit(limit).execute()
         users = res.data if res and res.data else []
-        return mark_following_state(users, viewer_id)
+        return mark_following_state(filter_blocked_users(users, viewer_id, include_mutes=False), viewer_id)
     except Exception:
         return []
 
@@ -1012,7 +1050,7 @@ def get_community_posts(community_id, viewer_id, limit=20):
         posts = posts_res.data if posts_res and posts_res.data else []
         posts_by_id = {post['id']: post for post in posts}
         ordered_posts = [posts_by_id[post_id] for post_id in post_ids if post_id in posts_by_id]
-        return enrich_posts(ordered_posts, viewer_id)
+        return enrich_posts(visible_post_filter(ordered_posts, viewer_id), viewer_id)
     except Exception:
         return []
 
@@ -1094,6 +1132,7 @@ def visible_reel_filter(reels, viewer_id):
         return []
 
     author_ids = {row.get('user_id') for row in reels if row.get('user_id') and row.get('user_id') != viewer_id}
+    hidden_author_ids = blocked_user_ids_for_viewer(viewer_id, author_ids, include_mutes=True)
     community_ids = {row.get('community_id') for row in reels if row.get('community_id')}
     followed_ids = set()
     member_roles = {}
@@ -1115,6 +1154,8 @@ def visible_reel_filter(reels, viewer_id):
     visible = []
     for reel in reels:
         owner_id = reel.get('user_id')
+        if owner_id in hidden_author_ids:
+            continue
         visibility = reel.get('visibility') or 'public'
         community = reel.get('community') or {}
         community_id = reel.get('community_id') or community.get('id')
@@ -1586,6 +1627,8 @@ def toggle_reel_like(reel_id):
         reel = get_reel_by_id(reel_id, viewer['id'])
         if not reel or reel.get('is_demo'):
             return jsonify({'success': False, 'error': 'Reel not found.'}), 404
+        if interaction_blocked(viewer['id'], reel.get('user_id')):
+            return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
         existing = supabase.table('reel_likes').select('reel_id').eq('reel_id', reel_id).eq('user_id', viewer['id']).execute()
         if existing.data:
             supabase.table('reel_likes').delete().eq('reel_id', reel_id).eq('user_id', viewer['id']).execute()
@@ -1614,6 +1657,10 @@ def add_reel_comment(reel_id):
             if wants_json:
                 return jsonify({'success': False, 'error': 'Reel not found.'}), 404
             flash("Reel not found.", "error")
+        elif interaction_blocked(viewer['id'], reel.get('user_id')):
+            if wants_json:
+                return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+            flash("You cannot interact with this user.", "error")
         elif not reel.get('allow_comments', True):
             if wants_json:
                 return jsonify({'success': False, 'error': 'Comments are closed for this reel.'}), 400
@@ -1691,6 +1738,8 @@ def api_reel_comments(reel_id):
     try:
         res = supabase.table('reel_comments').select('*, user:users!reel_comments_user_id_fkey(id,username,display_name,profile_photo_url)').eq('reel_id', reel_id).is_('deleted_at', 'null').order('created_at', desc=False).limit(50).execute()
         comments = res.data if res and res.data else []
+        hidden_commenter_ids = blocked_user_ids_for_viewer(viewer['id'], [comment.get('user_id') for comment in comments], include_mutes=False)
+        comments = [comment for comment in comments if comment.get('user_id') not in hidden_commenter_ids]
         return jsonify({'success': True, 'comments': comments})
     except Exception as exc:
         return jsonify({'success': False, 'error': handle_db_error(exc)}), 400
@@ -2044,6 +2093,9 @@ def add_comment():
         if not post_res.data:
             flash("Post not found.", "error")
             return redirect(url_for('index'))
+        if interaction_blocked(viewer['id'], post_res.data[0]['user_id']):
+            flash("You cannot interact with this user.", "error")
+            return redirect(url_for('index'))
 
         res = supabase.table('comments').insert({
             'post_id': post_id,
@@ -2076,26 +2128,30 @@ def toggle_like():
     count = 0
     if post_id:
         try:
-            res = supabase.table('likes').select('*').eq('user_id', viewer['id']).eq('post_id', int(post_id)).execute()
+            post_id_int = int(post_id)
+            post_res = supabase.table('posts').select('user_id').eq('id', post_id_int).is_('deleted_at', 'null').execute()
+            if not post_res.data:
+                raise ValueError("Post not found")
+            owner_id = post_res.data[0]['user_id']
+            if interaction_blocked(viewer['id'], owner_id):
+                if request.form.get('ajax') == '1':
+                    return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+                flash("You cannot interact with this user.", "error")
+                return redirect(safe_redirect_url())
+
+            res = supabase.table('likes').select('*').eq('user_id', viewer['id']).eq('post_id', post_id_int).execute()
             if res.data:
-                supabase.table('likes').delete().eq('user_id', viewer['id']).eq('post_id', int(post_id)).execute()
+                supabase.table('likes').delete().eq('user_id', viewer['id']).eq('post_id', post_id_int).execute()
                 liked = False
             else:
-                supabase.table('likes').insert({'user_id': viewer['id'], 'post_id': int(post_id)}).execute()
+                supabase.table('likes').insert({'user_id': viewer['id'], 'post_id': post_id_int}).execute()
                 liked = True
                 award_xp(viewer['id'], 'like_given', 1, post_id)
-                
-                post_res = supabase.table('posts').select('user_id').eq('id', int(post_id)).execute()
-                if post_res.data and post_res.data[0]['user_id'] != viewer['id']:
-                    owner_id = post_res.data[0]['user_id']
-                    supabase.table('notifications').insert({
-                        'user_id': owner_id,
-                        'actor_id': viewer['id'],
-                        'type': 'like',
-                        'post_id': int(post_id)
-                    }).execute()
+
+                if owner_id != viewer['id']:
+                    create_notification(owner_id, viewer['id'], 'like', post_id=post_id_int)
                     award_xp(owner_id, 'like_received', 2, f"{post_id}:{viewer['id']}")
-            count_res = supabase.table('likes').select('post_id', count='exact').eq('post_id', int(post_id)).execute()
+            count_res = supabase.table('likes').select('post_id', count='exact').eq('post_id', post_id_int).execute()
             count = count_res.count if count_res else 0
         except Exception as e:
             if request.form.get('ajax') == '1':
@@ -2116,25 +2172,29 @@ def toggle_repost():
     count = 0
     if post_id:
         try:
-            res = supabase.table('reposts').select('*').eq('user_id', viewer['id']).eq('post_id', int(post_id)).execute()
+            post_id_int = int(post_id)
+            post_res = supabase.table('posts').select('user_id').eq('id', post_id_int).is_('deleted_at', 'null').execute()
+            if not post_res.data:
+                raise ValueError("Post not found")
+            owner_id = post_res.data[0]['user_id']
+            if interaction_blocked(viewer['id'], owner_id):
+                if request.form.get('ajax') == '1':
+                    return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+                flash("You cannot interact with this user.", "error")
+                return redirect(safe_redirect_url())
+
+            res = supabase.table('reposts').select('*').eq('user_id', viewer['id']).eq('post_id', post_id_int).execute()
             if res.data:
-                supabase.table('reposts').delete().eq('user_id', viewer['id']).eq('post_id', int(post_id)).execute()
+                supabase.table('reposts').delete().eq('user_id', viewer['id']).eq('post_id', post_id_int).execute()
                 reposted = False
             else:
-                supabase.table('reposts').insert({'user_id': viewer['id'], 'post_id': int(post_id)}).execute()
+                supabase.table('reposts').insert({'user_id': viewer['id'], 'post_id': post_id_int}).execute()
                 reposted = True
                 award_xp(viewer['id'], 'post_reposted', 5, post_id)
-                
-                post_res = supabase.table('posts').select('user_id').eq('id', int(post_id)).execute()
-                if post_res.data and post_res.data[0]['user_id'] != viewer['id']:
-                    owner_id = post_res.data[0]['user_id']
-                    supabase.table('notifications').insert({
-                        'user_id': owner_id,
-                        'actor_id': viewer['id'],
-                        'type': 'repost',
-                        'post_id': int(post_id)
-                    }).execute()
-            count_res = supabase.table('reposts').select('post_id', count='exact').eq('post_id', int(post_id)).execute()
+
+                if owner_id != viewer['id']:
+                    create_notification(owner_id, viewer['id'], 'repost', post_id=post_id_int)
+            count_res = supabase.table('reposts').select('post_id', count='exact').eq('post_id', post_id_int).execute()
             count = count_res.count if count_res else 0
         except Exception as e:
             if request.form.get('ajax') == '1':
@@ -2159,6 +2219,11 @@ def toggle_follow():
 
     if target_user_id and target_user_id != viewer['id']:
         try:
+            if interaction_blocked(viewer['id'], target_user_id):
+                if request.form.get('ajax') == '1':
+                    return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+                flash("You cannot interact with this user.", "error")
+                return redirect(safe_redirect_url())
             res = supabase.table('follows').select('*').eq('follower_id', viewer['id']).eq('following_id', target_user_id).execute()
             if res.data:
                 supabase.table('follows').delete().eq('follower_id', viewer['id']).eq('following_id', target_user_id).execute()
@@ -2166,11 +2231,7 @@ def toggle_follow():
             else:
                 supabase.table('follows').insert({'follower_id': viewer['id'], 'following_id': target_user_id}).execute()
                 following = True
-                supabase.table('notifications').insert({
-                    'user_id': target_user_id,
-                    'actor_id': viewer['id'],
-                    'type': 'follow'
-                }).execute()
+                create_notification(target_user_id, viewer['id'], 'follow')
         except Exception as e:
             if request.form.get('ajax') == '1':
                 return jsonify({'success': False, 'error': handle_db_error(e)}), 400
@@ -2197,6 +2258,11 @@ def request_friend():
         return redirect(safe_redirect_url())
 
     try:
+        if interaction_blocked(viewer['id'], target_user_id):
+            if is_ajax:
+                return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+            flash("You cannot interact with this user.", "error")
+            return redirect(safe_redirect_url())
         first = min(viewer['id'], target_user_id)
         second = max(viewer['id'], target_user_id)
 
@@ -2208,11 +2274,7 @@ def request_friend():
                 'action_user_id': viewer['id'],
                 'status': 'pending'
             }).execute()
-            supabase.table('notifications').insert({
-                'user_id': target_user_id,
-                'actor_id': viewer['id'],
-                'type': 'friend_request'
-            }).execute()
+            create_notification(target_user_id, viewer['id'], 'friend_request')
             if is_ajax:
                 return jsonify({'success': True, 'status': 'pending', 'label': 'Requested'})
             flash("Friend request sent.", "success")
@@ -2256,12 +2318,11 @@ def respond_friend_request():
                 return redirect(url_for('notifications'))
             
             if decision == 'accept':
+                if interaction_blocked(viewer['id'], target_user_id):
+                    flash("You cannot interact with this user.", "error")
+                    return redirect(url_for('notifications'))
                 supabase.table('friendships').update({'status': 'accepted', 'action_user_id': viewer['id']}).eq('user_1', first).eq('user_2', second).execute()
-                supabase.table('notifications').insert({
-                    'user_id': target_user_id,
-                    'actor_id': viewer['id'],
-                    'type': 'friend_accept'
-                }).execute()
+                create_notification(target_user_id, viewer['id'], 'friend_accept')
                 flash("Friend request accepted.", "success")
             else:
                 supabase.table('friendships').delete().eq('user_1', first).eq('user_2', second).execute()
@@ -2286,6 +2347,12 @@ def send_message():
             if request.form.get('ajax') == '1':
                 return jsonify({'success': False, 'error': 'Message cannot exceed 1000 characters.'}), 400
             flash("Message cannot exceed 1000 characters.", "error")
+        elif interaction_blocked(viewer['id'], receiver_id):
+            state = get_user_safety_state(viewer['id'], receiver_id)
+            message = "Unblock this user to send a message." if state.get('blocked') else "You cannot message this user."
+            if request.form.get('ajax') == '1':
+                return jsonify({'success': False, 'error': message}), 403
+            flash(message, "error")
         else:
             try:
                 recipient = supabase.table('users').select('id').eq('id', receiver_id).execute()
@@ -2297,12 +2364,7 @@ def send_message():
                     'content': content
                 }).execute()
                 if res.data:
-                    supabase.table('notifications').insert({
-                        'user_id': receiver_id,
-                        'actor_id': viewer['id'],
-                        'type': 'message',
-                        'message_id': res.data[0]['id']
-                    }).execute()
+                    create_notification(receiver_id, viewer['id'], 'message', message_id=res.data[0]['id'])
                     streak_count, streak_xp = update_streak(viewer['id'], receiver_id)
                     if request.form.get('ajax') == '1':
                         return jsonify({'success': True, 'message': res.data[0], 'streak': streak_count, 'streak_xp': streak_xp})
@@ -2673,15 +2735,13 @@ def high_five_profile(username):
         if target['id'] == viewer['id']:
             flash("You cannot high-five yourself.", "info")
             return redirect(url_for('profile', username=username))
+        if interaction_blocked(viewer['id'], target['id']):
+            flash("You cannot interact with this user.", "error")
+            return redirect(url_for('profile', username=username))
 
         streak_count, streak_xp = update_streak(viewer['id'], target['id'])
         try:
-            supabase.table('notifications').insert({
-                'user_id': target['id'],
-                'actor_id': viewer['id'],
-                'type': 'high_five',
-                'is_read': False
-            }).execute()
+            create_notification(target['id'], viewer['id'], 'high_five')
         except Exception:
             app.logger.info("High-five notification could not be created", exc_info=True)
 
@@ -2762,6 +2822,12 @@ def safety_action():
         else:
             if not existing_res.data:
                 supabase.table('user_safety_actions').insert(payload).execute()
+            if action_type == 'block':
+                first = min(viewer['id'], target_user_id)
+                second = max(viewer['id'], target_user_id)
+                supabase.table('follows').delete().eq('follower_id', viewer['id']).eq('following_id', target_user_id).execute()
+                supabase.table('follows').delete().eq('follower_id', target_user_id).eq('following_id', viewer['id']).execute()
+                supabase.table('friendships').delete().eq('user_1', first).eq('user_2', second).execute()
             label = {'report': 'reported', 'block': 'blocked', 'mute': 'muted'}[action_type]
         if is_ajax:
             return jsonify({'success': True, 'active': active, 'action_type': action_type, 'label': label})
@@ -2801,6 +2867,7 @@ def messages():
         
     target_username = request.args.get('u', '')
     target_user = None
+    chat_safety_state = {'blocked': False, 'blocked_by': False, 'interaction_blocked': False}
     messages_list = []
     
     try:
@@ -2812,14 +2879,16 @@ def messages():
                     flash("Choose someone else to message.", "error")
                     target_user = None
                 else:
+                    chat_safety_state = get_user_safety_state(viewer['id'], target_user['id'])
                     msg_res = supabase.table('messages').select('*').or_(f"and(sender_id.eq.{viewer['id']},receiver_id.eq.{target_user['id']}),and(sender_id.eq.{target_user['id']},receiver_id.eq.{viewer['id']})").order('created_at', desc=False).execute()
                     messages_list = msg_res.data if msg_res.data else []
                     messages_list = attach_shared_posts(messages_list)
                     supabase.table('messages').update({'is_read': True}).eq('sender_id', target_user['id']).eq('receiver_id', viewer['id']).execute()
                 
         all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
-        all_users = all_users_res.data if all_users_res.data else []
-        all_users_by_id = {user['id']: user for user in all_users}
+        all_users_raw = all_users_res.data if all_users_res.data else []
+        all_users = filter_blocked_users(all_users_raw, viewer['id'], include_mutes=False)
+        all_users_by_id = {user['id']: user for user in all_users_raw}
 
         conversation_res = supabase.table('messages').select('*').or_(f"sender_id.eq.{viewer['id']},receiver_id.eq.{viewer['id']}").order('created_at', desc=True).limit(100).execute()
         conversation_rows = conversation_res.data if conversation_res and conversation_res.data else []
@@ -2871,6 +2940,7 @@ def messages():
                            viewer=viewer,
                            target_username=target_username,
                            target_user=target_user,
+                           chat_safety_state=chat_safety_state,
                            conversations=conversations,
                            all_users=all_users,
                            messages_list=messages_list,
@@ -2914,6 +2984,8 @@ def notifications():
     try:
         notif_res = supabase.table('notifications').select('*, actor:users!actor_id(*)').eq('user_id', viewer['id']).order('created_at', desc=True).limit(50).execute()
         raw_notifications = notif_res.data if notif_res and notif_res.data else []
+        hidden_actor_ids = blocked_user_ids_for_viewer(viewer['id'], [item.get('actor_id') for item in raw_notifications], include_mutes=False)
+        raw_notifications = [item for item in raw_notifications if item.get('actor_id') not in hidden_actor_ids]
         
         formatted = []
         for n in raw_notifications:
@@ -3164,21 +3236,23 @@ def search():
                 offset = (page - 1) * POSTS_PER_PAGE
                 res = supabase.table('users').select('*').or_(f"display_name.ilike.%{safe_query}%,username.ilike.%{safe_query}%,nickname.ilike.%{safe_query}%").range(offset, offset + POSTS_PER_PAGE - 1).execute()
                 users = res.data if res.data else []
+                users = filter_blocked_users(users, viewer['id'], include_mutes=False)
                 users = mark_following_state(users, viewer['id'])
             else:
                 order_desc = True
                 offset = (page - 1) * POSTS_PER_PAGE
                 res = supabase.table('posts').select(select_query).ilike('content', f"%{query}%").is_('deleted_at', 'null').order('created_at', desc=order_desc).range(offset, offset + POSTS_PER_PAGE - 1).execute()
                 posts = res.data if res.data else []
-                posts = enrich_posts(posts, viewer['id'])
+                posts = enrich_posts(visible_post_filter(posts, viewer['id']), viewer['id'])
         else:
             sug_res = supabase.table('users').select('*').neq('id', viewer['id']).limit(4).execute()
             suggested_users = sug_res.data if sug_res and sug_res.data else []
+            suggested_users = filter_blocked_users(suggested_users, viewer['id'], include_mutes=False)
             suggested_users = mark_following_state(suggested_users, viewer['id'])
             
             rec_res = supabase.table('posts').select(select_query).is_('deleted_at', 'null').order('created_at', desc=True).limit(3).execute()
             recent_posts = rec_res.data if rec_res and rec_res.data else []
-            recent_posts = enrich_posts(recent_posts, viewer['id'])
+            recent_posts = enrich_posts(visible_post_filter(recent_posts, viewer['id']), viewer['id'])
     except Exception as e:
         flash(handle_db_error(e), "error")
         
@@ -3205,11 +3279,15 @@ def post(id):
         post_res = supabase.table('posts').select(select_query).eq('id', id).is_('deleted_at', 'null').execute()
         if not post_res.data:
             return render_template('post.html', viewer=viewer, post=None)
+        if interaction_blocked(viewer['id'], post_res.data[0].get('user_id')):
+            return render_template('post.html', viewer=viewer, post=None)
             
         post_data = enrich_posts(post_res.data, viewer['id'])[0]
         
         com_res = supabase.table('comments').select('*, user:users(*)').eq('post_id', id).order('created_at', desc=False).execute()
         comments = com_res.data if com_res and com_res.data else []
+        hidden_commenter_ids = blocked_user_ids_for_viewer(viewer['id'], [comment.get('user_id') for comment in comments], include_mutes=False)
+        comments = [comment for comment in comments if comment.get('user_id') not in hidden_commenter_ids]
         
         return render_template('post.html', viewer=viewer, post=post_data, comments=comments)
     except Exception as e:

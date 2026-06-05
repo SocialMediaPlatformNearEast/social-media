@@ -79,6 +79,7 @@
 {% endblock %}
 
 {% block content %}
+{% set chat_safety_state = chat_safety_state|default({'blocked': False, 'blocked_by': False, 'interaction_blocked': False}) %}
 <div class="messages-container">
   <aside class="conversations-sidebar">
     <header class="sidebar-header">
@@ -175,12 +176,21 @@
       </div>
 
       <footer class="chat-footer">
+        {% if chat_safety_state.interaction_blocked %}
+          <p class="chat-blocked-note">
+            {% if chat_safety_state.blocked %}
+              You blocked this user. Unblock to send messages.
+            {% else %}
+              You can't message this user.
+            {% endif %}
+          </p>
+        {% endif %}
         <form action="{{ url_for('send_message') }}" method="post" class="chat-input-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="receiver_id" value="{{ target_user.id }}">
           <input type="hidden" name="redirect" value="{{ url_for('messages', u=target_user.username) }}">
-          <textarea name="content" placeholder="Start a new message" required maxlength="1000" rows="1"></textarea>
-          <button type="submit" class="send-btn" aria-label="Send message">
+          <textarea name="content" placeholder="Start a new message" required maxlength="1000" rows="1" {% if chat_safety_state.interaction_blocked %}disabled{% endif %}></textarea>
+          <button type="submit" class="send-btn" aria-label="Send message" {% if chat_safety_state.interaction_blocked %}disabled{% endif %}>
             <svg viewBox="0 0 24 24" aria-hidden="true" width="20" height="20" fill="currentColor"><g><path d="M2.504 21.866l.526-2.108C3.04 19.719 4 15.823 4 12s-.96-7.719-.97-7.757l-.526-2.109L22.247 12 2.504 21.866zM5.981 13c-.072 1.962-.34 3.833-.583 5.183L17.584 12 5.398 5.817c.243 1.35.511 3.221.583 5.183H12v2H5.981z"></path></g></svg>
           </button>
         </form>
