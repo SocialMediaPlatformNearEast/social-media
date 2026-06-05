@@ -186,6 +186,14 @@
         </form>
       </footer>
     </main>
+  {% else %}
+    <main class="chat-window chat-window-empty">
+      <div class="chat-unselected">
+        <h2>Select a message</h2>
+        <p>Choose a conversation from the list, or start a new one.</p>
+        <button type="button" class="outline-button" aria-controls="new-chat-panel" aria-expanded="false" data-new-chat-toggle>New message</button>
+      </div>
+    </main>
   {% endif %}
 </div>
 

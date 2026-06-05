@@ -4,10 +4,66 @@
   display: flex;
 }
 
+.left-rail {
+  gap: 8px;
+  padding-bottom: 16px;
+}
+
+.left-rail .nav-list {
+  gap: 2px;
+}
+
+.left-rail .nav-list a {
+  min-height: 42px;
+}
+
+.left-rail .compose-link {
+  margin-block: 10px;
+  padding-block: 12px;
+}
+
+.left-rail .mini-profile {
+  margin-top: auto;
+}
+
+.left-rail .logout-link {
+  margin-bottom: 4px;
+}
+
+.left-rail:not(.menu-open) .compose-link {
+  margin-block: 10px;
+}
+
+@media (max-height: 760px) and (min-width: 721px) {
+  .left-rail {
+    padding-bottom: 10px;
+  }
+
+  .left-rail .nav-list a {
+    min-height: 38px;
+    padding-block: 8px;
+  }
+
+  .left-rail:not(.menu-open) .nav-list a,
+  .left-rail:not(.menu-open) .compose-link {
+    width: var(--control-lg);
+    height: var(--control-lg);
+  }
+
+  .left-rail .compose-link {
+    margin-block: 8px;
+    padding-block: 10px;
+  }
+
+  .left-rail .mini-profile {
+    min-height: 42px;
+  }
+}
+
 /* Mobile messages repair: keep people names visible and the composer reachable. */
 @media (max-width: 640px) {
   .timeline-messages {
-    height: calc(100dvh - 61px - 76px - env(safe-area-inset-bottom));
+    height: calc(100dvh - 61px - 58px - 76px - env(safe-area-inset-bottom));
     min-height: 0;
     overflow: hidden;
   }
@@ -183,8 +239,9 @@
 
 @media (max-width: 640px) {
   .mobile-bottom-nav {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     padding-inline: 8px;
+    overflow-x: hidden;
   }
 
   .mobile-bottom-nav a {

@@ -39,6 +39,34 @@ class AppRouteTests(unittest.TestCase):
             },
         }
 
+    def test_timeline_dedupes_same_post_across_direct_and_repost(self):
+        direct = self.sample_post(post_id=42, content="original")
+        direct["timeline_created_at"] = "2026-06-01T10:00:00"
+        direct["is_repost"] = False
+        repost = self.sample_post(post_id=42, content="original")
+        repost["timeline_created_at"] = "2026-06-01T11:00:00"
+        repost["is_repost"] = True
+        repost["reposted_by"] = {"username": "sam", "display_name": "Sam"}
+
+        posts = zapp.dedupe_timeline_posts([repost, direct])
+
+        self.assertEqual(len(posts), 1)
+        self.assertTrue(posts[0]["is_repost"])
+
+    def test_notification_stacking_uses_reel_id_for_reel_events(self):
+        notifications = [
+            {"type": "reel_like", "reel_id": 9, "actor_name": "Ada", "is_read": False},
+            {"type": "reel_like", "reel_id": 9, "actor_name": "Sam", "is_read": True},
+            {"type": "reel_like", "reel_id": 10, "actor_name": "Mina", "is_read": False},
+        ]
+
+        stacked = zapp.stack_notifications(notifications)
+
+        self.assertEqual(len(stacked), 2)
+        reel_9 = next(item for item in stacked if item["reel_id"] == 9)
+        self.assertEqual(reel_9["stack_count"], 2)
+        self.assertEqual(reel_9["actor_summary"], "Ada and Sam")
+
     def test_login_requires_credentials(self):
         with patch.object(zapp, "supabase", object()):
             response = self.client.post("/auth", data={

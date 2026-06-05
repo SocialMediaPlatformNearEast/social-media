@@ -57,7 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "56"
+ASSET_VERSION = "60"
 
 GENDER_OPTIONS = GENDER_THEME
 COMMUNITY_DEFAULT_TAB = 'following'
@@ -702,6 +702,42 @@ def enrich_posts(posts, viewer_id):
         p['viewer_reposted'] = p['id'] in viewer_reposted_ids
     return posts
 
+def dedupe_timeline_posts(posts):
+    unique = []
+    seen_ids = set()
+    for post in posts:
+        post_id = post.get('id')
+        if not post_id:
+            unique.append(post)
+            continue
+        if post_id in seen_ids:
+            continue
+        seen_ids.add(post_id)
+        unique.append(post)
+    return unique
+
+def create_notification(user_id, actor_id, notif_type, post_id=None, reel_id=None, message_id=None):
+    if not user_id or not actor_id or user_id == actor_id:
+        return
+    payload = {
+        'user_id': user_id,
+        'actor_id': actor_id,
+        'type': notif_type,
+    }
+    if post_id:
+        payload['post_id'] = post_id
+    if reel_id:
+        payload['reel_id'] = reel_id
+    if message_id:
+        payload['message_id'] = message_id
+    try:
+        supabase.table('notifications').insert(payload).execute()
+    except Exception:
+        if not reel_id:
+            raise
+        payload.pop('reel_id', None)
+        supabase.table('notifications').insert(payload).execute()
+
 def mark_following_state(users, viewer_id):
     if not users:
         return []
@@ -792,7 +828,7 @@ def get_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
         timeline.append(reposted_post)
 
     timeline.sort(key=lambda post: post.get('timeline_created_at') or post.get('created_at') or '', reverse=True)
-    return enrich_posts(visible_post_filter(timeline[:limit], viewer_id), viewer_id)
+    return enrich_posts(visible_post_filter(dedupe_timeline_posts(timeline)[:limit], viewer_id), viewer_id)
 
 def get_profile_posts(profile_user, viewer_id, limit=POSTS_PER_PAGE, page=1):
     offset = (page - 1) * limit
@@ -826,7 +862,7 @@ def get_profile_posts(profile_user, viewer_id, limit=POSTS_PER_PAGE, page=1):
         timeline.append(reposted_post)
 
     timeline.sort(key=lambda post: post.get('timeline_created_at') or post.get('created_at') or '', reverse=True)
-    return enrich_posts(visible_post_filter(timeline[:limit], viewer_id), viewer_id)
+    return enrich_posts(visible_post_filter(dedupe_timeline_posts(timeline)[:limit], viewer_id), viewer_id)
 
 def timeline_timestamp(value):
     if not value:
@@ -1353,7 +1389,7 @@ def get_user_activity(viewer, limit=36):
     items.sort(key=lambda item: item.get('created_at') or '', reverse=True)
     return items[:limit]
 
-STACKABLE_NOTIFICATION_TYPES = {'like', 'repost', 'comment', 'high_five'}
+STACKABLE_NOTIFICATION_TYPES = {'like', 'repost', 'comment', 'high_five', 'reel_like', 'reel_comment'}
 
 def actor_summary(names, count):
     clean_names = [name for name in names if name]
@@ -1380,7 +1416,7 @@ def stack_notifications(notifications):
             stacked.append(notification)
             continue
 
-        key = (notif_type, notification.get('post_id') or 'global')
+        key = (notif_type, notification.get('post_id') or notification.get('reel_id') or 'global')
         existing = stack_map.get(key)
         if not existing:
             stack_map[key] = notification
@@ -1557,6 +1593,7 @@ def toggle_reel_like(reel_id):
         else:
             supabase.table('reel_likes').insert({'reel_id': reel_id, 'user_id': viewer['id']}).execute()
             liked = True
+            create_notification(reel.get('user_id'), viewer['id'], 'reel_like', reel_id=reel_id)
         count_res = supabase.table('reel_likes').select('reel_id', count='exact').eq('reel_id', reel_id).execute()
         count = count_res.count if count_res else 0
         return jsonify({'success': True, 'liked': liked, 'count': count, 'xp_toasts': []})
@@ -1595,6 +1632,7 @@ def add_reel_comment(reel_id):
                 'user_id': viewer['id'],
                 'comment': comment,
             }).execute()
+            create_notification(reel.get('user_id'), viewer['id'], 'reel_comment', reel_id=reel_id)
             count_res = supabase.table('reel_comments').select('reel_id', count='exact').eq('reel_id', reel_id).is_('deleted_at', 'null').execute()
             count = count_res.count if count_res else 0
             if wants_json:
@@ -1775,7 +1813,7 @@ def auth():
                 return render_template('auth.html')
                 
             if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
-                flash("Username must contain only letters, numbers, and underscores.", "error")
+                flash("Username must be 3-24 characters and use only letters, numbers, or underscores.", "error")
                 return render_template('auth.html')
 
             birthday_value, birthday_error = validate_birthday(birthday, required=True)
@@ -1988,38 +2026,43 @@ def add_comment():
     if not viewer:
         return redirect(url_for('auth'))
         
-    post_id = request.form.get('post_id')
+    post_id = parse_int(request.form.get('post_id'))
     comment = request.form.get('comment', '').strip()
-    
-    if comment and post_id:
-        if len(comment) > 280:
-            flash("Comment cannot exceed 280 characters.", "error")
-        else:
-            try:
-                res = supabase.table('comments').insert({
-                    'post_id': int(post_id),
-                    'user_id': viewer['id'],
-                    'comment': comment
-                }).execute()
-                
-                if res.data:
-                    award_xp(viewer['id'], 'comment_created', 6, res.data[0]['id'])
-                
-                post_res = supabase.table('posts').select('user_id').eq('id', int(post_id)).execute()
-                if post_res.data and post_res.data[0]['user_id'] != viewer['id']:
-                    owner_id = post_res.data[0]['user_id']
-                    supabase.table('notifications').insert({
-                        'user_id': owner_id,
-                        'actor_id': viewer['id'],
-                        'type': 'comment',
-                        'post_id': int(post_id)
-                    }).execute()
-                    award_xp(owner_id, 'comment_received', 4, res.data[0]['id'] if res.data else None)
-                
-                flash("Comment posted.", "success")
-            except Exception as e:
-                flash(handle_db_error(e), "error")
-                
+
+    if not post_id:
+        flash("Post not found.", "error")
+        return redirect(safe_redirect_url(fallback_endpoint='index'))
+    if not comment:
+        flash("Write a comment first.", "error")
+        return redirect(url_for('post', id=post_id))
+    if len(comment) > 280:
+        flash("Comment cannot exceed 280 characters.", "error")
+        return redirect(url_for('post', id=post_id))
+
+    try:
+        post_res = supabase.table('posts').select('id,user_id').eq('id', post_id).is_('deleted_at', 'null').execute()
+        if not post_res.data:
+            flash("Post not found.", "error")
+            return redirect(url_for('index'))
+
+        res = supabase.table('comments').insert({
+            'post_id': post_id,
+            'user_id': viewer['id'],
+            'comment': comment
+        }).execute()
+
+        if res.data:
+            award_xp(viewer['id'], 'comment_created', 6, res.data[0]['id'])
+
+        owner_id = post_res.data[0]['user_id']
+        if owner_id != viewer['id']:
+            create_notification(owner_id, viewer['id'], 'comment', post_id=post_id)
+            award_xp(owner_id, 'comment_received', 4, res.data[0]['id'] if res.data else None)
+
+        flash("Comment posted.", "success")
+    except Exception as e:
+        flash(handle_db_error(e), "error")
+
     return redirect(url_for('post', id=post_id))
 
 @app.route('/toggle_like', methods=['POST'])
@@ -2354,7 +2397,7 @@ def settings():
                 flash("First name, last name, and username are required.", "error")
                 return redirect(url_for('settings'))
             if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
-                flash("Username must be 3-24 characters and use letters, numbers, or underscores.", "error")
+                flash("Username must be 3-24 characters and use only letters, numbers, or underscores.", "error")
                 return redirect(url_for('settings'))
             if website and not normalize_website(website):
                 flash("Website must start with http:// or https://.", "error")
@@ -2879,6 +2922,8 @@ def notifications():
             n['actor_name'] = actor.get('display_name', '')
             n['friendship_status'] = 'pending'
             n['friendship_action_user_id'] = actor.get('id')
+            if n.get('type') == 'message':
+                n['message_url'] = url_for('messages', u=n['actor_username']) if n['actor_username'] else url_for('messages')
             formatted.append(n)
         formatted = stack_notifications(formatted)
         post_ids = [item['post_id'] for item in formatted if item.get('post_id')]
@@ -2887,6 +2932,14 @@ def notifications():
             posts_by_id = {post['id']: post.get('content', '') for post in posts_res.data} if posts_res and posts_res.data else {}
             for item in formatted:
                 item['post_content'] = posts_by_id.get(item.get('post_id'), 'View post')
+        reel_ids = [item['reel_id'] for item in formatted if item.get('reel_id')]
+        if reel_ids:
+            reels_res = supabase.table('reels').select('id, caption').in_('id', list(set(reel_ids))).execute()
+            reels_by_id = {reel['id']: reel.get('caption', '') for reel in reels_res.data} if reels_res and reels_res.data else {}
+            for item in formatted:
+                if item.get('reel_id'):
+                    item['reel_caption'] = reels_by_id.get(item.get('reel_id'), 'Open reel')
+                    item['reel_url'] = f"{url_for('reels')}#reel-{item['reel_id']}"
         for item in formatted:
             if item.get('type') == 'friend_request' and item.get('actor_id'):
                 first = min(viewer['id'], item['actor_id'])

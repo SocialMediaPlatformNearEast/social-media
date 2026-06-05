@@ -1,8 +1,13 @@
 /* Settings and profile editor */
 /* Settings / Edit Profile */
 .settings-container {
+  width: min(100%, var(--shell-main));
   max-width: var(--shell-main);
   margin: 0 auto;
+}
+
+.timeline-settings {
+  overflow-x: hidden;
 }
 
 .header-content {
@@ -11,18 +16,22 @@
 
 .settings-content {
   padding: 16px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .premium-form {
   display: flex;
   flex-direction: column;
   gap: 32px;
+  min-width: 0;
 }
 
 .form-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .form-section h3 {
@@ -38,12 +47,14 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  min-width: 0;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .form-group span {
@@ -76,6 +87,7 @@
   border-radius: var(--radius-sm);
   background-color: transparent;
   overflow: hidden;
+  min-width: 0;
 }
 
 .input-prefix-wrapper:focus-within {
@@ -92,6 +104,8 @@
 .input-prefix-wrapper input {
   border: none !important;
   box-shadow: none !important;
+  min-width: 0;
+  width: 100%;
 }
 
 .char-counter {
@@ -103,7 +117,22 @@
 .color-picker-wrapper {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
+}
+
+.profile-preview-card {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.profile-preview-card strong,
+.profile-preview-card span,
+.profile-preview-card p {
+  overflow-wrap: anywhere;
 }
 
 .color-picker-wrapper input[type="color"] {

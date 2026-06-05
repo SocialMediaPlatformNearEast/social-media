@@ -27,9 +27,11 @@
     <article class="notification-item {% if not notification.is_read %}unread{% endif %}">
       <div class="notification-icon type-{{ notification.type }}">
         {% if notification.type == 'like' %}❤️{% endif %}
+        {% if notification.type == 'reel_like' %}❤️{% endif %}
         {% if notification.type == 'follow' %}👤{% endif %}
         {% if notification.type == 'repost' %}🔁{% endif %}
         {% if notification.type == 'comment' %}💬{% endif %}
+        {% if notification.type == 'reel_comment' %}💬{% endif %}
         {% if notification.type == 'message' %}✉️{% endif %}
         {% if notification.type == 'friend_request' %}🤝{% endif %}
         {% if notification.type == 'friend_accept' %}✓{% endif %}
@@ -42,8 +44,10 @@
           </a>
           <span class="notification-text">
             {% if notification.type == 'like' %}liked your post
+            {% elif notification.type == 'reel_like' %}liked your reel
             {% elif notification.type == 'repost' %}reposted your post
             {% elif notification.type == 'comment' %}commented on your post
+            {% elif notification.type == 'reel_comment' %}commented on your reel
             {% elif notification.type == 'follow' %}followed you
             {% elif notification.type == 'friend_request' %}sent you a friend request
             {% elif notification.type == 'friend_accept' %}accepted your friend request
@@ -60,8 +64,10 @@
         
         {% if notification.post_id %}
           <a href="{{ url_for('post', id=notification.post_id) }}" class="notification-action">Open post</a>
+        {% elif notification.reel_id %}
+          <a href="{{ notification.reel_url or (url_for('reels') ~ '#reel-' ~ notification.reel_id) }}" class="notification-action">Open reel</a>
         {% elif notification.type == 'message' %}
-          <a href="{{ url_for('messages', u=notification.actor_username) }}" class="notification-action">Open chat</a>
+          <a href="{{ notification.message_url or (url_for('messages', u=notification.actor_username) if notification.actor_username else url_for('messages')) }}" class="notification-action">Open message</a>
         {% elif notification.type == 'friend_request' and notification.friendship_status == 'pending' and notification.friendship_action_user_id != viewer.id %}
           <div class="notification-actions">
             <form action="{{ url_for('respond_friend_request') }}" method="post">

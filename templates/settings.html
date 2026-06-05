@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% set active_page = "settings" %}
-{% set show_highlights = True %}
+{% set show_highlights = False %}
 {% set title = "Edit Profile" %}
 
 {% block content %}
@@ -34,7 +34,7 @@
           <span>Username / Nickname</span>
           <div class="input-prefix-wrapper">
             <span class="input-prefix">@</span>
-            <input name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" value="{{ viewer.nickname or viewer.username }}" required>
+            <input name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" minlength="3" title="3-24 letters, numbers, or underscores." value="{{ viewer.nickname or viewer.username }}" required>
           </div>
           <small>3-24 letters, numbers, or underscores. Usernames are saved lowercase.</small>
         </label>
