@@ -209,6 +209,12 @@ def external_url_for(endpoint, base_env='APP_BASE_URL', **values):
     base_url = (os.getenv(base_env) or os.getenv('APP_BASE_URL') or '').strip().rstrip('/')
     path = url_for(endpoint, **values)
     if base_url:
+        configured_host = urlparse(base_url).hostname or ''
+        request_host = request.host.split(':', 1)[0]
+        configured_is_loopback = configured_host in {'127.0.0.1', 'localhost', '::1'}
+        request_is_loopback = request_host in {'127.0.0.1', 'localhost', '::1'}
+        if configured_is_loopback and not request_is_loopback:
+            return url_for(endpoint, _external=True, **values)
         return f"{base_url}{path}"
     return url_for(endpoint, _external=True, **values)
 

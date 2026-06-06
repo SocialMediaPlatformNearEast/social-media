@@ -270,6 +270,34 @@ class AppRouteTests(unittest.TestCase):
         credentials = fake.auth.calls[0]
         self.assertEqual(credentials["options"]["redirect_to"], "http://127.0.0.1:5050/auth/oauth/callback")
 
+    def test_oauth_start_ignores_loopback_redirect_base_on_public_host(self):
+        class FakeStorage:
+            def get_item(self, _key):
+                return "test-verifier"
+
+            def set_item(self, *_args):
+                return None
+
+        class FakeAuth:
+            def __init__(self):
+                self.calls = []
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+
+            def sign_in_with_oauth(self, credentials):
+                self.calls.append(credentials)
+                return SimpleNamespace(url="https://project.supabase.co/auth/v1/authorize?provider=google")
+
+        fake = SimpleNamespace(auth=FakeAuth())
+
+        with patch.object(zapp, "supabase", fake), \
+             patch.dict(os.environ, {"APP_BASE_URL": "http://127.0.0.1:5055", "OAUTH_REDIRECT_BASE_URL": "http://127.0.0.1:5050"}):
+            response = self.client.get("/auth/oauth/google", base_url="https://lvl.example.test")
+
+        self.assertEqual(response.status_code, 302)
+        credentials = fake.auth.calls[0]
+        self.assertEqual(credentials["options"]["redirect_to"], "https://lvl.example.test/auth/oauth/callback")
+
     def test_forgot_password_stores_hashed_reset_token_and_emails_link(self):
         class Result:
             def __init__(self, data=None):
