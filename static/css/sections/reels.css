@@ -852,10 +852,10 @@
 
   .reels-tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-column: 1;
     justify-content: stretch;
-    gap: 6px;
+    gap: 8px;
     overflow: hidden;
     scrollbar-width: none;
   }
@@ -866,7 +866,7 @@
 
   .reels-tab {
     min-width: 0;
-    padding: 8px 6px;
+    padding: 9px 10px;
     text-align: center;
     overflow: hidden;
     text-overflow: ellipsis;

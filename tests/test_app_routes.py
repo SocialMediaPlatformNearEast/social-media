@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -67,6 +68,67 @@ class AppRouteTests(unittest.TestCase):
         reel_9 = next(item for item in stacked if item["reel_id"] == 9)
         self.assertEqual(reel_9["stack_count"], 2)
         self.assertEqual(reel_9["actor_summary"], "Ada and Sam")
+
+    def test_app_defines_shared_dedupe_helpers_once(self):
+        source = inspect.getsource(zapp)
+
+        self.assertEqual(source.count("def dedupe_timeline_posts("), 1)
+        self.assertEqual(source.count("def create_notification("), 1)
+
+    def test_recent_duplicate_submission_queries_same_actor_text_and_window(self):
+        class Result:
+            data = [{"id": 99}]
+
+        class FakeTable:
+            def __init__(self):
+                self.calls = []
+
+            def select(self, columns):
+                self.calls.append(("select", columns))
+                return self
+
+            def eq(self, key, value):
+                self.calls.append(("eq", key, value))
+                return self
+
+            def gte(self, key, value):
+                self.calls.append(("gte", key, value))
+                return self
+
+            def limit(self, value):
+                self.calls.append(("limit", value))
+                return self
+
+            def execute(self):
+                return Result()
+
+        table = FakeTable()
+        fake_supabase = SimpleNamespace(table=lambda name: table)
+
+        with patch.object(zapp, "supabase", fake_supabase):
+            duplicate = zapp.recent_duplicate_submission(
+                "messages",
+                {"sender_id": 7, "receiver_id": 8},
+                "content",
+                "hello",
+            )
+
+        self.assertTrue(duplicate)
+        self.assertIn(("eq", "sender_id", 7), table.calls)
+        self.assertIn(("eq", "receiver_id", 8), table.calls)
+        self.assertIn(("eq", "content", "hello"), table.calls)
+        self.assertTrue(any(call[0] == "gte" and call[1] == "created_at" for call in table.calls))
+        self.assertIn(("limit", 1), table.calls)
+
+    def test_submit_script_locks_content_forms_without_native_fallback_duplicates(self):
+        script = Path("static/js/script.js").read_text()
+
+        self.assertIn("function lockSubmitForm(form, submitBtn)", script)
+        self.assertIn("composer.addEventListener('submit'", script)
+        self.assertIn("chatForm.dataset.submitting === '1'", script)
+        self.assertIn("commentForm.dataset.submitting === '1'", script)
+        self.assertNotIn("chatForm.submit();", script)
+        self.assertNotIn("commentForm.submit();", script)
 
     def test_login_requires_credentials(self):
         with patch.object(zapp, "supabase", object()):
@@ -760,6 +822,35 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn(f"const ASSET_VERSION = '{zapp.ASSET_VERSION}';", service_worker)
         self.assertIn("sections/activity.css", styles)
 
+    def test_mobile_settings_actions_stay_in_document_flow(self):
+        settings_css = Path("static/css/sections/settings.css").read_text()
+        mobile_settings_css = settings_css.split("@media (max-width: 720px)", 1)[1]
+        actions_rule = mobile_settings_css.split(".form-actions", 1)[1].split("}", 1)[0]
+
+        self.assertIn("position: static", actions_rule)
+        self.assertIn("margin: 0", actions_rule)
+        self.assertNotIn("position: sticky", actions_rule)
+        self.assertNotIn("margin-inline: -", actions_rule)
+
+    def test_settings_profile_color_control_labels_visible_effect(self):
+        settings_html = Path("templates/settings.html").read_text()
+        settings_css = Path("static/css/sections/settings.css").read_text()
+
+        self.assertIn("Profile banner color", settings_html)
+        self.assertIn("Changes the banner on your profile", settings_html)
+        self.assertIn("--profile-preview-color", settings_css)
+        self.assertNotIn("--lvl-white-10", settings_css)
+
+    def test_mobile_settings_profile_preview_avatar_clears_text(self):
+        settings_css = Path("static/css/sections/settings.css").read_text()
+        mobile_settings_css = settings_css.split("@media (max-width: 720px)", 1)[1]
+        preview_rule = mobile_settings_css.split(".settings-container .profile-preview-card", 1)[1].split("}", 1)[0]
+        name_rule = mobile_settings_css.split(".settings-container .profile-preview-card strong", 1)[1].split("}", 1)[0]
+
+        self.assertIn("padding: 146px 14px 14px", preview_rule)
+        self.assertIn("min-height: 270px", preview_rule)
+        self.assertIn("margin-top: 0", name_rule)
+
     def test_reels_script_keeps_sound_preference_for_session(self):
         script = Path("static/js/script.js").read_text()
 
@@ -964,7 +1055,8 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('Reels', html)
         self.assertIn('<aside class="left-rail menu-open">', html)
         self.assertNotIn('id="sidebar-toggle"', html)
-        self.assertIn('class="mobile-sidebar-toggle"', html)
+        self.assertNotIn('class="mobile-sidebar-toggle"', html)
+        self.assertIn('class="mobile-brand mobile-brand-logo-only" href="/" aria-label="Home"', html)
         self.assertIn('class="app-topbar topbar-search-only"', html)
         self.assertIn('topbar-search-only', html)
         self.assertIn('class="topbar-search"', html)
@@ -992,6 +1084,11 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('class="mobile-header-actions"', html)
         self.assertIn('class="nav-label sr-only"', html)
         self.assertIn('class="mobile-nav-label sr-only"', html)
+        self.assertIn('data-mobile-profile-trigger', html)
+        self.assertIn('data-mobile-account-menu', html)
+        self.assertIn('Switch account', html)
+        self.assertIn('Add account', html)
+        self.assertIn('Log out', html)
         mobile_nav = html.split('<nav class="mobile-bottom-nav"', 1)[1]
         self.assertNotIn('href="/messages"', mobile_nav)
         self.assertNotIn('href="/notifications"', mobile_nav)
@@ -1069,15 +1166,53 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("display: none", css)
         self.assertIn(".reels-header .compact-action", css)
         self.assertIn("display: none", css)
-        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", css)
+        self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr))", css)
         self.assertIn(".reels-header .compact-action", mobile_nav_css)
         self.assertIn("display: none", mobile_nav_css)
         self.assertNotIn("display: inline-flex", mobile_nav_css.split(".reels-header .compact-action", 1)[1].split("}", 1)[0])
+
+    def test_reels_header_only_shows_for_you_and_following_tabs(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        with zapp.app.test_request_context("/reels"):
+            html = zapp.render_template(
+                "reels.html",
+                viewer=viewer,
+                reels=[],
+                page=1,
+                has_next=False,
+                table_ready=True,
+                tab="for_you",
+                highlights=[],
+            )
+
+        tabs = html.split('<nav class="reels-tabs"', 1)[1].split("</nav>", 1)[0]
+        self.assertIn("For You", tabs)
+        self.assertIn("Following", tabs)
+        self.assertNotIn("Discovery", tabs)
+        self.assertNotIn("tab=discovery", tabs)
+
+    def test_reels_route_normalizes_removed_discovery_tab(self):
+        captured_context = {}
+
+        def fake_render(_template, **context):
+            captured_context.update(context)
+            return "ok"
+
+        with patch.object(zapp, "get_current_user", return_value={"id": 7, "username": "demo"}), \
+             patch.object(zapp, "get_reels", return_value=([], False)) as fake_get_reels, \
+             patch.object(zapp, "render_template", side_effect=fake_render):
+            response = self.client.get("/reels?tab=discovery")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(captured_context["tab"], "for_you")
+        self.assertEqual(fake_get_reels.call_args.kwargs["tab"], "for_you")
 
     def test_sidebar_labels_are_visible_only_when_menu_is_open(self):
         css = Path("static/css/sections/navigation.css").read_text()
         hardening_css = Path("static/css/sections/hardening.css").read_text()
         mobile_drawer_css = Path("static/css/sections/mobile-drawer.css").read_text()
+        mobile_navigation_css = Path("static/css/sections/mobile-navigation.css").read_text()
+        script = Path("static/js/script.js").read_text()
 
         self.assertIn(".left-rail:not(.menu-open) .nav-list a .sr-only", css)
         self.assertIn(".mobile-bottom-nav a .sr-only", css)
@@ -1090,8 +1225,14 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn(".left-rail.menu-open .mini-profile div", hardening_css)
         self.assertIn("display: flex !important", hardening_css)
         self.assertIn("text-overflow: ellipsis", hardening_css)
-        self.assertIn(".left-rail.menu-open:not(.mobile-menu-open)", mobile_drawer_css)
-        self.assertIn(".left-rail.mobile-menu-open", mobile_drawer_css)
+        self.assertIn(".left-rail.menu-open", mobile_drawer_css)
+        self.assertIn("display: none !important", mobile_drawer_css)
+        self.assertIn(".mobile-account-menu:not([hidden])", mobile_drawer_css)
+        self.assertIn("grid-template-columns: 40px minmax(0, 1fr) auto", mobile_navigation_css)
+        self.assertIn("data-mobile-profile-trigger", script)
+        self.assertIn("data-mobile-account-menu", script)
+        self.assertIn("setTimeout(openAccountMenu, 450)", script)
+        self.assertNotIn("mobile-sidebar-toggle", script)
 
     def test_community_highlights_badges_and_profile_hover_are_guarded(self):
         css = Path("static/css/sections/community-highlights.css").read_text()
@@ -1279,6 +1420,10 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("First Post", html)
         self.assertIn('href="/activity"', html)
         self.assertIn(">Activity</a>", html)
+        self.assertIn('href="/settings"', html)
+        self.assertIn(">Settings</a>", html)
+        self.assertIn('href="/level-guide"', html)
+        self.assertIn(">LvL Guide</a>", html)
 
     def test_other_profile_has_high_five_action(self):
         viewer = {
@@ -1408,6 +1553,17 @@ class AppRouteTests(unittest.TestCase):
             response = self.client.post("/create_post", data={"csrf_token": self.csrf(), "content": ""})
         self.assertEqual(response.status_code, 302)
 
+    def test_create_post_suppresses_rapid_duplicate_text(self):
+        fake_user = {"id": 7, "username": "demo", "profile_photo_url": ""}
+        with patch.object(zapp, "get_current_user", return_value=fake_user), \
+             patch.object(zapp, "interaction_blocked", return_value=False), \
+             patch.object(zapp, "recent_duplicate_submission", return_value=True), \
+             patch.object(zapp, "supabase") as fake_supabase:
+            response = self.client.post("/create_post", data={"csrf_token": self.csrf(), "content": "same"})
+
+        self.assertEqual(response.status_code, 302)
+        fake_supabase.table.assert_not_called()
+
     def test_create_post_accepts_image_only(self):
         class FakePostsTable:
             def __init__(self):
@@ -1457,6 +1613,239 @@ class AppRouteTests(unittest.TestCase):
             })
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"You cannot send a message to yourself", response.data)
+
+    def test_send_message_suppresses_rapid_duplicate_ajax(self):
+        fake_user = {"id": 7, "username": "demo", "profile_photo_url": ""}
+        with patch.object(zapp, "get_current_user", return_value=fake_user), \
+             patch.object(zapp, "interaction_blocked", return_value=False), \
+             patch.object(zapp, "recent_duplicate_submission", return_value=True), \
+             patch.object(zapp, "supabase") as fake_supabase:
+            response = self.client.post("/send_message", data={
+                "csrf_token": self.csrf(),
+                "receiver_id": "8",
+                "content": "hello",
+                "ajax": "1",
+            })
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn(b"Already sent.", response.data)
+        fake_supabase.table.assert_not_called()
+
+    def test_share_post_blocks_safety_hidden_recipients(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, db, name):
+                self.db = db
+                self.name = name
+                self.action = None
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.action = "select"
+                return self
+
+            def insert(self, payload):
+                self.action = "insert"
+                self.payload = payload
+                return self
+
+            def neq(self, *_args):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def range(self, *_args):
+                return self
+
+            def execute(self):
+                if self.name == "messages" and self.action == "insert":
+                    self.db.message_payloads.append(self.payload)
+                    return Result([{"id": 1}])
+                if self.name == "users":
+                    return Result([
+                        {"id": 8, "username": "blocked", "display_name": "Blocked User"},
+                        {"id": 9, "username": "open", "display_name": "Open User"},
+                    ])
+                return Result()
+
+        class FakeSupabase:
+            def __init__(self):
+                self.message_payloads = []
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        fake = FakeSupabase()
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+
+        with zapp.app.test_request_context("/share_post/42", method="POST", data={"target_user_id": "8"}), \
+             patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "supabase", fake), \
+             patch.object(zapp, "interaction_blocked", side_effect=lambda _viewer_id, target_id: target_id == 8):
+            response = zapp.share_post(42)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(fake.message_payloads, [])
+
+        rendered = {}
+        with zapp.app.test_request_context("/share_post/42"), \
+             patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "supabase", fake), \
+             patch.object(zapp, "filter_blocked_users", return_value=[{"id": 9, "username": "open", "display_name": "Open User"}]) as filter_users, \
+             patch.object(zapp, "render_template", side_effect=lambda _template, **context: rendered.update(context) or "OK"):
+            self.assertEqual(zapp.share_post(42), "OK")
+
+        filter_users.assert_called_once()
+        self.assertEqual([user["id"] for user in rendered["users"]], [9])
+
+    def test_onboarding_skips_blocked_follow_ids(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, db, name):
+                self.db = db
+                self.name = name
+                self.action = None
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.action = "select"
+                return self
+
+            def update(self, payload):
+                self.action = "update"
+                self.payload = payload
+                return self
+
+            def insert(self, payload):
+                self.action = "insert"
+                self.payload = payload
+                return self
+
+            def eq(self, key, value):
+                self.db.filters.append((self.name, key, value))
+                return self
+
+            def execute(self):
+                if self.name == "follows" and self.action == "insert":
+                    self.db.follow_payloads.append(self.payload)
+                return Result()
+
+        class FakeSupabase:
+            def __init__(self):
+                self.filters = []
+                self.follow_payloads = []
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        fake = FakeSupabase()
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+
+        with zapp.app.test_request_context("/onboarding", method="POST", data={"follow_ids": ["8", "9"]}), \
+             patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "supabase", fake), \
+             patch.object(zapp, "interaction_blocked", side_effect=lambda _viewer_id, target_id: target_id == 8):
+            response = zapp.onboarding()
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(fake.follow_payloads, [{"follower_id": 7, "following_id": 9}])
+
+    def test_blocked_profile_hides_stats_and_activity(self):
+        class Result:
+            def __init__(self, data=None, count=0):
+                self.data = data or []
+                self.count = count
+
+        class FakeTable:
+            def __init__(self, name):
+                self.name = name
+
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def is_(self, *_args):
+                return self
+
+            def execute(self):
+                if self.name == "users":
+                    return Result([{
+                        "id": 8,
+                        "username": "blocked",
+                        "display_name": "Blocked User",
+                        "profile_photo_url": "",
+                        "theme_color": "#1D9BF0",
+                        "avatar_color": "#1D9BF0",
+                        "badge_color": "#71767B",
+                        "level": 2,
+                        "total_xp": 120,
+                        "bio": "",
+                        "location": "",
+                        "website": "",
+                        "gender": "Male",
+                        "created_at": "2026-05-14T00:00:00+00:00",
+                    }])
+                return Result(count=99)
+
+        class FakeSupabase:
+            def table(self, name):
+                return FakeTable(name)
+
+        viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}
+        rendered = {}
+
+        with zapp.app.test_request_context("/profile/blocked"), \
+             patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "supabase", FakeSupabase()), \
+             patch.object(zapp, "get_user_safety_state", return_value={"blocked": False, "muted": False, "blocked_by": True, "interaction_blocked": True}), \
+             patch.object(zapp, "get_profile_posts", return_value=[self.sample_post()]), \
+             patch.object(zapp, "get_pair_streak_status", return_value={"count": 0, "is_friend": False, "days_until_friend": 7}), \
+             patch.object(zapp, "get_streak_friend_ids", return_value=({}, [1, 2])), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "render_template", side_effect=lambda _template, **context: rendered.update(context) or "OK"):
+            self.assertEqual(zapp.profile("blocked"), "OK")
+
+        self.assertEqual(rendered["posts"], [])
+        self.assertEqual(rendered["stats"], {"following": 0, "followers": 0, "friends": 0, "posts": 0, "comments": 0})
+
+    def test_community_members_filters_blocked_users(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def order(self, *_args, **_kwargs):
+                return self
+
+            def limit(self, *_args):
+                return self
+
+            def execute(self):
+                return Result([
+                    {"user_id": 8, "user": {"id": 8, "username": "blocked"}},
+                    {"user_id": 9, "user": {"id": 9, "username": "open"}},
+                ])
+
+        with patch.object(zapp, "supabase", SimpleNamespace(table=lambda _name: FakeTable())), \
+             patch.object(zapp, "blocked_user_ids_for_viewer", return_value={8}):
+            members = zapp.get_community_members(1, viewer_id=7)
+
+        self.assertEqual([member["user"]["id"] for member in members], [9])
 
     def test_messages_template_includes_message_delete_controls(self):
         viewer = {"id": 7, "username": "viewer", "display_name": "Viewer", "profile_photo_url": ""}

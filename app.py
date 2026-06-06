@@ -2,7 +2,7 @@ import os
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
@@ -57,7 +57,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "79"
+ASSET_VERSION = "86"
 
 GENDER_OPTIONS = GENDER_THEME
 SUPABASE_SOCIAL_PROVIDERS = [
@@ -619,7 +619,7 @@ def award_xp(user_id, event_type, points, event_key=''):
     try:
         today = datetime.now().strftime('%Y-%m-%d')
         event_key = str(event_key)[:120] if event_key else today
-        
+
         supabase.table('xp_events').insert({
             'user_id': user_id,
             'event_type': event_type,
@@ -627,7 +627,7 @@ def award_xp(user_id, event_type, points, event_key=''):
             'points': points,
             'reward_date': today
         }).execute()
-        
+
         user_res = supabase.table('users').select('total_xp', 'level').eq('id', user_id).execute()
         if user_res.data:
             user = user_res.data[0]
@@ -635,14 +635,14 @@ def award_xp(user_id, event_type, points, event_key=''):
             new_level = level_for_xp(new_total)
             badge_color = badge_color_for_level(new_level)
             title = activity_title_for_level(new_level)
-            
+
             supabase.table('users').update({
                 'total_xp': new_total,
                 'level': new_level,
                 'badge_color': badge_color,
                 'activity_title': title
             }).eq('id', user_id).execute()
-            
+
             if new_level > user['level']:
                 flash(f"Level up! You reached LvL {new_level}.", "success")
     except Exception:
@@ -1062,10 +1062,10 @@ def enrich_posts(posts, viewer_id):
     post_ids = [p['id'] for p in posts]
     author_ids = {p.get('user_id') or (p.get('user') or {}).get('id') for p in posts}
     author_ids = {author_id for author_id in author_ids if author_id and author_id != viewer_id}
-    
+
     likes_res = supabase.table('likes').select('post_id').eq('user_id', viewer_id).in_('post_id', post_ids).execute()
     viewer_liked_ids = {l['post_id'] for l in likes_res.data} if likes_res.data else set()
-    
+
     reposts_res = supabase.table('reposts').select('post_id').eq('user_id', viewer_id).in_('post_id', post_ids).execute()
     viewer_reposted_ids = {r['post_id'] for r in reposts_res.data} if reposts_res.data else set()
 
@@ -1086,44 +1086,6 @@ def enrich_posts(posts, viewer_id):
         p['viewer_reposted'] = p['id'] in viewer_reposted_ids
         p['author_followed'] = author_id in followed_author_ids
     return posts
-
-def dedupe_timeline_posts(posts):
-    unique = []
-    seen_ids = set()
-    for post in posts:
-        post_id = post.get('id')
-        if not post_id:
-            unique.append(post)
-            continue
-        if post_id in seen_ids:
-            continue
-        seen_ids.add(post_id)
-        unique.append(post)
-    return unique
-
-def create_notification(user_id, actor_id, notif_type, post_id=None, reel_id=None, message_id=None):
-    if not user_id or not actor_id or user_id == actor_id:
-        return
-    if interaction_blocked(actor_id, user_id):
-        return
-    payload = {
-        'user_id': user_id,
-        'actor_id': actor_id,
-        'type': notif_type,
-    }
-    if post_id:
-        payload['post_id'] = post_id
-    if reel_id:
-        payload['reel_id'] = reel_id
-    if message_id:
-        payload['message_id'] = message_id
-    try:
-        supabase.table('notifications').insert(payload).execute()
-    except Exception:
-        if not reel_id:
-            raise
-        payload.pop('reel_id', None)
-        supabase.table('notifications').insert(payload).execute()
 
 def mark_following_state(users, viewer_id):
     if not users:
@@ -1177,6 +1139,19 @@ def get_following_feed_posts(viewer_id, limit=POSTS_PER_PAGE, page=1):
     posts_res = supabase.table('posts').select(POST_SELECT_QUERY).in_('user_id', following_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + limit - 1).execute()
     posts = posts_res.data if posts_res and posts_res.data else []
     return rank_timeline_posts(enrich_posts(visible_post_filter(posts, viewer_id), viewer_id), relationship_user_ids=following_ids)[:limit]
+
+DUPLICATE_SUBMISSION_WINDOW = timedelta(seconds=12)
+
+def recent_duplicate_submission(table_name, filters, text_field, text_value):
+    text_value = (text_value or '').strip()
+    if not supabase or not text_value:
+        return False
+    cutoff = (datetime.now(timezone.utc) - DUPLICATE_SUBMISSION_WINDOW).isoformat()
+    query = supabase.table(table_name).select('id').eq(text_field, text_value).gte('created_at', cutoff)
+    for key, value in filters.items():
+        query = query.eq(key, value)
+    res = query.limit(1).execute()
+    return bool(res and res.data)
 
 def dedupe_timeline_posts(posts):
     deduped = []
@@ -1459,10 +1434,21 @@ def get_community_posts(community_id, viewer_id, limit=20):
     except Exception:
         return []
 
-def get_community_members(community_id, limit=8):
+def get_community_members(community_id, limit=8, viewer_id=None):
     try:
         res = supabase.table('community_members').select('*, user:users!community_members_user_id_fkey(*)').eq('community_id', community_id).order('created_at', desc=True).limit(limit).execute()
-        return apply_forced_user_levels(res.data if res and res.data else [])
+        members = apply_forced_user_levels(res.data if res and res.data else [])
+        if viewer_id:
+            member_user_ids = [
+                row.get('user_id') or (row.get('user') or {}).get('id')
+                for row in members
+            ]
+            hidden_ids = blocked_user_ids_for_viewer(viewer_id, member_user_ids, include_mutes=False)
+            members = [
+                row for row in members
+                if (row.get('user_id') or (row.get('user') or {}).get('id')) not in hidden_ids
+            ]
+        return members
     except Exception:
         return []
 
@@ -1962,11 +1948,11 @@ def index():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-    
+
     feed_mode = request.args.get('feed', 'all')
     page = parse_positive_int(request.args.get('page'), default=1, maximum=500)
     highlights = get_community_highlights()
-    
+
     try:
         if feed_mode == 'following':
             posts = get_following_feed_posts(viewer['id'], page=page)
@@ -1995,7 +1981,7 @@ def reels():
 
     page = parse_positive_int(request.args.get('page'), default=1, maximum=500)
     tab = request.args.get('tab', 'for_you')
-    if tab not in {'for_you', 'following', 'discovery'}:
+    if tab not in {'for_you', 'following'}:
         tab = 'for_you'
     table_ready = True
     try:
@@ -2157,6 +2143,12 @@ def add_reel_comment(reel_id):
             if wants_json:
                 return jsonify({'success': False, 'error': 'Comment cannot exceed 280 characters.'}), 400
             flash("Comment cannot exceed 280 characters.", "error")
+        elif recent_duplicate_submission('reel_comments', {'reel_id': reel_id, 'user_id': viewer['id']}, 'comment', comment):
+            if wants_json:
+                count_res = supabase.table('reel_comments').select('reel_id', count='exact').eq('reel_id', reel_id).is_('deleted_at', 'null').execute()
+                count = count_res.count if count_res else 0
+                return jsonify({'success': False, 'error': 'Already commented.', 'count': count}), 409
+            flash("Already commented.", "info")
         else:
             res = supabase.table('reel_comments').insert({
                 'reel_id': reel_id,
@@ -2232,21 +2224,21 @@ def api_reel_comments(reel_id):
 def send_verification_email(to_email, first_name, token):
     sender_email = os.getenv("MAIL_USERNAME")
     sender_password = os.getenv("MAIL_PASSWORD")
-    
+
     if not sender_email or not sender_password:
         app.logger.warning("Email credentials missing. Cannot send verification email.")
         return False
-        
+
     try:
         verify_url = url_for('verify_email', token=token, _external=True)
     except Exception:
         verify_url = f"http://127.0.0.1:5000/verify/{token}"
-    
+
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = to_email
     msg['Subject'] = "Welcome to LvL! Verify your email to start leveling up"
-    
+
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px; text-align: center;">
@@ -2259,9 +2251,9 @@ def send_verification_email(to_email, first_name, token):
     </body>
     </html>
     """
-    
+
     msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-    
+
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
@@ -2469,9 +2461,9 @@ def auth():
         if not supabase:
             flash("Database connection error.", "error")
             return render_template('auth.html')
-            
+
         action = request.form.get('action')
-        
+
         if action == 'login':
             username = request.form.get('username', '')
             password = request.form.get('password', '')
@@ -2481,12 +2473,12 @@ def auth():
             if login_is_limited(username):
                 flash("Too many failed login attempts. Wait a few minutes and try again.", "error")
                 return render_template('auth.html')
-                
+
             try:
                 res = supabase.table('users').select('*').eq('username', username.lower()).execute()
                 if not res.data:
                     res = supabase.table('users').select('*').eq('email', username.lower()).execute()
-                    
+
                 if res.data:
                     user = res.data[0]
                     if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
@@ -2498,7 +2490,7 @@ def auth():
                 flash("Invalid username or password.", "error")
             except Exception as e:
                 flash(handle_db_error(e, "An error occurred during login."), "error")
-            
+
         elif action == 'register':
             first_name = request.form.get('first_name', '').strip()
             last_name = request.form.get('last_name', '').strip()
@@ -2507,15 +2499,15 @@ def auth():
             password = request.form.get('password', '')
             gender = normalize_gender(request.form.get('gender', ''))
             birthday = request.form.get('birthday', '').strip()
-            
+
             if not all([first_name, last_name, nickname, email, password, gender]):
                 flash("All fields are required.", "error")
                 return render_template('auth.html')
-                
+
             if len(password) < 8:
                 flash("Password must be at least 8 characters.", "error")
                 return render_template('auth.html')
-                
+
             if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
                 flash("Username must be 3-24 characters: letters, numbers, or underscores only.", "error")
                 return render_template('auth.html')
@@ -2524,7 +2516,7 @@ def auth():
             if birthday_error:
                 flash(birthday_error, "error")
                 return render_template('auth.html')
-            
+
             hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
             defaults = gender_defaults(gender)
 
@@ -2552,7 +2544,7 @@ def auth():
                     return redirect(url_for('index'))
             except Exception as e:
                 flash(handle_db_error(e), "error")
-    
+
     return render_template('auth.html')
 
 @app.route('/logout')
@@ -2565,7 +2557,7 @@ def create_post():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     content = request.form.get('content', '').strip()
     image_url = None
     if request.files.get('image'):
@@ -2578,6 +2570,8 @@ def create_post():
     if content or image_url:
         if len(content) > 280:
             flash("Post cannot exceed 280 characters.", "error")
+        elif content and not image_url and recent_duplicate_submission('posts', {'user_id': viewer['id']}, 'content', content):
+            flash("Already posted.", "info")
         else:
             try:
                 payload = {
@@ -2594,7 +2588,7 @@ def create_post():
                 flash(handle_db_error(e), "error")
     else:
         flash("Post content cannot be empty.", "error")
-        
+
     return redirect(url_for('index'))
 
 @app.route('/community/<slug>/post', methods=['POST'])
@@ -2638,6 +2632,9 @@ def create_community_post(slug):
 
     try:
         if content or image_url:
+            if content and not image_url and recent_duplicate_submission('posts', {'user_id': viewer['id']}, 'content', content):
+                flash("Already posted.", "info")
+                return redirect(url_for('community_detail', slug=slug))
             payload = {
                 'user_id': viewer['id'],
                 'content': content
@@ -2700,28 +2697,35 @@ def share_post(post_id):
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     if request.method == 'POST':
-        target_id = request.form.get('target_user_id')
+        target_id = parse_int(request.form.get('target_user_id'))
         if target_id:
+            if target_id == viewer['id']:
+                flash("Choose someone else to share with.", "error")
+                return redirect(url_for('share_post', post_id=post_id))
+            if interaction_blocked(viewer['id'], target_id):
+                flash("You cannot share posts with this user.", "error")
+                return redirect(url_for('share_post', post_id=post_id))
             try:
                 post_url = url_for('post', id=post_id, _external=True)
                 supabase.table('messages').insert({
                     'sender_id': viewer['id'],
-                    'receiver_id': int(target_id),
+                    'receiver_id': target_id,
                     'content': f"Check out this post: {post_url}"
                 }).execute()
                 flash("Post shared via DM!", "success")
                 return redirect(url_for('index'))
             except Exception as e:
                 flash(handle_db_error(e, "Could not share post."), "error")
-                
+
     try:
         all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
         users = apply_forced_user_levels(all_users_res.data if all_users_res.data else [])
+        users = filter_blocked_users(users, viewer['id'], include_mutes=False)
     except Exception:
         users = []
-        
+
     return render_template('share_post.html', viewer=viewer, users=users, post_id=post_id)
 
 @app.route('/add_comment', methods=['POST'])
@@ -2751,6 +2755,9 @@ def add_comment():
         if interaction_blocked(viewer['id'], post_res.data[0]['user_id']):
             flash("You cannot interact with this user.", "error")
             return redirect(url_for('index'))
+        if recent_duplicate_submission('comments', {'post_id': post_id, 'user_id': viewer['id']}, 'comment', comment):
+            flash("Already commented.", "info")
+            return redirect(url_for('post', id=post_id))
 
         res = supabase.table('comments').insert({
             'post_id': post_id,
@@ -2777,7 +2784,7 @@ def toggle_like():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     post_id = request.form.get('post_id')
     liked = False
     count = 0
@@ -2821,7 +2828,7 @@ def toggle_repost():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     post_id = request.form.get('post_id')
     reposted = False
     count = 0
@@ -2864,7 +2871,7 @@ def toggle_follow():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     target_id = request.form.get('target_id')
     following = False
     try:
@@ -2894,7 +2901,7 @@ def toggle_follow():
 
     if request.form.get('ajax') == '1':
         return jsonify({'success': True, 'following': following})
-            
+
     return redirect(safe_redirect_url())
 
 @app.route('/request_friend', methods=['POST'])
@@ -2916,7 +2923,7 @@ def respond_friend_request():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     target_id = request.form.get('target_id')
     decision = request.form.get('decision')
     target_user_id = parse_int(target_id)
@@ -2941,7 +2948,7 @@ def respond_friend_request():
                 flash("Friend request declined.", "success")
         except Exception as e:
             flash(handle_db_error(e), "error")
-            
+
     return redirect(url_for('notifications'))
 
 @app.route('/send_message', methods=['POST'])
@@ -2949,11 +2956,11 @@ def send_message():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     receiver_id = parse_int(request.form.get('receiver_id'))
     content = request.form.get('content', '').strip()
     redirect_url = safe_redirect_url(request.form.get('redirect'), 'messages')
-    
+
     if receiver_id and receiver_id != viewer['id'] and content:
         if len(content) > 1000:
             if request.form.get('ajax') == '1':
@@ -2965,6 +2972,10 @@ def send_message():
             if request.form.get('ajax') == '1':
                 return jsonify({'success': False, 'error': message}), 403
             flash(message, "error")
+        elif recent_duplicate_submission('messages', {'sender_id': viewer['id'], 'receiver_id': receiver_id}, 'content', content):
+            if request.form.get('ajax') == '1':
+                return jsonify({'success': False, 'error': 'Already sent.'}), 409
+            flash("Already sent.", "info")
         else:
             try:
                 recipient = supabase.table('users').select('id').eq('id', receiver_id).execute()
@@ -2991,7 +3002,7 @@ def send_message():
 
     if request.form.get('ajax') == '1':
         return jsonify({'success': False, 'error': 'Message content cannot be empty.'}), 400
-                
+
     return redirect(redirect_url)
 
 @app.route('/delete_message', methods=['POST'])
@@ -3081,7 +3092,7 @@ def settings():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'update_profile':
@@ -3096,7 +3107,7 @@ def settings():
             requested_profile_color = normalize_hex_color(request.form.get('profile_pic'), viewer.get('theme_color') or viewer.get('avatar_color') or THEME_COLORS['muted'])
             profile_pic = requested_profile_color if profile_color_unlocked(viewer.get('level')) else THEME_COLORS['muted']
             remove_profile_photo = request.form.get('remove_profile_photo') == '1'
-            
+
             if not all([first_name, last_name, nickname, gender]):
                 flash("First name, last name, and username are required.", "error")
                 return redirect(url_for('settings'))
@@ -3117,7 +3128,7 @@ def settings():
             if birthday_error:
                 flash(birthday_error, "error")
                 return redirect(url_for('settings'))
-                
+
             try:
                 defaults = gender_defaults(gender)
                 updates = {
@@ -3144,13 +3155,13 @@ def settings():
                 if uploaded_profile_url:
                     updates['profile_photo_url'] = uploaded_profile_url
                 updates['birthday'] = birthday_value.isoformat() if birthday_value else None
-                    
+
                 supabase.table('users').update(updates).eq('id', viewer['id']).execute()
                 flash("Profile updated.", "success")
                 return redirect(url_for('profile', username=nickname))
             except Exception as e:
                 flash(handle_db_error(e), "error")
-                
+
     return render_template('settings.html', viewer=viewer)
 
 @app.route('/delete_account', methods=['POST'])
@@ -3198,6 +3209,7 @@ def onboarding():
         interests = ', '.join(request.form.getlist('interests')[:5])
         follow_ids = [parse_int(value) for value in request.form.getlist('follow_ids')]
         follow_ids = [value for value in follow_ids if value and value != viewer['id']]
+        follow_ids = [value for value in follow_ids if not interaction_blocked(viewer['id'], value)]
 
         try:
             updates = {
@@ -3221,6 +3233,7 @@ def onboarding():
     try:
         suggested_res = supabase.table('users').select('*').neq('id', viewer['id']).order('level', desc=True).limit(6).execute()
         suggested_users = merge_forced_level_users(suggested_res.data if suggested_res and suggested_res.data else [], limit=6)
+        suggested_users = filter_blocked_users(suggested_users, viewer['id'], include_mutes=False)
     except Exception:
         suggested_users = []
 
@@ -3265,59 +3278,64 @@ def profile(username):
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     mode = request.args.get('m', 'posts')
     page = parse_positive_int(request.args.get('page'), default=1, maximum=500)
     highlights = get_community_highlights()
-    
+
     try:
         res = supabase.table('users').select('*').eq('username', username).execute()
         if not res.data:
             return "Profile not found.", 404
-            
+
         profile_user = apply_forced_user_levels(res.data[0])
         is_own_profile = viewer['id'] == profile_user['id']
         safety_state = get_user_safety_state(viewer['id'], profile_user['id'])
-        
+        profile_hidden_by_safety = safety_state.get('interaction_blocked') and not is_own_profile
+
         is_following = False
         friend_status = None
         friend_action_user_id = None
         streak_status = get_pair_streak_status(viewer['id'], profile_user['id'])
-        
-        if not is_own_profile:
+
+        if not is_own_profile and not profile_hidden_by_safety:
             follow_res = supabase.table('follows').select('*').eq('follower_id', viewer['id']).eq('following_id', profile_user['id']).execute()
             is_following = len(follow_res.data) > 0
-                
-        posts_count = supabase.table('posts').select('id', count='exact').eq('user_id', profile_user['id']).is_('deleted_at', 'null').execute()
-        comments_count = supabase.table('comments').select('id', count='exact').eq('user_id', profile_user['id']).execute()
-        followers_count = supabase.table('follows').select('id', count='exact').eq('following_id', profile_user['id']).execute()
-        following_count = supabase.table('follows').select('id', count='exact').eq('follower_id', profile_user['id']).execute()
-        _, streak_friend_ids = get_streak_friend_ids(profile_user['id'])
-        
-        stats = {
-            'following': following_count.count if following_count else 0, 
-            'followers': followers_count.count if followers_count else 0, 
-            'friends': len(streak_friend_ids),
-            'posts': posts_count.count if posts_count else 0, 
-            'comments': comments_count.count if comments_count else 0
-        }
-        
-        select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
-        if mode == 'liked':
-            likes_res = supabase.table('likes').select('post_id').eq('user_id', profile_user['id']).execute()
-            liked_post_ids = [l['post_id'] for l in likes_res.data] if likes_res.data else []
-            if liked_post_ids:
-                offset = (page - 1) * POSTS_PER_PAGE
-                posts_res = supabase.table('posts').select(select_query).in_('id', liked_post_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + POSTS_PER_PAGE - 1).execute()
-                posts = posts_res.data if posts_res and posts_res.data else []
-            else:
-                posts = []
+
+        if profile_hidden_by_safety:
+            stats = {'following': 0, 'followers': 0, 'friends': 0, 'posts': 0, 'comments': 0}
+            posts = []
         else:
-            posts = get_profile_posts(profile_user, viewer['id'], page=page)
+            posts_count = supabase.table('posts').select('id', count='exact').eq('user_id', profile_user['id']).is_('deleted_at', 'null').execute()
+            comments_count = supabase.table('comments').select('id', count='exact').eq('user_id', profile_user['id']).execute()
+            followers_count = supabase.table('follows').select('id', count='exact').eq('following_id', profile_user['id']).execute()
+            following_count = supabase.table('follows').select('id', count='exact').eq('follower_id', profile_user['id']).execute()
+            _, streak_friend_ids = get_streak_friend_ids(profile_user['id'])
+
+            stats = {
+                'following': following_count.count if following_count else 0,
+                'followers': followers_count.count if followers_count else 0,
+                'friends': len(streak_friend_ids),
+                'posts': posts_count.count if posts_count else 0,
+                'comments': comments_count.count if comments_count else 0
+            }
+
+            select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
+            if mode == 'liked':
+                likes_res = supabase.table('likes').select('post_id').eq('user_id', profile_user['id']).execute()
+                liked_post_ids = [l['post_id'] for l in likes_res.data] if likes_res.data else []
+                if liked_post_ids:
+                    offset = (page - 1) * POSTS_PER_PAGE
+                    posts_res = supabase.table('posts').select(select_query).in_('id', liked_post_ids).is_('deleted_at', 'null').order('created_at', desc=True).range(offset, offset + POSTS_PER_PAGE - 1).execute()
+                    posts = visible_post_filter(posts_res.data if posts_res and posts_res.data else [], viewer['id'])
+                else:
+                    posts = []
+            else:
+                posts = get_profile_posts(profile_user, viewer['id'], page=page)
 
         if mode == 'liked':
             posts = enrich_posts(posts, viewer['id'])
-        
+
         level = max(1, profile_user.get('level', 1))
         profile_banner = profile_banner_for_level(level)
         total_xp = profile_user.get('total_xp', 0)
@@ -3326,14 +3344,14 @@ def profile(username):
         progress = min(100, max(0, ((total_xp - current_xp_req) / max(1, next_xp_req - current_xp_req)) * 100))
         achievements = profile_achievements(profile_user, stats)
         summary = achievement_summary(achievements)
-            
+
     except Exception as e:
         flash(handle_db_error(e), "error")
         return redirect(url_for('index'))
-        
-    return render_template('profile.html', 
-                           viewer=viewer, 
-                           profile=profile_user, 
+
+    return render_template('profile.html',
+                           viewer=viewer,
+                           profile=profile_user,
                            is_own_profile=is_own_profile,
                            is_following=is_following,
                            friend_status=friend_status,
@@ -3483,7 +3501,7 @@ def attach_shared_posts(messages_list):
         match = re.search(r'/post/(\d+)', msg.get('content', ''))
         if match:
             post_ids.append(int(match.group(1)))
-    
+
     if post_ids:
         try:
             p_res = supabase.table('posts').select('*, user:users!posts_user_id_fkey(*)').in_('id', list(set(post_ids))).execute()
@@ -3502,12 +3520,12 @@ def messages():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     target_username = request.args.get('u', '')
     target_user = None
     chat_safety_state = {'blocked': False, 'blocked_by': False, 'interaction_blocked': False}
     messages_list = []
-    
+
     try:
         if target_username:
             res = supabase.table('users').select('*').eq('username', target_username).execute()
@@ -3522,7 +3540,7 @@ def messages():
                     messages_list = msg_res.data if msg_res.data else []
                     messages_list = attach_shared_posts(messages_list)
                     supabase.table('messages').update({'is_read': True}).eq('sender_id', target_user['id']).eq('receiver_id', viewer['id']).execute()
-                
+
         all_users_res = supabase.table('users').select('*').neq('id', viewer['id']).order('display_name').range(0, 999).execute()
         all_users_raw = apply_forced_user_levels(all_users_res.data if all_users_res.data else [])
         all_users = filter_blocked_users(all_users_raw, viewer['id'], include_mutes=False)
@@ -3629,7 +3647,7 @@ def notifications():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     try:
         notif_res = supabase.table('notifications').select('*, actor:users!actor_id(*)').eq('user_id', viewer['id']).order('created_at', desc=True).limit(50).execute()
         raw_notifications = apply_forced_user_levels(notif_res.data if notif_res and notif_res.data else [])
@@ -3672,11 +3690,11 @@ def notifications():
 
         if any(not item.get('is_read') for item in formatted):
             supabase.table('notifications').update({'is_read': True}).eq('user_id', viewer['id']).eq('is_read', False).execute()
-            
+
     except Exception as e:
         flash(handle_db_error(e), "error")
         formatted = []
-        
+
     return render_template('notifications.html', viewer=viewer, notifications=formatted)
 
 @app.route('/community')
@@ -3766,7 +3784,7 @@ def community_detail(slug):
     membership = get_viewer_membership(community_item['id'], viewer['id'])
     is_admin = community_item.get('owner_id') == viewer['id'] or (membership and membership.get('role') == 'admin')
     posts = get_community_posts(community_item['id'], viewer['id'])
-    members = get_community_members(community_item['id'])
+    members = get_community_members(community_item['id'], viewer_id=viewer['id'])
 
     return render_template('community_detail.html',
                            viewer=viewer,
@@ -3866,17 +3884,17 @@ def search():
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     query = request.args.get('q', '').strip()
     tab = request.args.get('f', 'top')
     page = parse_positive_int(request.args.get('page'), default=1, maximum=500)
-    
+
     users = []
     posts = []
     suggested_users = []
     recent_posts = []
     highlights = get_community_highlights()
-    
+
     try:
         select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
         if query:
@@ -3899,12 +3917,12 @@ def search():
             recent_posts = discovery['recent_posts']
     except Exception as e:
         flash(handle_db_error(e), "error")
-        
-    return render_template('search.html', 
-                           viewer=viewer, 
-                           query=query, 
-                           tab=tab, 
-                           users=users, 
+
+    return render_template('search.html',
+                           viewer=viewer,
+                           query=query,
+                           tab=tab,
+                           users=users,
                            posts=posts,
                            suggested_users=suggested_users,
                            recent_posts=recent_posts,
@@ -3917,7 +3935,7 @@ def post(id):
     viewer = get_current_user()
     if not viewer:
         return redirect(url_for('auth'))
-        
+
     try:
         select_query = '*, user:users!posts_user_id_fkey(*), likes(count), comments(count), reposts(count)'
         post_res = supabase.table('posts').select(select_query).eq('id', id).is_('deleted_at', 'null').execute()

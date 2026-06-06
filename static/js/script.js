@@ -16,6 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
     initReelsFeed();
     initReelUploadPreview();
 
+    function lockSubmitForm(form, submitBtn) {
+        if (!form || form.dataset.submitting === '1') return false;
+        form.dataset.submitting = '1';
+        if (submitBtn) submitBtn.disabled = true;
+        return true;
+    }
+
+    function unlockSubmitForm(form, submitBtn) {
+        if (!form) return;
+        delete form.dataset.submitting;
+        if (submitBtn) submitBtn.disabled = false;
+    }
+
     // Auth Tabs Logic
     const authTabs = document.querySelectorAll('[data-auth-tab]');
     const authPanels = document.querySelectorAll('[data-auth-panel]');
@@ -32,6 +45,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const panel = document.querySelector(`[data-auth-panel="${targetPanel}"]`);
             if (panel) {
                 panel.classList.add('active');
+            }
+        });
+    });
+
+    document.querySelectorAll('.auth-form, .premium-form').forEach((form) => {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        form.addEventListener('submit', (event) => {
+            if (submitBtn && submitBtn.disabled) {
+                event.preventDefault();
+                return;
+            }
+            if (!lockSubmitForm(form, submitBtn)) {
+                event.preventDefault();
             }
         });
     });
@@ -115,6 +141,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (clearImageBtn) {
                 clearImageBtn.addEventListener('click', clearImagePreview);
             }
+            composer.addEventListener('submit', (event) => {
+                if (submitBtn && submitBtn.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+                if (!lockSubmitForm(composer, submitBtn)) {
+                    event.preventDefault();
+                }
+            });
             // trigger on load
             textarea.dispatchEvent(new Event('input'));
         }
@@ -153,8 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             
             const textarea = chatForm.querySelector('textarea');
+            const submitBtn = chatForm.querySelector('button[type="submit"]');
             const content = textarea.value.trim();
             if (!content) return;
+            if (chatForm.dataset.submitting === '1') return;
+            lockSubmitForm(chatForm, submitBtn);
 
             const formData = new FormData(chatForm);
             formData.append('ajax', '1');
@@ -190,8 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
-                // Fallback to normal form submission if AJAX fails
-                chatForm.submit();
+                showAppToast('Message did not send. Try again.');
+            } finally {
+                unlockSubmitForm(chatForm, submitBtn);
             }
         });
 
@@ -369,10 +408,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Sidebar Toggle Logic
+    // Sidebar mode: desktop stays open; mobile uses header/bottom navigation.
     const sidebar = document.querySelector('.left-rail');
-    const mobileSidebarToggle = document.querySelector('.mobile-sidebar-toggle');
-    
     if (sidebar) {
         localStorage.removeItem('sidebar-menu-open');
         const syncSidebarMode = () => {
@@ -389,26 +426,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
         syncSidebarMode();
         window.addEventListener('resize', syncSidebarMode);
+    }
 
-        const toggleMenu = () => {
-            if (window.innerWidth > 1000) {
-                sidebar.classList.add('menu-open');
-                sidebar.classList.remove('mobile-menu-open');
-                document.body.style.overflow = '';
-                return;
-            }
-            sidebar.classList.toggle('mobile-menu-open');
-            document.body.style.overflow = sidebar.classList.contains('mobile-menu-open') ? 'hidden' : '';
+    const mobileProfileTrigger = document.querySelector('[data-mobile-profile-trigger]');
+    const mobileAccountMenu = document.querySelector('[data-mobile-account-menu]');
+    if (mobileProfileTrigger && mobileAccountMenu) {
+        let longPressTimer = null;
+        let menuOpenedByHold = false;
+
+        const closeAccountMenu = () => {
+            mobileAccountMenu.hidden = true;
+            mobileProfileTrigger.setAttribute('aria-expanded', 'false');
         };
 
-        if (mobileSidebarToggle) mobileSidebarToggle.addEventListener('click', toggleMenu);
+        const openAccountMenu = () => {
+            menuOpenedByHold = true;
+            mobileAccountMenu.hidden = false;
+            mobileProfileTrigger.setAttribute('aria-expanded', 'true');
+        };
 
-        // Close sidebar on mobile when clicking outside
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 1000 && sidebar.classList.contains('mobile-menu-open')) {
-                if (!sidebar.contains(e.target) && (!mobileSidebarToggle || !mobileSidebarToggle.contains(e.target))) {
-                    toggleMenu();
-                }
+        const clearLongPress = () => {
+            if (longPressTimer) {
+                window.clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
+
+        mobileProfileTrigger.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            menuOpenedByHold = false;
+            clearLongPress();
+            longPressTimer = window.setTimeout(openAccountMenu, 450);
+        });
+
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach((eventName) => {
+            mobileProfileTrigger.addEventListener(eventName, clearLongPress);
+        });
+
+        mobileProfileTrigger.addEventListener('click', (event) => {
+            if (menuOpenedByHold) {
+                event.preventDefault();
+                menuOpenedByHold = false;
+            }
+        });
+
+        mobileProfileTrigger.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+            openAccountMenu();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (mobileAccountMenu.hidden) return;
+            if (mobileAccountMenu.contains(event.target) || mobileProfileTrigger.contains(event.target)) return;
+            closeAccountMenu();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeAccountMenu();
             }
         });
     }
@@ -463,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error performing AJAX action:', error);
-                form.submit();
+                showAppToast('Action did not finish. Try again.');
                 return;
             } finally {
                 delete btn.dataset.pending;
@@ -660,6 +735,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showAppToast(message, category = 'error') {
         if (!message) return;
+        const duplicate = Array.from(document.querySelectorAll('.flash')).find((flash) => (
+            flash.textContent.trim() === String(message).trim()
+            && flash.classList.contains(category)
+            && flash.dataset.dismissed !== '1'
+        ));
+        if (duplicate) {
+            duplicate.style.setProperty('--flash-index', '0');
+            return;
+        }
         const flash = document.createElement('div');
         flash.className = `flash ${category} app-toast`;
         flash.textContent = message;
@@ -1064,7 +1148,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         const input = commentForm.querySelector('input[name="comment"]');
                         const submitBtn = commentForm.querySelector('button[type="submit"]');
                         if (!input || !input.value.trim()) return;
-                        if (submitBtn) submitBtn.disabled = true;
+                        if (commentForm.dataset.submitting === '1') return;
+                        lockSubmitForm(commentForm, submitBtn);
                         const formData = new FormData(commentForm);
                         formData.append('ajax', '1');
                         try {
@@ -1089,9 +1174,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             showXpToasts(result.xp_toasts || []);
                         } catch (error) {
                             console.error('Could not post reel comment:', error);
-                            commentForm.submit();
+                            showAppToast('Comment did not post. Try again.');
                         } finally {
-                            if (submitBtn) submitBtn.disabled = false;
+                            unlockSubmitForm(commentForm, submitBtn);
                         }
                     });
                 }
@@ -1119,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showXpToasts(result.xp_toasts || []);
                 } catch (error) {
                     console.error('Could not like reel:', error);
-                    form.submit();
+                    showAppToast('Action did not finish. Try again.');
                 } finally {
                     if (btn) { delete btn.dataset.pending; btn.disabled = false; }
                 }
@@ -1314,6 +1399,15 @@ document.addEventListener('DOMContentLoaded', () => {
             visibility.addEventListener('change', toggleCommunity);
             toggleCommunity();
         }
+        form.addEventListener('submit', (event) => {
+            if (submit && submit.disabled) {
+                event.preventDefault();
+                return;
+            }
+            if (!lockSubmitForm(form, submit)) {
+                event.preventDefault();
+            }
+        });
     }
 
     function initHomeReelPanel() {

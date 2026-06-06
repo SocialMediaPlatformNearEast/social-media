@@ -30,7 +30,8 @@
       <div class="profile-actions">
         {% if is_own_profile %}
           <a class="outline-button" href="{{ url_for('activity') }}">Activity</a>
-          <a class="outline-button" href="{{ url_for('settings') }}">Edit profile</a>
+          <a class="outline-button" href="{{ url_for('settings') }}">Settings</a>
+          <a class="outline-button" href="{{ url_for('level_guide') }}">LvL Guide</a>
         {% else %}
           {% if safety_state.interaction_blocked %}
             <span class="profile-safety-note">

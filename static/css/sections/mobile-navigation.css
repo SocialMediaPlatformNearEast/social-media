@@ -68,17 +68,11 @@
 
   .mobile-header {
     display: grid;
-    grid-template-columns: 36px 40px minmax(0, 1fr) auto;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     min-height: 64px;
     padding: 10px 12px;
-  }
-
-  .mobile-sidebar-toggle {
-    width: 36px;
-    height: 36px;
-    margin-right: 0;
   }
 
   .mobile-header-search {

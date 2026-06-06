@@ -105,13 +105,13 @@
           <span>Remove current photo and use the default avatar</span>
         </label>
         <label class="form-group">
-          <span>Profile Theme Color</span>
+          <span>Profile banner color</span>
           <div class="color-picker-wrapper">
             <input type="color" name="profile_pic" value="{{ display_profile_color(viewer) }}" {% if not profile_color_is_unlocked %}disabled{% endif %}>
             <input type="text" class="hex-value" value="{{ display_profile_color(viewer) }}" maxlength="7" {% if not profile_color_is_unlocked %}disabled{% endif %}>
           </div>
           {% if profile_color_is_unlocked %}
-            <small>Unlocked. Choose the profile color other people see on your banner and chat header.</small>
+            <small>Changes the banner on your profile and the color used for your chat header.</small>
           {% else %}
             <small>Profile colors unlock at LvL {{ profile_color_unlock_level }}. Until then, accounts stay black and white so reward colors stay meaningful.</small>
           {% endif %}

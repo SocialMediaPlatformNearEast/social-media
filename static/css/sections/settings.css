@@ -176,9 +176,9 @@
   position: relative;
   display: grid;
   gap: 8px;
-  min-height: 260px;
+  min-height: 300px;
   overflow: hidden;
-  padding: 118px 18px 18px;
+  padding: 164px 18px 18px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--lvl-surface-5), var(--lvl-black));
@@ -189,8 +189,8 @@
   inset: 0 0 auto;
   height: 118px;
   background:
-    radial-gradient(circle at 15% 20%, var(--lvl-primary-soft-28), transparent 34%),
-    linear-gradient(135deg, var(--lvl-white-10), transparent 55%),
+    radial-gradient(circle at 15% 20%, var(--profile-preview-color, var(--lvl-primary)), transparent 34%),
+    linear-gradient(135deg, var(--lvl-white-08), transparent 55%),
     var(--lvl-surface-8);
 }
 
@@ -212,7 +212,7 @@
 }
 
 .settings-container .profile-preview-card strong {
-  margin-top: 22px;
+  margin-top: 0;
   font-size: 20px;
 }
 
@@ -359,7 +359,7 @@
   }
 
   .settings-content {
-    padding: 10px;
+    padding: 10px 10px calc(92px + env(safe-area-inset-bottom));
   }
 
   .premium-form,
@@ -375,8 +375,8 @@
   .settings-container .profile-preview-card {
     width: 100%;
     max-width: 100%;
-    min-height: 235px;
-    padding: 106px 14px 14px;
+    min-height: 270px;
+    padding: 146px 14px 14px;
   }
 
   .settings-container .profile-preview-banner {
@@ -392,7 +392,7 @@
   }
 
   .settings-container .profile-preview-card strong {
-    margin-top: 20px;
+    margin-top: 0;
     font-size: 18px;
   }
 
@@ -407,12 +407,11 @@
   }
 
   .form-actions {
-    position: sticky;
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    z-index: 12;
-    margin-inline: -10px;
-    padding: 12px 10px 0;
-    background: linear-gradient(180deg, transparent, var(--lvl-black) 28%);
+    position: static;
+    width: 100%;
+    margin: 0;
+    padding: 14px 0 0;
+    background: transparent;
   }
 
   .form-actions .outline-button,
