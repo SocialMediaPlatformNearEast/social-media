@@ -268,6 +268,37 @@
   margin-top: 24px;
 }
 
+.oauth-step-header {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(29, 155, 240, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(29, 155, 240, 0.1);
+}
+
+.oauth-step-header span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--lvl-primary);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.oauth-step-header h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.oauth-step-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .oauth-summary {
   display: flex;
   align-items: center;

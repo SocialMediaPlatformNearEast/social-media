@@ -811,6 +811,15 @@ def extract_oauth_profile(auth_user, fallback_provider=''):
         'avatar_url': metadata.get('avatar_url') or metadata.get('picture') or metadata.get('profile_image_url') or '',
     }
 
+def oauth_suggested_username(profile):
+    base = normalize_username(
+        profile.get('display_name') or
+        (profile.get('email') or '').split('@', 1)[0] or
+        profile.get('first_name') or
+        ''
+    )
+    return base[:24] if len(base) >= 3 else ''
+
 def first_oauth_user_match(profile):
     query_attempts = []
     if profile.get('subject'):
@@ -2541,16 +2550,16 @@ def oauth_onboarding():
 
         if not all([first_name, last_name, nickname, email, gender]):
             flash("All fields are required to finish social registration.", "error")
-            return render_template('oauth_onboarding.html', profile=profile)
+            return render_template('oauth_onboarding.html', profile=profile, suggested_nickname=oauth_suggested_username(profile))
 
         if not re.match(r'^[a-z0-9_]{3,24}$', nickname):
             flash("Username must be 3-24 characters: letters, numbers, or underscores only.", "error")
-            return render_template('oauth_onboarding.html', profile=profile)
+            return render_template('oauth_onboarding.html', profile=profile, suggested_nickname=oauth_suggested_username(profile))
 
         birthday_value, birthday_error = validate_birthday(birthday, required=True)
         if birthday_error:
             flash(birthday_error, "error")
-            return render_template('oauth_onboarding.html', profile=profile)
+            return render_template('oauth_onboarding.html', profile=profile, suggested_nickname=oauth_suggested_username(profile))
 
         existing_user = first_oauth_user_match({**profile, 'email': email})
         if existing_user:
@@ -2598,7 +2607,7 @@ def oauth_onboarding():
             else:
                 flash(handle_db_error(exc), "error")
 
-    return render_template('oauth_onboarding.html', profile=profile)
+    return render_template('oauth_onboarding.html', profile=profile, suggested_nickname=oauth_suggested_username(profile))
 
 @app.route('/auth', methods=['GET', 'POST'])
 def auth():

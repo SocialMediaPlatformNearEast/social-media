@@ -48,6 +48,12 @@
       {% endif %}
     {% endwith %}
 
+    <div class="oauth-step-header">
+      <span>Step 2 of 2</span>
+      <h2>Create your LvL account</h2>
+      <p>Google sign-in worked. Complete these required LvL profile fields to add the account to the database.</p>
+    </div>
+
     <div class="oauth-summary">
       {% if profile.avatar_url %}
         <img src="{{ profile.avatar_url }}" alt="">
@@ -70,7 +76,7 @@
       </label>
       <label>
         Nickname
-        <input name="nickname" pattern="[A-Za-z0-9_]{3,24}" autocomplete="username" required>
+        <input name="nickname" pattern="[A-Za-z0-9_]{3,24}" autocomplete="username" value="{{ suggested_nickname or '' }}" required>
       </label>
       <label>
         Email
@@ -98,7 +104,7 @@
           <span data-gender-swatch aria-hidden="true"></span>
         </div>
       </fieldset>
-      <button type="submit">Finish account</button>
+      <button type="submit">Create account and enter LvL</button>
     </form>
   </section>
 </main>
