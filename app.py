@@ -2221,11 +2221,14 @@ def api_reel_comments(reel_id):
     except Exception as exc:
         return jsonify({'success': False, 'error': handle_db_error(exc)}), 400
 
-def external_url_for(endpoint, **values):
-    base_url = (os.getenv("APP_BASE_URL") or os.getenv("OAUTH_REDIRECT_BASE_URL") or '').strip().rstrip('/')
+def external_url_for(endpoint, base_env='APP_BASE_URL', **values):
+    base_url = (os.getenv(base_env) or os.getenv("APP_BASE_URL") or '').strip().rstrip('/')
     if base_url:
         return f"{base_url}{url_for(endpoint, **values)}"
     return url_for(endpoint, _external=True, **values)
+
+def oauth_redirect_url():
+    return external_url_for('oauth_callback', base_env='OAUTH_REDIRECT_BASE_URL')
 
 def send_html_email(to_email, subject, html_body):
     sender_email = os.getenv("SMTP_FROM") or os.getenv("MAIL_USERNAME") or os.getenv("SMTP_USERNAME")
@@ -2414,7 +2417,7 @@ def oauth_start(provider):
     session['oauth_provider'] = provider
 
     try:
-        redirect_to = external_url_for('oauth_callback')
+        redirect_to = oauth_redirect_url()
         response = supabase.auth.sign_in_with_oauth({
             'provider': provider,
             'options': {
@@ -2461,7 +2464,7 @@ def oauth_callback():
         restore_oauth_code_verifier(supabase.auth)
         response = supabase.auth.exchange_code_for_session({
             'auth_code': code,
-            'redirect_to': external_url_for('oauth_callback'),
+            'redirect_to': oauth_redirect_url(),
         })
         auth_user = response.user or (response.session.user if response.session else None)
         if not auth_user:
