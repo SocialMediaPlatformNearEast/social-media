@@ -114,10 +114,6 @@
   gap: 10px;
 }
 
-.social-auth-grid:has(.social-auth-button:only-child) {
-  grid-template-columns: 1fr;
-}
-
 .social-auth-button {
   --provider-color: var(--lvl-border-strong);
   display: flex;
@@ -163,10 +159,8 @@
 .social-auth-apple { --provider-color: var(--lvl-text-primary); }
 .social-auth-microsoft { --provider-color: var(--provider-microsoft); }
 .social-auth-twitter { --provider-color: var(--provider-twitter); }
-.social-auth-github { --provider-color: var(--lvl-text-primary); }
 .social-auth-gitlab { --provider-color: var(--provider-gitlab); }
 .social-auth-bitbucket { --provider-color: var(--provider-bitbucket); }
-.social-auth-discord { --provider-color: var(--provider-discord); }
 .social-auth-figma { --provider-color: var(--provider-figma); }
 .social-auth-kakao { --provider-color: var(--provider-kakao); }
 .social-auth-keycloak { --provider-color: var(--provider-keycloak); }
@@ -249,41 +243,29 @@
   background-color: var(--lvl-surface-10);
 }
 
-.auth-secondary-link {
-  width: fit-content;
-  color: var(--accent-color);
+.auth-helper-link {
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
+  width: fit-content;
 }
 
-.auth-secondary-link:hover,
-.auth-secondary-link:focus-visible {
+.auth-helper-link:hover,
+.auth-helper-link:focus-visible {
   color: var(--text-primary);
   text-decoration: underline;
+  outline: none;
 }
 
-.auth-panel-heading {
-  display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-6);
-}
-
-.auth-panel-heading h2 {
-  margin: 0;
-  color: var(--text-primary);
+.auth-panel-title {
+  margin: 0 0 24px;
   font-size: 28px;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
-.auth-panel-heading p {
-  margin: 0;
-  color: var(--text-secondary);
-  line-height: 1.45;
-}
-
-.auth-return-link {
-  margin-top: var(--space-5);
+.auth-back-link {
+  margin-top: 24px;
 }
 
 .oauth-summary {

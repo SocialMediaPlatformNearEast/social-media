@@ -37,16 +37,6 @@
     {% endif %}
   </section>
 
-  {% if page > 1 or has_next %}
-    <nav class="reels-pagination" aria-label="Reels pagination">
-      {% if page > 1 %}
-        <a class="outline-button" href="{{ url_for('reels', page=page-1, tab=tab) }}">Previous</a>
-      {% endif %}
-      {% if has_next %}
-        <a class="outline-button" href="{{ url_for('reels', page=page+1, tab=tab) }}">More reels</a>
-      {% endif %}
-    </nav>
-  {% endif %}
   <p class="reels-end-note" data-reels-end hidden>No more reels</p>
 </section>
 {% endblock %}

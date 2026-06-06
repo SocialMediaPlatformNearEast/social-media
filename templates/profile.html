@@ -27,7 +27,7 @@
           <img class="avatar profile-avatar-large" src="{{ profile.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
         </button>
       </div>
-      <div class="profile-actions">
+      <div class="profile-actions {% if is_own_profile %}profile-owner-actions{% endif %}">
         {% if is_own_profile %}
           <a class="outline-button" href="{{ url_for('activity') }}">Activity</a>
           <a class="outline-button" href="{{ url_for('settings') }}">Settings</a>

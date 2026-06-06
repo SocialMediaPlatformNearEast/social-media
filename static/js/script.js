@@ -926,6 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const soundPreferenceKey = 'lvlReelsSoundOn';
         let soundOn = false;
         let activeCard = null;
+        const minAutoplayLoops = 2;
 
         try {
             soundOn = window.sessionStorage.getItem(soundPreferenceKey) === '1';
@@ -961,6 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cards.forEach(applySoundPreference);
         };
 
+        const commentsAreOpen = () => document.body.classList.contains('reel-comments-open');
+
         const pauseCard = (card) => {
             const video = card.querySelector('[data-reel-video]');
             if (video && !video.paused) video.pause();
@@ -993,7 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const retryActivePlay = (card, video) => {
             window.setTimeout(() => {
-                if (card !== activeCard || !video || !video.paused || video.readyState < 2) return;
+                if (commentsAreOpen() || card !== activeCard || !video || !video.paused || video.readyState < 2) return;
                 video.play().catch(() => {
                     card.classList.add('is-paused');
                     updatePlayIcon(card);
@@ -1006,6 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cards.forEach((item) => {
                 if (item !== card) pauseCard(item);
             });
+            card.dataset.completedLoops = card.dataset.completedLoops || '0';
             activeCard = card;
             card.classList.add('active');
             const video = card.querySelector('[data-reel-video]');
@@ -1071,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 video.addEventListener('play', () => updatePlayIcon(card));
                 video.addEventListener('pause', () => updatePlayIcon(card));
                 video.addEventListener('canplay', () => {
-                    if (card !== activeCard || !video.paused) return;
+                    if (commentsAreOpen() || card !== activeCard || !video.paused) return;
                     video.play().catch(() => {
                         card.classList.add('is-paused');
                         updatePlayIcon(card);
@@ -1079,21 +1083,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
                 video.addEventListener('ended', () => {
-                    if (card.dataset.autoplayNext === 'true') {
-                        const index = cards.indexOf(card);
-                        if (index < cards.length - 1) {
-                            const nextCard = cards[index + 1];
-                            scrollToCard(nextCard);
-                            window.setTimeout(() => activateCard(nextCard), reducedMotion ? 0 : 450);
-                        } else {
-                            const note = document.querySelector('[data-reels-end]');
-                            if (note) {
-                                note.hidden = false;
-                                window.setTimeout(() => { note.hidden = true; }, 1800);
-                            }
-                            video.currentTime = 0;
-                            video.play().catch(() => {});
+                    if (card.dataset.autoplayNext !== 'true') return;
+
+                    const completedLoops = parseInt(card.dataset.completedLoops || '0', 10) + 1;
+                    card.dataset.completedLoops = String(completedLoops);
+                    video.currentTime = 0;
+
+                    if (commentsAreOpen() || completedLoops < minAutoplayLoops) {
+                        video.play().catch(() => {});
+                        return;
+                    }
+
+                    card.dataset.completedLoops = '0';
+                    const index = cards.indexOf(card);
+                    if (index < cards.length - 1) {
+                        const nextCard = cards[index + 1];
+                        nextCard.dataset.completedLoops = '0';
+                        scrollToCard(nextCard);
+                        window.setTimeout(() => {
+                            if (!commentsAreOpen()) activateCard(nextCard);
+                        }, reducedMotion ? 0 : 450);
+                    } else {
+                        const note = document.querySelector('[data-reels-end]');
+                        if (note && !commentsAreOpen()) {
+                            note.hidden = false;
+                            window.setTimeout(() => { note.hidden = true; }, 1800);
                         }
+                        video.play().catch(() => {});
                     }
                 });
             }

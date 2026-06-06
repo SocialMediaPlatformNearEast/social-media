@@ -4,10 +4,14 @@ import os
 import tempfile
 import unittest
 import inspect
+from email import message_from_string
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from werkzeug.datastructures import FileStorage
+
+import bcrypt
 
 import app as zapp
 
@@ -170,10 +174,10 @@ class AppRouteTests(unittest.TestCase):
     def test_auth_page_lists_enabled_social_providers_only(self):
         auth_html = self.client.get("/auth").data.decode()
 
-        self.assertIn("Continue with Google", auth_html)
+        self.assertIn("Continue securely with", auth_html)
         self.assertIn("Continue with email", auth_html)
-        self.assertIn("Powered by Supabase Auth.", auth_html)
         self.assertIn('href="/forgot-password"', auth_html)
+        self.assertIn("Powered by Supabase Auth.", auth_html)
         self.assertIn('class="brand-mark brand-logo-large"', auth_html)
         self.assertIn("assets/icon-512.png", auth_html)
         self.assertNotIn('brand-mark large">LvL', auth_html)
@@ -181,41 +185,14 @@ class AppRouteTests(unittest.TestCase):
         for provider in zapp.SUPABASE_SOCIAL_PROVIDERS:
             self.assertIn(provider["label"], auth_html)
             self.assertIn(f'/auth/oauth/{provider["provider"]}', auth_html)
+        self.assertNotIn('GitHub', auth_html)
         self.assertNotIn('/auth/oauth/github', auth_html)
+        self.assertNotIn('Discord', auth_html)
         self.assertNotIn('/auth/oauth/discord', auth_html)
         self.assertNotIn('/auth/oauth/facebook', auth_html)
         self.assertNotIn('/auth/oauth/apple', auth_html)
         self.assertNotIn('/auth/oauth/azure', auth_html)
         self.assertNotIn('/auth/oauth/x', auth_html)
-
-    def test_forgot_password_requires_email(self):
-        with patch.object(zapp, "supabase", object()):
-            response = self.client.post("/forgot-password", data={
-                "csrf_token": self.csrf(),
-                "email": "",
-            })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Enter the email address for your LvL account.", response.data)
-
-    def test_reset_password_rejects_unknown_token(self):
-        class FakeTable:
-            def select(self, *_args, **_kwargs):
-                return self
-
-            def eq(self, *_args, **_kwargs):
-                return self
-
-            def execute(self):
-                return SimpleNamespace(data=[])
-
-        fake_supabase = SimpleNamespace(table=lambda _name: FakeTable())
-
-        with patch.object(zapp, "supabase", fake_supabase):
-            response = self.client.get("/reset-password/missing-token")
-
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.location.endswith("/forgot-password"))
 
     def test_oauth_start_rejects_disabled_provider_before_supabase_call(self):
         class FakeAuth:
@@ -223,10 +200,10 @@ class AppRouteTests(unittest.TestCase):
                 raise AssertionError("disabled providers must not start Supabase OAuth")
 
         with patch.object(zapp, "supabase", SimpleNamespace(auth=FakeAuth())):
-            response = self.client.get("/auth/oauth/facebook")
-
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.location.endswith("/auth"))
+            for provider in ["facebook", "github", "discord"]:
+                response = self.client.get(f"/auth/oauth/{provider}")
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response.location.endswith("/auth"))
 
     def test_oauth_start_redirects_to_supabase_provider(self):
         class FakeStorage:
@@ -264,6 +241,314 @@ class AppRouteTests(unittest.TestCase):
             self.assertEqual(sess["oauth_provider"], "google")
             self.assertEqual(sess["oauth_code_verifier"], "test-verifier")
             self.assertEqual(credentials["options"]["query_params"]["state"], sess["oauth_state"])
+
+    def test_oauth_start_uses_configured_redirect_base(self):
+        class FakeStorage:
+            def get_item(self, _key):
+                return "test-verifier"
+
+            def set_item(self, *_args):
+                return None
+
+        class FakeAuth:
+            def __init__(self):
+                self.calls = []
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+
+            def sign_in_with_oauth(self, credentials):
+                self.calls.append(credentials)
+                return SimpleNamespace(url="https://project.supabase.co/auth/v1/authorize?provider=google")
+
+        fake = SimpleNamespace(auth=FakeAuth())
+
+        with patch.object(zapp, "supabase", fake), \
+             patch.dict(os.environ, {"APP_BASE_URL": "http://127.0.0.1:5055", "OAUTH_REDIRECT_BASE_URL": "http://127.0.0.1:5050"}):
+            response = self.client.get("/auth/oauth/google", base_url="http://127.0.0.1:5055")
+
+        self.assertEqual(response.status_code, 302)
+        credentials = fake.auth.calls[0]
+        self.assertEqual(credentials["options"]["redirect_to"], "http://127.0.0.1:5050/auth/oauth/callback")
+
+    def test_forgot_password_stores_hashed_reset_token_and_emails_link(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, fake, name):
+                self.fake = fake
+                self.name = name
+                self.mode = None
+                self.filters = {}
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.mode = "select"
+                return self
+
+            def insert(self, payload):
+                self.mode = "insert"
+                self.payload = payload
+                return self
+
+            def eq(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def execute(self):
+                if self.name == "users" and self.mode == "select":
+                    if self.filters.get("username") == "demo" or self.filters.get("email") == "demo@example.com":
+                        return Result([{"id": 12, "email": "demo@example.com", "display_name": "Demo User", "username": "demo"}])
+                    return Result([])
+                if self.name == "password_reset_tokens" and self.mode == "insert":
+                    self.fake.reset_payload = self.payload
+                    return Result([{"id": 99, **self.payload}])
+                return Result([])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.reset_payload = None
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        sent = {}
+
+        def fake_mail(user, token):
+            sent["user"] = user
+            sent["token"] = token
+            return True
+
+        fake = FakeSupabase()
+        with patch.object(zapp, "supabase", fake), patch.object(zapp, "send_password_reset_email", side_effect=fake_mail):
+            response = self.client.post("/forgot-password", data={
+                "csrf_token": self.csrf(),
+                "account": "demo",
+            }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(fake.reset_payload["user_id"], 12)
+        self.assertEqual(len(fake.reset_payload["token_hash"]), 64)
+        self.assertNotEqual(fake.reset_payload["token_hash"], sent["token"])
+        self.assertEqual(sent["user"]["email"], "demo@example.com")
+        self.assertIn(b"If that account exists", response.data)
+
+    def test_forgot_password_does_not_reveal_missing_accounts(self):
+        class EmptyTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake = SimpleNamespace(table=lambda _name: EmptyTable())
+
+        with patch.object(zapp, "supabase", fake), patch.object(zapp, "send_password_reset_email") as mail:
+            response = self.client.post("/forgot-password", data={
+                "csrf_token": self.csrf(),
+                "account": "missing@example.com",
+            }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"If that account exists", response.data)
+        mail.assert_not_called()
+
+    def test_forgot_password_does_not_email_if_token_storage_fails_in_production(self):
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, name):
+                self.name = name
+                self.mode = None
+                self.filters = {}
+
+            def select(self, *_args, **_kwargs):
+                self.mode = "select"
+                return self
+
+            def insert(self, _payload):
+                self.mode = "insert"
+                return self
+
+            def eq(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def execute(self):
+                if self.name == "users" and self.mode == "select" and self.filters.get("username") == "demo":
+                    return Result([{"id": 12, "email": "demo@example.com", "display_name": "Demo User", "username": "demo"}])
+                if self.name == "password_reset_tokens" and self.mode == "insert":
+                    raise RuntimeError("missing reset-token table")
+                return Result([])
+
+        fake = SimpleNamespace(table=lambda name: FakeTable(name))
+
+        with patch.object(zapp, "supabase", fake), \
+             patch.object(zapp, "send_password_reset_email") as mail, \
+             patch.object(zapp.app.logger, "error") as log_error, \
+             patch.dict(os.environ, {"FLASK_ENV": "production"}):
+            response = self.client.post("/forgot-password", data={
+                "csrf_token": self.csrf(),
+                "account": "demo",
+            }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"If that account exists", response.data)
+        mail.assert_not_called()
+        log_error.assert_called_once()
+
+    def test_password_reset_email_uses_smtp_env_settings(self):
+        class FakeSMTP:
+            def __init__(self, host, port):
+                self.host = host
+                self.port = port
+                self.started_tls = False
+                self.login_args = None
+                self.sent = None
+                self.quit_called = False
+
+            def starttls(self):
+                self.started_tls = True
+
+            def login(self, username, password):
+                self.login_args = (username, password)
+
+            def sendmail(self, sender, recipient, message):
+                self.sent = (sender, recipient, message)
+
+            def quit(self):
+                self.quit_called = True
+
+        smtp_instances = []
+
+        def fake_smtp(host, port):
+            smtp = FakeSMTP(host, port)
+            smtp_instances.append(smtp)
+            return smtp
+
+        env = {
+            "MAIL_USERNAME": "",
+            "MAIL_PASSWORD": "",
+            "SMTP_HOST": "smtp.example.test",
+            "SMTP_PORT": "2525",
+            "SMTP_USE_TLS": "1",
+            "SMTP_FROM": "noreply@lvl.test",
+            "SMTP_USERNAME": "mailer@lvl.test",
+            "SMTP_PASSWORD": "smtp-secret",
+            "APP_BASE_URL": "https://lvl.example.test",
+        }
+        with zapp.app.test_request_context("/"), \
+             patch.dict(os.environ, env), \
+             patch.object(zapp.smtplib, "SMTP", side_effect=fake_smtp):
+            sent = zapp.send_password_reset_email(
+                {"email": "demo@example.com", "display_name": "Demo User"},
+                "reset-token",
+            )
+
+        self.assertTrue(sent)
+        self.assertEqual(len(smtp_instances), 1)
+        smtp = smtp_instances[0]
+        self.assertEqual((smtp.host, smtp.port), ("smtp.example.test", 2525))
+        self.assertTrue(smtp.started_tls)
+        self.assertEqual(smtp.login_args, ("mailer@lvl.test", "smtp-secret"))
+        self.assertEqual(smtp.sent[0], "noreply@lvl.test")
+        self.assertEqual(smtp.sent[1], "demo@example.com")
+        message = message_from_string(smtp.sent[2])
+        html = ""
+        for part in message.walk():
+            if part.get_content_type() == "text/html":
+                html += part.get_payload(decode=True).decode(part.get_content_charset() or "utf-8")
+        self.assertIn("https://lvl.example.test/reset-password/reset-token", html)
+        self.assertTrue(smtp.quit_called)
+
+    def test_reset_password_updates_hash_and_marks_token_used(self):
+        raw_token = "reset-token-123"
+        token_hash = zapp.password_reset_token_hash(raw_token)
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=20)).isoformat()
+
+        class Result:
+            def __init__(self, data=None):
+                self.data = data or []
+
+        class FakeTable:
+            def __init__(self, fake, name):
+                self.fake = fake
+                self.name = name
+                self.mode = None
+                self.filters = {}
+                self.payload = None
+
+            def select(self, *_args, **_kwargs):
+                self.mode = "select"
+                return self
+
+            def update(self, payload):
+                self.mode = "update"
+                self.payload = payload
+                return self
+
+            def eq(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def is_(self, key, value):
+                self.filters[key] = value
+                return self
+
+            def execute(self):
+                if self.name == "password_reset_tokens" and self.mode == "select":
+                    if self.filters.get("token_hash") == token_hash:
+                        return Result([{"id": 5, "user_id": 12, "token_hash": token_hash, "expires_at": expires_at, "used_at": None}])
+                    return Result([])
+                if self.name == "password_reset_tokens" and self.mode == "update":
+                    self.fake.reset_update = self.payload
+                    return Result([{"id": 5, **self.payload}])
+                if self.name == "users" and self.mode == "update":
+                    self.fake.user_update = self.payload
+                    return Result([{"id": 12, **self.payload}])
+                return Result([])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.user_update = None
+                self.reset_update = None
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        fake = FakeSupabase()
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.post(f"/reset-password/{raw_token}", data={
+                "csrf_token": self.csrf(),
+                "password": "newpass123",
+                "confirm_password": "newpass123",
+            }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Password updated. Log in with your new password.", response.data)
+        self.assertTrue(bcrypt.checkpw(b"newpass123", fake.user_update["password_hash"].encode("utf-8")))
+        self.assertIsNotNone(fake.reset_update["used_at"])
+
+    def test_reset_password_rejects_expired_token(self):
+        raw_token = "expired-token"
+        zapp.PASSWORD_RESET_TOKENS.clear()
+        zapp.PASSWORD_RESET_TOKENS[zapp.password_reset_token_hash(raw_token)] = {
+            "user_id": 12,
+            "expires_at": datetime.now(timezone.utc) - timedelta(minutes=1),
+            "used_at": None,
+        }
+
+        with patch.object(zapp, "supabase", None):
+            response = self.client.get(f"/reset-password/{raw_token}", follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"That reset link is invalid or expired.", response.data)
 
     def test_oauth_callback_logs_in_existing_user_by_email(self):
         class FakeStorage:
@@ -535,6 +820,8 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("/auth/oauth/<provider>", routes)
         self.assertIn("/auth/oauth/callback", routes)
         self.assertIn("/auth/oauth/onboarding", routes)
+        self.assertIn("/forgot-password", routes)
+        self.assertIn("/reset-password/<token>", routes)
         self.assertIn("/reels/upload", routes)
         self.assertIn("/reels/<int:reel_id>/like", routes)
         self.assertIn("/delete_post", routes)
@@ -890,6 +1177,15 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("sessionStorage.setItem", script)
         self.assertIn("applySoundPreferenceToAll", script)
 
+    def test_reels_autoplay_waits_two_loops_and_pauses_for_comments(self):
+        script = Path("static/js/script.js").read_text()
+
+        self.assertIn("const minAutoplayLoops = 2", script)
+        self.assertIn("const commentsAreOpen = () => document.body.classList.contains('reel-comments-open')", script)
+        self.assertIn("completedLoops < minAutoplayLoops", script)
+        self.assertIn("if (commentsAreOpen() || completedLoops < minAutoplayLoops)", script)
+        self.assertIn("if (!commentsAreOpen()) activateCard(nextCard)", script)
+
     def test_auth_page_includes_pwa_install_prompt(self):
         auth_html = self.client.get("/auth").data.decode()
 
@@ -1180,14 +1476,23 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn(".reel-comment-submit-form", css)
         self.assertIn("position: sticky", css)
 
-    def test_mobile_reels_pagination_does_not_create_empty_bottom_section(self):
-        css = Path("static/css/sections/reels.css").read_text()
+    def test_reels_template_does_not_render_bottom_pagination_buttons(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        with zapp.app.test_request_context("/reels"):
+            html = zapp.render_template(
+                "reels.html",
+                viewer=viewer,
+                reels=[],
+                page=1,
+                has_next=True,
+                table_ready=True,
+                tab="for_you",
+                highlights=[],
+            )
 
-        self.assertIn(".reels-pagination", css)
-        self.assertIn("bottom: calc(var(--reels-mobile-bottom-nav) + 14px + env(safe-area-inset-bottom))", css)
-        self.assertIn("pointer-events: none", css)
-        self.assertIn(".reels-pagination .outline-button", css)
-        self.assertIn("pointer-events: auto", css)
+        self.assertNotIn('class="reels-pagination"', html)
+        self.assertNotIn("More reels", html)
+        self.assertNotIn(">Previous<", html)
 
     def test_mobile_reels_uses_bottom_plus_instead_of_header_upload_cta(self):
         css = Path("static/css/sections/reels.css").read_text()
@@ -1456,6 +1761,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn(">Settings</a>", html)
         self.assertIn('href="/level-guide"', html)
         self.assertIn(">LvL Guide</a>", html)
+        self.assertIn("profile-owner-actions", html)
 
     def test_other_profile_has_high_five_action(self):
         viewer = {
@@ -1527,6 +1833,12 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('.profile-actions .ajax-action-form[data-action="mute"]', css)
         self.assertIn('.profile-actions .ajax-action-form[data-action="block"]', css)
         self.assertIn("width: 100%", css)
+        self.assertIn(".profile-owner-actions", css)
+        self.assertIn(".profile-top-row:has(.profile-owner-actions)", css)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", css)
+        self.assertIn(".profile-owner-actions > .outline-button", css)
+        self.assertIn("grid-area: auto", css)
+        self.assertIn("@media (max-width: 340px)", css)
 
     def test_profile_action_buttons_use_shared_control_shape(self):
         css = Path("static/css/sections/profile.css").read_text()
@@ -1662,6 +1974,42 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertIn(b"Already sent.", response.data)
         fake_supabase.table.assert_not_called()
+
+    def test_mark_message_thread_read_clears_messages_and_notifications(self):
+        class FakeTable:
+            def __init__(self, db, name):
+                self.db = db
+                self.name = name
+                self.action = None
+                self.values = None
+                self.filters = []
+
+            def update(self, values):
+                self.action = "update"
+                self.values = values
+                return self
+
+            def eq(self, key, value):
+                self.filters.append((key, value))
+                return self
+
+            def execute(self):
+                self.db.calls.append((self.name, self.action, self.values, tuple(self.filters)))
+                return SimpleNamespace(data=[])
+
+        class FakeSupabase:
+            def __init__(self):
+                self.calls = []
+
+            def table(self, name):
+                return FakeTable(self, name)
+
+        fake = FakeSupabase()
+        with patch.object(zapp, "supabase", fake):
+            zapp.mark_message_thread_read(7, 8)
+
+        self.assertIn(("messages", "update", {"is_read": True}, (("sender_id", 8), ("receiver_id", 7))), fake.calls)
+        self.assertIn(("notifications", "update", {"is_read": True}, (("user_id", 7), ("actor_id", 8), ("type", "message"), ("is_read", False))), fake.calls)
 
     def test_share_post_blocks_safety_hidden_recipients(self):
         class Result:
