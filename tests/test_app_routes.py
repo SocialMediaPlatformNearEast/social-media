@@ -766,18 +766,36 @@ class AppRouteTests(unittest.TestCase):
             self.assertNotIn("oauth_provider", sess)
             self.assertEqual(sess["pending_oauth_profile"]["email"], "nostate@example.com")
 
-    def test_oauth_callback_rejects_missing_session_state(self):
+    def test_oauth_callback_allows_missing_session_state_when_code_exchanges(self):
         class FakeAuth:
             def exchange_code_for_session(self, _params):
-                raise AssertionError("OAuth code exchange should not run without stored state")
+                user = SimpleNamespace(
+                    id="55555555-5555-5555-5555-555555555555",
+                    email="cookieless@example.com",
+                    user_metadata={"full_name": "Cookie Less"},
+                    app_metadata={"provider": "google"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
 
-        fake = SimpleNamespace(auth=FakeAuth())
+        class FakeUsersTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake = SimpleNamespace(auth=FakeAuth(), table=lambda _name: FakeUsersTable())
 
         with patch.object(zapp, "supabase", fake):
             response = self.client.get("/auth/oauth/callback?code=abc123&state=returned-state")
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.location.endswith("/auth"))
+        self.assertTrue(response.location.endswith("/auth/oauth/onboarding"))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["pending_oauth_profile"]["email"], "cookieless@example.com")
 
     def test_oauth_onboarding_creates_lvl_user(self):
         class FakeUsersTable:

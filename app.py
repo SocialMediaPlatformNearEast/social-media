@@ -2474,7 +2474,7 @@ def oauth_callback():
 
     expected_state = session.get('oauth_state')
     returned_state = request.args.get('state')
-    if not expected_state or (returned_state and not secrets.compare_digest(expected_state, returned_state)):
+    if expected_state and returned_state and not secrets.compare_digest(expected_state, returned_state):
         clear_oauth_flow_session()
         flash("Social login expired. Try again.", "error")
         return redirect(url_for('auth'))
