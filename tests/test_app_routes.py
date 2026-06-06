@@ -685,6 +685,72 @@ class AppRouteTests(unittest.TestCase):
             self.assertEqual(sess["pending_oauth_profile"]["provider"], "google")
             self.assertEqual(sess["pending_oauth_profile"]["first_name"], "New")
 
+    def test_oauth_callback_allows_missing_returned_state_when_session_started(self):
+        class FakeStorage:
+            def __init__(self):
+                self.items = {}
+
+            def set_item(self, key, value):
+                self.items[key] = value
+
+            def get_item(self, key):
+                return self.items.get(key)
+
+        class FakeAuth:
+            def __init__(self):
+                self._storage_key = "supabase.auth.token"
+                self._storage = FakeStorage()
+
+            def exchange_code_for_session(self, params):
+                self.exchange_params = params
+                user = SimpleNamespace(
+                    id="44444444-4444-4444-4444-444444444444",
+                    email="nostate@example.com",
+                    user_metadata={"full_name": "No State"},
+                    app_metadata={"provider": "google"},
+                )
+                return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
+
+        class FakeUsersTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake = SimpleNamespace(auth=FakeAuth())
+        fake.table = lambda _name: FakeUsersTable()
+        with self.client.session_transaction() as sess:
+            sess["oauth_state"] = "expected-state"
+            sess["oauth_provider"] = "google"
+            sess["oauth_code_verifier"] = "stored-verifier"
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/auth/oauth/onboarding"))
+        with self.client.session_transaction() as sess:
+            self.assertNotIn("oauth_state", sess)
+            self.assertNotIn("oauth_provider", sess)
+            self.assertEqual(sess["pending_oauth_profile"]["email"], "nostate@example.com")
+
+    def test_oauth_callback_rejects_missing_session_state(self):
+        class FakeAuth:
+            def exchange_code_for_session(self, _params):
+                raise AssertionError("OAuth code exchange should not run without stored state")
+
+        fake = SimpleNamespace(auth=FakeAuth())
+
+        with patch.object(zapp, "supabase", fake):
+            response = self.client.get("/auth/oauth/callback?code=abc123&state=returned-state")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/auth"))
+
     def test_oauth_onboarding_creates_lvl_user(self):
         class FakeUsersTable:
             def __init__(self, fake, name):
