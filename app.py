@@ -57,36 +57,16 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "66"
+ASSET_VERSION = "79"
 
 GENDER_OPTIONS = GENDER_THEME
 SUPABASE_SOCIAL_PROVIDERS = [
     {'provider': 'google', 'label': 'Google', 'icon': 'G', 'class': 'google'},
-    {'provider': 'facebook', 'label': 'Facebook', 'icon': 'f', 'class': 'facebook'},
-    {'provider': 'apple', 'label': 'Apple', 'icon': 'Ap', 'class': 'apple'},
-    {'provider': 'azure', 'label': 'Microsoft', 'icon': 'Ms', 'class': 'microsoft'},
-    {'provider': 'x', 'label': 'X / Twitter', 'icon': 'X', 'class': 'twitter'},
     {'provider': 'github', 'label': 'GitHub', 'icon': 'Gh', 'class': 'github'},
-    {'provider': 'gitlab', 'label': 'GitLab', 'icon': 'Gl', 'class': 'gitlab'},
-    {'provider': 'bitbucket', 'label': 'Bitbucket', 'icon': 'Bb', 'class': 'bitbucket'},
     {'provider': 'discord', 'label': 'Discord', 'icon': 'Di', 'class': 'discord'},
-    {'provider': 'figma', 'label': 'Figma', 'icon': 'Fg', 'class': 'figma'},
-    {'provider': 'kakao', 'label': 'Kakao', 'icon': 'Ka', 'class': 'kakao'},
-    {'provider': 'keycloak', 'label': 'Keycloak', 'icon': 'Kc', 'class': 'keycloak'},
-    {'provider': 'linkedin_oidc', 'label': 'LinkedIn', 'icon': 'In', 'class': 'linkedin'},
-    {'provider': 'notion', 'label': 'Notion', 'icon': 'No', 'class': 'notion'},
-    {'provider': 'slack_oidc', 'label': 'Slack', 'icon': 'Sl', 'class': 'slack'},
-    {'provider': 'spotify', 'label': 'Spotify', 'icon': 'Sp', 'class': 'spotify'},
-    {'provider': 'twitch', 'label': 'Twitch', 'icon': 'Tw', 'class': 'twitch'},
-    {'provider': 'workos', 'label': 'WorkOS', 'icon': 'Wo', 'class': 'workos'},
-    {'provider': 'zoom', 'label': 'Zoom', 'icon': 'Zm', 'class': 'zoom'},
 ]
 SUPABASE_SOCIAL_PROVIDER_IDS = {provider['provider'] for provider in SUPABASE_SOCIAL_PROVIDERS}
-SUPABASE_SOCIAL_PROVIDER_ALIASES = {
-    'twitter': 'x',
-    'linkedin': 'linkedin_oidc',
-    'slack': 'slack_oidc',
-}
+SUPABASE_SOCIAL_PROVIDER_ALIASES = {}
 COMMUNITY_DEFAULT_TAB = 'following'
 COMMUNITY_TIMELINE_TABS = [
     {

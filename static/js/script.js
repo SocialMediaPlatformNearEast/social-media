@@ -371,31 +371,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sidebar Toggle Logic
     const sidebar = document.querySelector('.left-rail');
-    const sidebarToggle = document.getElementById('sidebar-toggle');
     const mobileSidebarToggle = document.querySelector('.mobile-sidebar-toggle');
     
     if (sidebar) {
-        // Load state for desktop
-        const isMenuOpen = localStorage.getItem('sidebar-menu-open') === 'true';
-        if (isMenuOpen && window.innerWidth > 1000) {
-            sidebar.classList.add('menu-open');
-        }
-
-        const toggleMenu = () => {
-            sidebar.classList.toggle('menu-open');
+        localStorage.removeItem('sidebar-menu-open');
+        const syncSidebarMode = () => {
             if (window.innerWidth > 1000) {
-                localStorage.setItem('sidebar-menu-open', sidebar.classList.contains('menu-open'));
+                sidebar.classList.add('menu-open');
+                sidebar.classList.remove('mobile-menu-open');
+                document.body.style.overflow = '';
             } else {
-                document.body.style.overflow = sidebar.classList.contains('menu-open') ? 'hidden' : '';
+                sidebar.classList.remove('menu-open');
+                sidebar.classList.remove('mobile-menu-open');
+                document.body.style.overflow = '';
             }
         };
 
-        if (sidebarToggle) sidebarToggle.addEventListener('click', toggleMenu);
+        syncSidebarMode();
+        window.addEventListener('resize', syncSidebarMode);
+
+        const toggleMenu = () => {
+            if (window.innerWidth > 1000) {
+                sidebar.classList.add('menu-open');
+                sidebar.classList.remove('mobile-menu-open');
+                document.body.style.overflow = '';
+                return;
+            }
+            sidebar.classList.toggle('mobile-menu-open');
+            document.body.style.overflow = sidebar.classList.contains('mobile-menu-open') ? 'hidden' : '';
+        };
+
         if (mobileSidebarToggle) mobileSidebarToggle.addEventListener('click', toggleMenu);
 
         // Close sidebar on mobile when clicking outside
         document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 1000 && sidebar.classList.contains('menu-open')) {
+            if (window.innerWidth <= 1000 && sidebar.classList.contains('mobile-menu-open')) {
                 if (!sidebar.contains(e.target) && (!mobileSidebarToggle || !mobileSidebarToggle.contains(e.target))) {
                     toggleMenu();
                 }

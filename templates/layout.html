@@ -32,15 +32,12 @@
 {% if request.endpoint != 'auth' %}
 <div class="app-shell">
   <div class="left-rail-wrapper">
-    <aside class="left-rail">
+    <aside class="left-rail menu-open">
       <div class="sidebar-top desktop-only">
         <a class="brand brand-logo" href="{{ url_for('index') }}" aria-label="LvL home">
           <img src="{{ static_asset('assets/icon-192.png') }}" alt="" aria-hidden="true">
           <span class="brand-text">LvL</span>
         </a>
-        <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Toggle Sidebar">
-          <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor"><g><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"></path></g></svg>
-        </button>
       </div>
       <nav class="nav-list" aria-label="Primary">
         <a class="{% if active_page == 'home' %}active{% endif %}" href="{{ url_for('index') }}" aria-label="Home" title="Home">
@@ -55,32 +52,6 @@
           </span>
           <span class="nav-label sr-only">Reels</span>
         </a>
-        <a class="{% if active_page == 'search' %}active{% endif %}" href="{{ url_for('search') }}" aria-label="Search" title="Search">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M10.25 4a6.25 6.25 0 1 0 0 12.5 6.25 6.25 0 0 0 0-12.5ZM2 10.25a8.25 8.25 0 1 1 14.59 5.28l4.44 4.44-1.41 1.41-4.44-4.44A8.25 8.25 0 0 1 2 10.25Z"/></svg>
-          </span>
-          <span class="nav-label sr-only">Search</span>
-        </a>
-        <a class="{% if active_page == 'messages' %}active{% endif %}" href="{{ url_for('messages') }}" aria-label="Messages" title="Messages">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M4 4h16v12H7.8L4 19.35V4Zm2 2v8.93L7.04 14H18V6H6Z"/></svg>
-          </span>
-          <span class="nav-badge" data-live-badge="messages" aria-label="{{ unread_message_count }} unread messages" {% if unread_message_count <= 0 %}hidden{% endif %}>{{ unread_message_count if unread_message_count < 100 else '99+' }}</span>
-          <span class="nav-label sr-only">Messages</span>
-        </a>
-        <a class="{% if active_page == 'notifications' %}active{% endif %}" href="{{ url_for('notifications') }}" aria-label="Alerts" title="Alerts">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 22a2.75 2.75 0 0 0 2.58-1.8H9.42A2.75 2.75 0 0 0 12 22Zm7-6V11a7 7 0 1 0-14 0v5l-2 2v1h18v-1l-2-2Zm-2 .2.8.8H6.2l.8-.8V11a5 5 0 1 1 10 0v5.2Z"/></svg>
-          </span>
-          <span class="nav-badge" data-live-badge="notifications" aria-label="{{ unread_notification_count }} unread notifications" {% if unread_notification_count <= 0 %}hidden{% endif %}>{{ unread_notification_count if unread_notification_count < 100 else '99+' }}</span>
-          <span class="nav-label sr-only">Alerts</span>
-        </a>
-        <a class="{% if active_page == 'activity' %}active{% endif %}" href="{{ url_for('activity') }}" aria-label="Activity" title="Activity">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M13 3a9 9 0 1 1-8.95 10H2l3-3.5L8 13H6.06A7 7 0 1 0 13 5v4l4 2-1 1.73-5-2.5V3h2Z"/></svg>
-          </span>
-          <span class="nav-label sr-only">Activity</span>
-        </a>
         <a class="{% if active_page == 'community' %}active{% endif %}" href="{{ url_for('community') }}" aria-label="Community" title="Community">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M7.5 11a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm9 0a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM2 20c.38-3.35 2.63-6 5.5-6s5.12 2.65 5.5 6H2Zm9.75 0c.24-1.86 1.06-3.48 2.25-4.6.72-.88 1.57-1.4 2.5-1.4 2.87 0 5.12 2.65 5.5 6H11.75Z"/></svg>
@@ -92,12 +63,6 @@
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5 4h14v3h-2v13H7V7H5V4Zm4 3v11h6V7H9Zm1.25 2h3.5v2h-3.5V9Zm0 3h3.5v2h-3.5v-2Z"/></svg>
           </span>
           <span class="nav-label sr-only">LvL Guide</span>
-        </a>
-        <a class="{% if active_page == 'profile' %}active{% endif %}" href="{{ url_for('profile', username=viewer.username) }}" aria-label="Profile" title="Profile">
-          <span class="nav-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z"/></svg>
-          </span>
-          <span class="nav-label sr-only">Profile</span>
         </a>
         <a class="{% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings">
           <span class="nav-icon" aria-hidden="true">

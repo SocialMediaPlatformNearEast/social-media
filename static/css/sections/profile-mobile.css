@@ -92,8 +92,57 @@
   }
 
   .profile-actions {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
+    justify-content: stretch;
+    align-items: stretch;
+  }
+
+  .profile-actions:has(.profile-high-five-form) {
+    grid-template-columns: var(--control-lg) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "highfive follow message"
+      "mute mute block";
+  }
+
+  .profile-actions form {
+    width: 100%;
+  }
+
+  .profile-actions .profile-high-five-form {
+    grid-area: highfive;
+  }
+
+  .profile-actions .ajax-action-form[data-action="follow"] {
+    grid-area: follow;
+  }
+
+  .profile-actions > .outline-button {
+    grid-area: message;
+  }
+
+  .profile-actions .ajax-action-form[data-action="mute"] {
+    grid-area: mute;
+  }
+
+  .profile-actions .ajax-action-form[data-action="block"] {
+    grid-area: block;
+  }
+
+  .profile-actions .outline-button,
+  .profile-actions button {
+    width: 100%;
+    min-height: var(--control-lg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-lg);
+  }
+
+  .profile-actions .profile-high-five-button {
+    padding: 0;
+    font-size: 20px;
   }
 
   .profile-stats {

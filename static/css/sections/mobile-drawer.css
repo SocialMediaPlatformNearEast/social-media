@@ -1,13 +1,19 @@
 /* Mobile sidebar repair */
 /* Mobile sidebar repair: keep the drawer readable when opened from phone widths. */
 @media (max-width: 1000px) {
-  .left-rail.menu-open {
+  .left-rail.menu-open:not(.mobile-menu-open),
+  .left-rail:not(.mobile-menu-open) {
+    transform: translateX(-100%) !important;
+  }
+
+  .left-rail.mobile-menu-open {
     width: min(86vw, 320px) !important;
     padding: 16px !important;
     overflow-x: hidden !important;
+    transform: translateX(0) !important;
   }
 
-  .left-rail.menu-open .nav-list {
+  .left-rail.mobile-menu-open .nav-list {
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
@@ -18,7 +24,7 @@
     margin: 10px 0 0 !important;
   }
 
-  .left-rail.menu-open .nav-list a {
+  .left-rail.mobile-menu-open .nav-list a {
     display: grid !important;
     grid-template-columns: 28px minmax(0, 1fr) !important;
     align-items: center !important;
@@ -35,15 +41,15 @@
     white-space: nowrap !important;
   }
 
-  .left-rail.menu-open .nav-icon,
-  .left-rail.menu-open .nav-list a svg {
+  .left-rail.mobile-menu-open .nav-icon,
+  .left-rail.mobile-menu-open .nav-list a svg {
     width: 28px !important;
     min-width: 28px !important;
     height: 28px !important;
     justify-self: center !important;
   }
 
-  .left-rail.menu-open .nav-label {
+  .left-rail.mobile-menu-open .nav-label {
     /* Override sr-only / hardening rules */
     position: static !important;
     display: block !important;
@@ -64,30 +70,30 @@
     color: var(--text-primary) !important;
   }
 
-  .left-rail.menu-open .nav-list a span.nav-label {
+  .left-rail.mobile-menu-open .nav-list a span.nav-label {
     flex: 1 1 auto !important;
     justify-content: flex-start !important;
   }
 
   /* Fix link layout: icon left + label right */
-  .left-rail.menu-open .nav-list a {
+  .left-rail.mobile-menu-open .nav-list a {
     justify-content: flex-start !important;
     padding-inline: 14px !important;
   }
 
-  .left-rail.menu-open .compose-link {
+  .left-rail.mobile-menu-open .compose-link {
     margin: 12px 0 10px !important;
     min-height: 44px !important;
     padding-block: 11px !important;
   }
 
-  .left-rail.menu-open .mini-profile {
+  .left-rail.mobile-menu-open .mini-profile {
     margin-top: auto !important;
     min-height: 58px !important;
     padding: 8px !important;
   }
 
-  .left-rail.menu-open .logout-link {
+  .left-rail.mobile-menu-open .logout-link {
     display: flex !important;
     min-height: 38px !important;
     align-items: center !important;
@@ -100,17 +106,17 @@
 @media (max-width: 640px) {
   /* Wrapper becomes invisible so left-rail can overlay the page */
   .left-rail-wrapper,
-  .left-rail-wrapper:has(.left-rail.menu-open) {
+  .left-rail-wrapper:has(.left-rail.mobile-menu-open) {
     display: contents !important;
   }
 
   /* Closed: fully hidden — takes NO layout space */
-  .left-rail:not(.menu-open) {
+  .left-rail:not(.mobile-menu-open) {
     display: none !important;
   }
 
   /* Open: slides in as a fixed overlay from the left */
-  .left-rail.menu-open {
+  .left-rail.mobile-menu-open {
     display: flex !important;
     position: fixed !important;
     top: 0 !important;
@@ -124,25 +130,25 @@
 }
 
 @media (max-height: 760px) {
-  .left-rail.menu-open {
+  .left-rail.mobile-menu-open {
     padding-block: 10px !important;
   }
 
-  .left-rail.menu-open .nav-list {
+  .left-rail.mobile-menu-open .nav-list {
     gap: 3px !important;
     margin-top: 6px !important;
   }
 
-  .left-rail.menu-open .nav-list a {
+  .left-rail.mobile-menu-open .nav-list a {
     min-height: 38px !important;
     height: 38px !important;
   }
 
-  .left-rail.menu-open .compose-link {
+  .left-rail.mobile-menu-open .compose-link {
     margin-block: 8px !important;
   }
 
-  .left-rail.menu-open .mini-profile {
+  .left-rail.mobile-menu-open .mini-profile {
     min-height: 52px !important;
   }
 }

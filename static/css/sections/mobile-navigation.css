@@ -390,15 +390,7 @@
   }
 
   .reels-header .compact-action {
-    grid-column: 2;
-    grid-row: 1;
-    display: inline-flex;
-    justify-self: end;
-    width: auto;
-    inline-size: max-content;
-    min-height: 38px;
-    padding-inline: 16px;
-    white-space: nowrap;
+    display: none;
   }
 
   .mobile-reels-upload-cta {

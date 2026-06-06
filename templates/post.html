@@ -26,25 +26,50 @@
       </div>
       <div class="post-content">
         <div class="post-header">
-          <a href="{{ url_for('profile', username=post.user.username) }}">
+          <a href="{{ url_for('profile', username=post.user.username) }}" class="post-author-link">
             <strong>{{ post.user.display_name }}</strong>
+            <span>@{{ post.user.username }}</span>
           </a>
-          <span>@{{ post.user.username }}</span>
           <span class="time" title="{{ post.created_at }}">· {{ relative_time(post.created_at) }}</span>
+          <div class="post-menu-wrap">
+            <button class="post-menu-toggle" type="button" data-post-menu-toggle aria-expanded="false" aria-label="Post options">...</button>
+            <div class="post-menu" data-post-menu hidden>
+              <button type="button" data-copy-url="{{ url_for('post', id=post.id, _external=True) }}">Copy link</button>
+              <button type="button" onclick="window.location.href='{{ url_for('share_post', post_id=post.id) }}'">Share via DM</button>
+              {% if post.user_id == viewer.id %}
+                <form action="{{ url_for('delete_post') }}" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="post_id" value="{{ post.id }}">
+                  <button type="submit" class="danger-action">Delete post</button>
+                </form>
+              {% else %}
+                <form action="{{ url_for('safety_action') }}" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="target_user_id" value="{{ post.user_id }}">
+                  <input type="hidden" name="post_id" value="{{ post.id }}">
+                  <input type="hidden" name="action_type" value="report">
+                  <button type="submit">Report post</button>
+                </form>
+                <form action="{{ url_for('safety_action') }}" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="target_user_id" value="{{ post.user_id }}">
+                  <input type="hidden" name="action_type" value="mute">
+                  <button type="submit">Mute @{{ post.user.username }}</button>
+                </form>
+                <form action="{{ url_for('safety_action') }}" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="target_user_id" value="{{ post.user_id }}">
+                  <input type="hidden" name="action_type" value="block">
+                  <button type="submit" class="danger-action">Block @{{ post.user.username }}</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
         </div>
         <div class="post-body">
           {{ post.content | linkify_mentions }}
         </div>
         {% include "_post_media.html" %}
-        {% if post.user_id != viewer.id %}
-          <form class="inline-report-form" action="{{ url_for('safety_action') }}" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="target_user_id" value="{{ post.user_id }}">
-            <input type="hidden" name="post_id" value="{{ post.id }}">
-            <input type="hidden" name="action_type" value="report">
-            <button type="submit">Report post</button>
-          </form>
-        {% endif %}
       </div>
     </article>
   </section>

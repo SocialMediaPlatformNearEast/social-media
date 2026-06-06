@@ -23,7 +23,7 @@
 <main class="auth-layout">
   <section class="auth-hero">
     <div class="brand-lockup">
-      <span class="brand-mark large">LvL</span>
+      <img class="brand-mark brand-logo-large" src="{{ static_asset('assets/icon-512.png') }}" alt="LvL">
     </div>
     <h1>Level up every connection.</h1>
     <p>Earn XP as you post, comment, like, and meet people. Build your profile rank, unlock stronger badges, and make every interaction count.</p>
@@ -48,7 +48,7 @@
     </div>
 
     <div class="social-auth" aria-label="Supabase social login options">
-      <p>Continue with Supabase social login</p>
+      <p>Continue securely with</p>
       <div class="social-auth-grid">
         {% for provider in oauth_providers %}
           <a class="social-auth-button social-auth-{{ provider.class }}" href="{{ url_for('oauth_start', provider=provider.provider) }}">
@@ -57,10 +57,10 @@
           </a>
         {% endfor %}
       </div>
-      <small>New social accounts finish nickname, birthday, and gender after provider approval.</small>
+      <small>Powered by Supabase Auth. New accounts finish nickname, birthday, and gender after approval.</small>
     </div>
 
-    <div class="auth-divider"><span>or use password</span></div>
+    <div class="auth-divider"><span>Continue with email</span></div>
     
     <form class="auth-form active" data-auth-panel="login" action="{{ url_for('auth') }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

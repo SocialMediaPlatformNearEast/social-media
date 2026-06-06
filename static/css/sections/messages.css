@@ -460,13 +460,17 @@
   }
 
   .timeline-messages {
-    max-width: none;
+    width: 100% !important;
+    max-width: none !important;
+    flex-basis: auto !important;
+    justify-self: stretch;
     border-right: 0;
   }
 
   .messages-container {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 }
 

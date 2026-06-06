@@ -1,13 +1,89 @@
 /* Community highlights overflow safety */
 /* ─── Community highlights — no overflow ────────────────────────────────── */
-.community-highlight-row {
+.community-highlights.panel {
+  display: grid;
+  gap: var(--space-7);
+  padding: var(--space-8);
   overflow: hidden;
 }
 
+.community-highlights.panel h2 {
+  margin: 0;
+  font-size: clamp(21px, 1.6vw, 24px);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.community-highlight-row {
+  width: 100%;
+  margin: 0;
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  gap: var(--space-5);
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.community-highlight-row:hover,
+.community-highlight-row:focus-visible,
+.mini-profile:hover,
+.mini-profile:focus-visible {
+  text-decoration: none;
+}
+
+.community-highlight-row:hover strong,
+.community-highlight-row:hover span,
+.mini-profile:hover strong,
+.mini-profile:hover span {
+  text-decoration: none;
+}
+
+.left-rail.menu-open .mini-profile {
+  border-radius: var(--radius-lg);
+}
+
+.community-highlight-avatar {
+  flex: 0 0 var(--avatar-md);
+  width: var(--avatar-md);
+  height: var(--avatar-md);
+}
+
 .community-highlight-row-body {
+  display: grid;
+  gap: var(--space-1);
   min-width: 0;
   flex: 1;
   overflow: hidden;
+}
+
+.community-highlight-row-body strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(16px, 1.5vw, 20px);
+  line-height: 1.15;
+}
+
+.community-highlight-row-body span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.mini-profile .level-badge,
+.mini-profile .community-level-badge {
+  min-width: calc(var(--badge-height-sm) * 3);
+  width: max-content;
+  height: calc(var(--badge-height-sm) + var(--space-1));
+  padding: 0 var(--space-5);
+  color: var(--lvl-white);
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .engagement-panel {

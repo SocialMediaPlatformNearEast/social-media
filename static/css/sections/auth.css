@@ -17,13 +17,13 @@
 }
 
 .brand-lockup {
-  font-size: 64px;
-  font-weight: 900;
   margin-bottom: 48px;
 }
 
-.brand-mark.large {
-  font-size: 80px;
+.brand-logo-large {
+  display: block;
+  width: clamp(96px, 12vw, 148px);
+  height: auto;
 }
 
 .auth-hero h1 {
@@ -110,7 +110,7 @@
 
 .social-auth-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 

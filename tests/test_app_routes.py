@@ -105,13 +105,34 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"', settings_html)
         self.assertIn('name="remove_profile_photo"', settings_html)
 
-    def test_auth_page_lists_all_supabase_social_providers(self):
+    def test_auth_page_lists_enabled_social_providers_only(self):
         auth_html = self.client.get("/auth").data.decode()
 
-        self.assertIn("Continue with Supabase social login", auth_html)
+        self.assertIn("Continue securely with", auth_html)
+        self.assertIn("Continue with email", auth_html)
+        self.assertIn("Powered by Supabase Auth.", auth_html)
+        self.assertIn('class="brand-mark brand-logo-large"', auth_html)
+        self.assertIn("assets/icon-512.png", auth_html)
+        self.assertNotIn('brand-mark large">LvL', auth_html)
+        self.assertEqual([provider["provider"] for provider in zapp.SUPABASE_SOCIAL_PROVIDERS], ["google", "github", "discord"])
         for provider in zapp.SUPABASE_SOCIAL_PROVIDERS:
             self.assertIn(provider["label"], auth_html)
             self.assertIn(f'/auth/oauth/{provider["provider"]}', auth_html)
+        self.assertNotIn('/auth/oauth/facebook', auth_html)
+        self.assertNotIn('/auth/oauth/apple', auth_html)
+        self.assertNotIn('/auth/oauth/azure', auth_html)
+        self.assertNotIn('/auth/oauth/x', auth_html)
+
+    def test_oauth_start_rejects_disabled_provider_before_supabase_call(self):
+        class FakeAuth:
+            def sign_in_with_oauth(self, _credentials):
+                raise AssertionError("disabled providers must not start Supabase OAuth")
+
+        with patch.object(zapp, "supabase", SimpleNamespace(auth=FakeAuth())):
+            response = self.client.get("/auth/oauth/facebook")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/auth"))
 
     def test_oauth_start_redirects_to_supabase_provider(self):
         class FakeStorage:
@@ -385,6 +406,29 @@ class AppRouteTests(unittest.TestCase):
             })
         self.assertIn("Delete post", html)
         self.assertNotIn("Report post", html)
+
+    def test_single_post_uses_menu_for_report_action(self):
+        with zapp.app.test_request_context("/post/42"):
+            html = zapp.render_template("post.html", viewer={"id": 7}, post={
+                "id": 42,
+                "user_id": 8,
+                "content": "hello",
+                "created_at": "2026-06-06T00:00:00+00:00",
+                "user": {
+                    "id": 8,
+                    "username": "demo",
+                    "display_name": "Demo User",
+                    "profile_photo_url": "",
+                },
+            }, comments=[])
+
+        self.assertIn('class="post-menu-wrap"', html)
+        self.assertIn('data-post-menu-toggle', html)
+        self.assertIn('class="post-menu"', html)
+        self.assertIn("Report post", html)
+        self.assertIn("Mute @demo", html)
+        self.assertIn("Block @demo", html)
+        self.assertNotIn('class="inline-report-form"', html)
 
     def test_new_routes_are_registered(self):
         routes = {rule.rule for rule in zapp.app.url_map.iter_rules()}
@@ -918,6 +962,9 @@ class AppRouteTests(unittest.TestCase):
 
         self.assertIn('/reels', html)
         self.assertIn('Reels', html)
+        self.assertIn('<aside class="left-rail menu-open">', html)
+        self.assertNotIn('id="sidebar-toggle"', html)
+        self.assertIn('class="mobile-sidebar-toggle"', html)
         self.assertIn('class="app-topbar topbar-search-only"', html)
         self.assertIn('topbar-search-only', html)
         self.assertIn('class="topbar-search"', html)
@@ -926,7 +973,21 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('class="topbar-action', html)
         self.assertIn('aria-label="Messages"', html)
         self.assertIn('aria-label="Alerts"', html)
-        self.assertIn('aria-label="Activity"', html)
+        left_rail_nav = html.split('<nav class="nav-list"', 1)[1].split('</nav>', 1)[0]
+        self.assertNotIn('href="/search"', left_rail_nav)
+        self.assertNotIn('aria-label="Search"', left_rail_nav)
+        self.assertNotIn('href="/messages"', left_rail_nav)
+        self.assertNotIn('aria-label="Messages"', left_rail_nav)
+        self.assertNotIn('href="/notifications"', left_rail_nav)
+        self.assertNotIn('aria-label="Alerts"', left_rail_nav)
+        self.assertNotIn('href="/activity"', left_rail_nav)
+        self.assertNotIn('aria-label="Activity"', left_rail_nav)
+        self.assertNotIn('aria-label="Profile"', left_rail_nav)
+        self.assertIn('class="mini-profile" href="/profile/demo"', html)
+        self.assertIn('action="/search"', html.split('<form class="topbar-search"', 1)[1])
+        topbar_actions = html.split('<div class="topbar-actions"', 1)[1]
+        self.assertIn('href="/messages"', topbar_actions)
+        self.assertIn('href="/notifications"', topbar_actions)
         self.assertIn('class="mobile-header-search"', html)
         self.assertIn('class="mobile-header-actions"', html)
         self.assertIn('class="nav-label sr-only"', html)
@@ -981,18 +1042,71 @@ class AppRouteTests(unittest.TestCase):
         self.assertNotIn("--reels-topbar-offset: 119px", css)
         self.assertIn("top: auto", css)
 
+    def test_mobile_reel_comments_keep_composer_above_bottom_nav(self):
+        css = Path("static/css/sections/reels.css").read_text()
+
+        self.assertIn("--reels-mobile-bottom-nav: 76px", css)
+        self.assertIn("bottom: calc(var(--reels-mobile-bottom-nav) + env(safe-area-inset-bottom))", css)
+        self.assertIn("max-height: calc(100dvh - 64px - var(--reels-mobile-bottom-nav) - env(safe-area-inset-bottom))", css)
+        self.assertIn(".reel-comment-submit-form", css)
+        self.assertIn("position: sticky", css)
+
+    def test_mobile_reels_pagination_does_not_create_empty_bottom_section(self):
+        css = Path("static/css/sections/reels.css").read_text()
+
+        self.assertIn(".reels-pagination", css)
+        self.assertIn("bottom: calc(var(--reels-mobile-bottom-nav) + 14px + env(safe-area-inset-bottom))", css)
+        self.assertIn("pointer-events: none", css)
+        self.assertIn(".reels-pagination .outline-button", css)
+        self.assertIn("pointer-events: auto", css)
+
+    def test_mobile_reels_uses_bottom_plus_instead_of_header_upload_cta(self):
+        css = Path("static/css/sections/reels.css").read_text()
+        mobile_nav_css = Path("static/css/sections/mobile-navigation.css").read_text()
+
+        self.assertIn("--reels-mobile-header: 52px", css)
+        self.assertIn(".reels-header-title", css)
+        self.assertIn("display: none", css)
+        self.assertIn(".reels-header .compact-action", css)
+        self.assertIn("display: none", css)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", css)
+        self.assertIn(".reels-header .compact-action", mobile_nav_css)
+        self.assertIn("display: none", mobile_nav_css)
+        self.assertNotIn("display: inline-flex", mobile_nav_css.split(".reels-header .compact-action", 1)[1].split("}", 1)[0])
+
     def test_sidebar_labels_are_visible_only_when_menu_is_open(self):
         css = Path("static/css/sections/navigation.css").read_text()
         hardening_css = Path("static/css/sections/hardening.css").read_text()
+        mobile_drawer_css = Path("static/css/sections/mobile-drawer.css").read_text()
 
         self.assertIn(".left-rail:not(.menu-open) .nav-list a .sr-only", css)
         self.assertIn(".mobile-bottom-nav a .sr-only", css)
         self.assertIn(".left-rail.menu-open .nav-list a", css)
         self.assertIn("justify-content: flex-start", css)
         self.assertIn("gap: 14px", css)
+        legacy_css = Path("static/css/sections/legacy-polish.css").read_text()
+        self.assertIn("transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);", legacy_css)
+        self.assertIn(".left-rail-wrapper:has(.left-rail.menu-open)", legacy_css)
         self.assertIn(".left-rail.menu-open .mini-profile div", hardening_css)
         self.assertIn("display: flex !important", hardening_css)
         self.assertIn("text-overflow: ellipsis", hardening_css)
+        self.assertIn(".left-rail.menu-open:not(.mobile-menu-open)", mobile_drawer_css)
+        self.assertIn(".left-rail.mobile-menu-open", mobile_drawer_css)
+
+    def test_community_highlights_badges_and_profile_hover_are_guarded(self):
+        css = Path("static/css/sections/community-highlights.css").read_text()
+
+        self.assertIn(".community-highlights.panel", css)
+        self.assertIn("padding: var(--space-8)", css)
+        self.assertIn(".community-highlights.panel h2", css)
+        self.assertIn("font-size: clamp(21px, 1.6vw, 24px)", css)
+        self.assertIn(".mini-profile:hover", css)
+        self.assertIn("text-decoration: none", css)
+        self.assertIn(".left-rail.menu-open .mini-profile", css)
+        self.assertIn("border-radius: var(--radius-lg)", css)
+        self.assertIn(".mini-profile .level-badge", css)
+        self.assertIn(".mini-profile .community-level-badge", css)
+        self.assertIn("min-width: calc(var(--badge-height-sm) * 3)", css)
 
     def test_post_actions_are_icon_first_controls(self):
         with zapp.app.test_request_context("/"):
@@ -1163,6 +1277,8 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('/profile/demo/friends', html)
         self.assertIn("Achievements", html)
         self.assertIn("First Post", html)
+        self.assertIn('href="/activity"', html)
+        self.assertIn(">Activity</a>", html)
 
     def test_other_profile_has_high_five_action(self):
         viewer = {
@@ -1220,6 +1336,31 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('aria-label="High-five Demo User"', html)
         self.assertIn("Friendship starts with a streak", html)
         self.assertNotIn("Add friend", html)
+
+    def test_mobile_profile_actions_use_stable_grid(self):
+        css = Path("static/css/sections/profile-mobile.css").read_text()
+
+        self.assertIn("@media (max-width: 420px)", css)
+        self.assertIn(".profile-actions:has(.profile-high-five-form)", css)
+        self.assertIn("display: grid", css)
+        self.assertIn("grid-template-areas:", css)
+        self.assertIn('"highfive follow message"', css)
+        self.assertIn('"mute mute block"', css)
+        self.assertIn('.profile-actions .ajax-action-form[data-action="follow"]', css)
+        self.assertIn('.profile-actions .ajax-action-form[data-action="mute"]', css)
+        self.assertIn('.profile-actions .ajax-action-form[data-action="block"]', css)
+        self.assertIn("width: 100%", css)
+
+    def test_profile_action_buttons_use_shared_control_shape(self):
+        css = Path("static/css/sections/profile.css").read_text()
+
+        self.assertIn(".profile-actions form", css)
+        self.assertIn(".profile-actions .outline-button", css)
+        self.assertIn("display: inline-flex", css)
+        self.assertIn("min-height: var(--control-lg)", css)
+        self.assertIn("align-items: center", css)
+        self.assertIn("justify-content: center", css)
+        self.assertIn("border-radius: var(--radius-lg)", css)
 
     def test_relative_time_helper_formats_short_units(self):
         self.assertEqual(zapp.relative_time(None), "")
