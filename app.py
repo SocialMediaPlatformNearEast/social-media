@@ -21,7 +21,10 @@ from app_theme import GENDER_THEME, PROFILE_COLOR_UNLOCK_LEVEL, THEME_COLORS, le
 
 load_dotenv()
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__, static_folder='static', template_folder='templates')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-default-key")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
