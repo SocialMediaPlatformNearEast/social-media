@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.exceptions import HTTPException
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 import bcrypt
 import logging
 import smtplib
@@ -28,6 +29,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.getenv("FLASK_ENV") == "production"
 )
 logging.basicConfig(level=logging.INFO)
+password_reset_serializer = URLSafeTimedSerializer(app.secret_key, salt="lvl-password-reset")
 
 url: str = os.getenv("SUPABASE_URL", "")
 key: str = os.getenv("SUPABASE_SECRET", os.getenv("SUPABASE_KEY", ""))
@@ -57,13 +59,11 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "86"
+ASSET_VERSION = "87"
 
 GENDER_OPTIONS = GENDER_THEME
 SUPABASE_SOCIAL_PROVIDERS = [
     {'provider': 'google', 'label': 'Google', 'icon': 'G', 'class': 'google'},
-    {'provider': 'github', 'label': 'GitHub', 'icon': 'Gh', 'class': 'github'},
-    {'provider': 'discord', 'label': 'Discord', 'icon': 'Di', 'class': 'discord'},
 ]
 SUPABASE_SOCIAL_PROVIDER_IDS = {provider['provider'] for provider in SUPABASE_SOCIAL_PROVIDERS}
 SUPABASE_SOCIAL_PROVIDER_ALIASES = {}
@@ -117,9 +117,10 @@ def check_supabase():
                 return jsonify({'success': False, 'error': 'Security check failed. Refresh the page and try again.'}), 400
             flash("Security check failed. Refresh the page and try again.", "error")
             return redirect(safe_redirect_url(url_for('index')))
-    if not supabase and request.endpoint == 'auth':
+    public_auth_endpoints = {'static', 'service_worker', 'auth', 'forgot_password', 'reset_password'}
+    if not supabase and request.endpoint in {'auth', 'forgot_password', 'reset_password'}:
         flash("Supabase connection failed. Add SUPABASE_URL and SUPABASE_SECRET to your .env file.", "error")
-    elif not supabase and not app.config.get('TESTING') and request.endpoint not in {'static', 'service_worker', 'auth'}:
+    elif not supabase and not app.config.get('TESTING') and request.endpoint not in public_auth_endpoints:
         flash("Database connection error.", "error")
         return redirect(url_for('auth'))
 
@@ -2220,24 +2221,48 @@ def api_reel_comments(reel_id):
     except Exception as exc:
         return jsonify({'success': False, 'error': handle_db_error(exc)}), 400
 
+def external_url_for(endpoint, **values):
+    base_url = (os.getenv("APP_BASE_URL") or os.getenv("OAUTH_REDIRECT_BASE_URL") or '').strip().rstrip('/')
+    if base_url:
+        return f"{base_url}{url_for(endpoint, **values)}"
+    return url_for(endpoint, _external=True, **values)
 
-def send_verification_email(to_email, first_name, token):
-    sender_email = os.getenv("MAIL_USERNAME")
-    sender_password = os.getenv("MAIL_PASSWORD")
+def send_html_email(to_email, subject, html_body):
+    sender_email = os.getenv("SMTP_FROM") or os.getenv("MAIL_USERNAME") or os.getenv("SMTP_USERNAME")
+    smtp_username = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD")
+    smtp_host = os.getenv("SMTP_HOST") or "smtp.gmail.com"
+    smtp_port = int(os.getenv("SMTP_PORT") or 587)
+    use_tls = (os.getenv("SMTP_USE_TLS") or "1").lower() not in {"0", "false", "no"}
 
-    if not sender_email or not sender_password:
-        app.logger.warning("Email credentials missing. Cannot send verification email.")
+    if not sender_email or not smtp_username or not smtp_password:
+        app.logger.warning("SMTP credentials missing. Cannot send email.")
         return False
-
-    try:
-        verify_url = url_for('verify_email', token=token, _external=True)
-    except Exception:
-        verify_url = f"http://127.0.0.1:5000/verify/{token}"
 
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = to_email
-    msg['Subject'] = "Welcome to LvL! Verify your email to start leveling up"
+    msg['Subject'] = subject
+    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+    try:
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        if use_tls:
+            server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(sender_email, to_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as exc:
+        app.logger.error(f"Email failed to send to {to_email}: {exc}")
+        return False
+
+
+def send_verification_email(to_email, first_name, token):
+    try:
+        verify_url = external_url_for('verify_email', token=token)
+    except Exception:
+        verify_url = f"http://127.0.0.1:5000/verify/{token}"
 
     html_body = f"""
     <html>
@@ -2252,19 +2277,34 @@ def send_verification_email(to_email, first_name, token):
     </html>
     """
 
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, to_email, msg.as_string())
-        server.quit()
+    if send_html_email(to_email, "Welcome to LvL! Verify your email to start leveling up", html_body):
         app.logger.info(f"Verification email sent to {to_email}")
         return True
-    except Exception as e:
-        app.logger.error(f"Email verification failed to send to {to_email}: {e}")
-        return False
+    return False
+
+def send_password_reset_email(to_email, first_name, token):
+    try:
+        reset_url = external_url_for('reset_password', token=token)
+    except Exception:
+        reset_url = f"http://127.0.0.1:5000/reset-password/{token}"
+
+    html_body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px; text-align: center;">
+      <h1 style="color: {THEME_COLORS['primary']};">Reset your LvL password</h1>
+      <p style="font-size: 16px;">Hi {first_name}, use the button below to choose a new password. This link expires in one hour.</p>
+      <div style="margin: 30px 0;">
+        <a href="{reset_url}" style="background-color: {THEME_COLORS['primary']}; color: #000; padding: 12px 24px; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 16px;">Reset Password</a>
+      </div>
+      <p style="font-size: 12px; color: {THEME_COLORS['muted']};">If you did not request this, you can ignore this email.</p>
+    </body>
+    </html>
+    """
+
+    if send_html_email(to_email, "Reset your LvL password", html_body):
+        app.logger.info(f"Password reset email sent to {to_email}")
+        return True
+    return False
 
 @app.route('/verify/<token>')
 def verify_email(token):
@@ -2284,6 +2324,81 @@ def verify_email(token):
 
     return redirect(url_for('auth'))
 
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        if not supabase:
+            flash("Database connection error.", "error")
+            return render_template('password_reset.html', mode='request')
+
+        email = request.form.get('email', '').strip().lower()
+        if not email:
+            flash("Enter the email address for your LvL account.", "error")
+            return render_template('password_reset.html', mode='request')
+
+        try:
+            res = supabase.table('users').select('id,email,first_name').eq('email', email).execute()
+            user = res.data[0] if res.data else None
+            if user:
+                token = password_reset_serializer.dumps({'id': user['id'], 'email': user['email']})
+                if not send_password_reset_email(user['email'], user.get('first_name') or 'there', token):
+                    flash("Password reset email could not be sent. Add SMTP_USERNAME and SMTP_PASSWORD to .env, then try again.", "error")
+                    return render_template('password_reset.html', mode='request')
+            flash("If that email belongs to a LvL account, a password reset link has been sent.", "success")
+            return redirect(url_for('auth'))
+        except Exception as exc:
+            flash(handle_db_error(exc, "Password reset could not be started."), "error")
+
+    return render_template('password_reset.html', mode='request')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if not supabase:
+        flash("Database connection error.", "error")
+        return render_template('password_reset.html', mode='reset', token=token)
+
+    try:
+        token_data = password_reset_serializer.loads(token, max_age=3600)
+    except SignatureExpired:
+        flash("That password reset link has expired. Request a new one.", "error")
+        return redirect(url_for('forgot_password'))
+    except BadSignature:
+        flash("Invalid password reset link. Request a new one.", "error")
+        return redirect(url_for('forgot_password'))
+
+    try:
+        res = supabase.table('users').select('id,email').eq('id', token_data.get('id')).execute()
+        user = res.data[0] if res.data else None
+    except Exception as exc:
+        flash(handle_db_error(exc, "Password reset link could not be checked."), "error")
+        return redirect(url_for('forgot_password'))
+
+    if not user:
+        flash("Invalid or expired password reset link. Request a new one.", "error")
+        return redirect(url_for('forgot_password'))
+    if user.get('email') != token_data.get('email'):
+        flash("Invalid password reset link. Request a new one.", "error")
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template('password_reset.html', mode='reset', token=token)
+        if password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template('password_reset.html', mode='reset', token=token)
+
+        hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        supabase.table('users').update({
+            'password_hash': hashed_pw,
+        }).eq('id', user['id']).execute()
+        flash("Your password has been updated. You can log in now.", "success")
+        return redirect(url_for('auth'))
+
+    return render_template('password_reset.html', mode='reset', token=token)
+
 @app.route('/auth/oauth/<provider>')
 def oauth_start(provider):
     provider = normalize_oauth_provider(provider)
@@ -2299,10 +2414,11 @@ def oauth_start(provider):
     session['oauth_provider'] = provider
 
     try:
+        redirect_to = external_url_for('oauth_callback')
         response = supabase.auth.sign_in_with_oauth({
             'provider': provider,
             'options': {
-                'redirect_to': url_for('oauth_callback', _external=True),
+                'redirect_to': redirect_to,
                 'query_params': {
                     'state': state,
                 },
@@ -2345,7 +2461,7 @@ def oauth_callback():
         restore_oauth_code_verifier(supabase.auth)
         response = supabase.auth.exchange_code_for_session({
             'auth_code': code,
-            'redirect_to': url_for('oauth_callback', _external=True),
+            'redirect_to': external_url_for('oauth_callback'),
         })
         auth_user = response.user or (response.session.user if response.session else None)
         if not auth_user:

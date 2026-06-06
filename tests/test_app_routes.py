@@ -170,20 +170,52 @@ class AppRouteTests(unittest.TestCase):
     def test_auth_page_lists_enabled_social_providers_only(self):
         auth_html = self.client.get("/auth").data.decode()
 
-        self.assertIn("Continue securely with", auth_html)
+        self.assertIn("Continue with Google", auth_html)
         self.assertIn("Continue with email", auth_html)
         self.assertIn("Powered by Supabase Auth.", auth_html)
+        self.assertIn('href="/forgot-password"', auth_html)
         self.assertIn('class="brand-mark brand-logo-large"', auth_html)
         self.assertIn("assets/icon-512.png", auth_html)
         self.assertNotIn('brand-mark large">LvL', auth_html)
-        self.assertEqual([provider["provider"] for provider in zapp.SUPABASE_SOCIAL_PROVIDERS], ["google", "github", "discord"])
+        self.assertEqual([provider["provider"] for provider in zapp.SUPABASE_SOCIAL_PROVIDERS], ["google"])
         for provider in zapp.SUPABASE_SOCIAL_PROVIDERS:
             self.assertIn(provider["label"], auth_html)
             self.assertIn(f'/auth/oauth/{provider["provider"]}', auth_html)
+        self.assertNotIn('/auth/oauth/github', auth_html)
+        self.assertNotIn('/auth/oauth/discord', auth_html)
         self.assertNotIn('/auth/oauth/facebook', auth_html)
         self.assertNotIn('/auth/oauth/apple', auth_html)
         self.assertNotIn('/auth/oauth/azure', auth_html)
         self.assertNotIn('/auth/oauth/x', auth_html)
+
+    def test_forgot_password_requires_email(self):
+        with patch.object(zapp, "supabase", object()):
+            response = self.client.post("/forgot-password", data={
+                "csrf_token": self.csrf(),
+                "email": "",
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Enter the email address for your LvL account.", response.data)
+
+    def test_reset_password_rejects_unknown_token(self):
+        class FakeTable:
+            def select(self, *_args, **_kwargs):
+                return self
+
+            def eq(self, *_args, **_kwargs):
+                return self
+
+            def execute(self):
+                return SimpleNamespace(data=[])
+
+        fake_supabase = SimpleNamespace(table=lambda _name: FakeTable())
+
+        with patch.object(zapp, "supabase", fake_supabase):
+            response = self.client.get("/reset-password/missing-token")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.location.endswith("/forgot-password"))
 
     def test_oauth_start_rejects_disabled_provider_before_supabase_call(self):
         class FakeAuth:
@@ -338,7 +370,7 @@ class AppRouteTests(unittest.TestCase):
                     id="22222222-2222-2222-2222-222222222222",
                     email="new@example.com",
                     user_metadata={"name": "New OAuth"},
-                    app_metadata={"provider": "github"},
+                    app_metadata={"provider": "google"},
                 )
                 return SimpleNamespace(user=user, session=SimpleNamespace(user=user))
 
@@ -355,7 +387,7 @@ class AppRouteTests(unittest.TestCase):
         fake = SimpleNamespace(auth=FakeAuth(), table=lambda _name: FakeUsersTable())
         with self.client.session_transaction() as sess:
             sess["oauth_state"] = "expected-state"
-            sess["oauth_provider"] = "github"
+            sess["oauth_provider"] = "google"
             sess["oauth_code_verifier"] = "stored-verifier"
 
         with patch.object(zapp, "supabase", fake):
@@ -365,7 +397,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertTrue(response.location.endswith("/auth/oauth/onboarding"))
         with self.client.session_transaction() as sess:
             self.assertEqual(sess["pending_oauth_profile"]["email"], "new@example.com")
-            self.assertEqual(sess["pending_oauth_profile"]["provider"], "github")
+            self.assertEqual(sess["pending_oauth_profile"]["provider"], "google")
             self.assertEqual(sess["pending_oauth_profile"]["first_name"], "New")
 
     def test_oauth_onboarding_creates_lvl_user(self):

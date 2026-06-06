@@ -114,6 +114,10 @@
   gap: 10px;
 }
 
+.social-auth-grid:has(.social-auth-button:only-child) {
+  grid-template-columns: 1fr;
+}
+
 .social-auth-button {
   --provider-color: var(--lvl-border-strong);
   display: flex;
@@ -243,6 +247,43 @@
 
 .auth-form button[type="submit"]:hover {
   background-color: var(--lvl-surface-10);
+}
+
+.auth-secondary-link {
+  width: fit-content;
+  color: var(--accent-color);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.auth-secondary-link:hover,
+.auth-secondary-link:focus-visible {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.auth-panel-heading {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.auth-panel-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.auth-panel-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.auth-return-link {
+  margin-top: var(--space-5);
 }
 
 .oauth-summary {

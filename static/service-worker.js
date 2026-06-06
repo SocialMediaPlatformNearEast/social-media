@@ -1,4 +1,4 @@
-const ASSET_VERSION = '86';
+const ASSET_VERSION = '87';
 const STATIC_CACHE = `lvl-static-v${ASSET_VERSION}`;
 const STATIC_ASSETS = [
   `/static/css/styles.css?v=${ASSET_VERSION}`,

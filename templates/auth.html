@@ -47,8 +47,8 @@
       <button type="button" data-auth-tab="register">Register</button>
     </div>
 
-    <div class="social-auth" aria-label="Supabase social login options">
-      <p>Continue securely with</p>
+    <div class="social-auth" aria-label="Google login">
+      <p>Continue with Google</p>
       <div class="social-auth-grid">
         {% for provider in oauth_providers %}
           <a class="social-auth-button social-auth-{{ provider.class }}" href="{{ url_for('oauth_start', provider=provider.provider) }}">
@@ -57,7 +57,7 @@
           </a>
         {% endfor %}
       </div>
-      <small>Powered by Supabase Auth. New accounts finish nickname, birthday, and gender after approval.</small>
+      <small>Powered by Supabase Auth. New accounts finish nickname, birthday, and gender after Google approval.</small>
     </div>
 
     <div class="auth-divider"><span>Continue with email</span></div>
@@ -73,6 +73,7 @@
         Password
         <input type="password" name="password" autocomplete="current-password" required>
       </label>
+      <a class="auth-secondary-link" href="{{ url_for('forgot_password') }}">Forgot password?</a>
       <button type="submit">Login</button>
     </form>
     
