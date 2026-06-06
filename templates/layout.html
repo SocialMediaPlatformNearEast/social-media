@@ -136,11 +136,11 @@
 {% if request.endpoint != 'auth' %}
   </main>
   <div class="right-rail-wrapper">
-    {% if show_highlights or (home_reels is defined and home_reels) %}
+    {% if show_highlights or (home_reels is defined and home_reels) or (home_media is defined and home_media) %}
     <aside class="right-rail">
       {% if show_highlights %}
        <div class="community-highlights panel">
-         <h2>Community Highlights</h2>
+         <h2>Leaderboard</h2>
          {% if highlights %}
            {% for h in highlights %}
              <a class="mini-profile community-highlight-row" href="{{ url_for('profile', username=h.username) }}">
@@ -159,6 +159,9 @@
       {% endif %}
       {% if home_reels is defined and home_reels %}
         {% include "_home_reel_panel.html" %}
+      {% endif %}
+      {% if home_media is defined and home_media %}
+        {% include "_home_media_panel.html" %}
       {% endif %}
       {% if show_highlights and active_page not in ['home', 'reels'] %}
         {% include "_engagement_panel.html" %}

@@ -6,7 +6,7 @@
     </div>
     <a href="{{ url_for('reels') }}" class="home-reel-see-all">See all →</a>
   </div>
-  <div class="home-reel-slides" data-home-reel-slides>
+  <div class="home-reel-slides" data-home-reel-slides tabindex="0" aria-label="Home reels">
     {% for reel in home_reels %}
     {% set reel_author = reel.author or reel.user or {} %}
     <div class="home-reel-slide{% if loop.first %} is-active{% endif %}"
@@ -52,14 +52,5 @@
       </div>
     </div>
     {% endfor %}
-  </div>
-  <div class="home-reel-nav" data-home-reel-nav>
-    <button class="home-reel-prev" type="button" data-home-reel-prev aria-label="Previous reel">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>
-    </button>
-    <span class="home-reel-counter" data-home-reel-counter>1 / {{ home_reels|length }}</span>
-    <button class="home-reel-next" type="button" data-home-reel-next aria-label="Next reel">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
-    </button>
   </div>
 </div>

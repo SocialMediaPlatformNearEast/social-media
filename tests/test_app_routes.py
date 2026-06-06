@@ -166,7 +166,9 @@ class AppRouteTests(unittest.TestCase):
             "gender": "Male",
             "birthday": "",
         }
-        with patch.object(zapp, "get_current_user", return_value=fake_user):
+        with patch.object(zapp, "get_current_user", return_value=fake_user), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_home_reel_preview", return_value=[]):
             settings_html = self.client.get("/settings").data.decode()
         self.assertIn('name="nickname" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"', settings_html)
         self.assertIn('name="remove_profile_photo"', settings_html)
@@ -986,6 +988,40 @@ class AppRouteTests(unittest.TestCase):
             "is_demo": False,
         }
 
+    def test_demo_reels_provide_scrollable_local_batch(self):
+        with zapp.app.test_request_context("/"), \
+             patch.object(zapp, "get_reels", side_effect=RuntimeError("offline")):
+            reels = zapp.get_home_reel_preview(7)
+
+        self.assertEqual(len(reels), zapp.HOME_REEL_PREVIEW_LIMIT)
+        self.assertEqual(reels[-1]["id"], f"demo-{zapp.HOME_REEL_PREVIEW_LIMIT}")
+
+    def test_home_reel_panel_uses_scrollable_reel_batch(self):
+        viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        reels = [self.sample_reel(reel_id=i, user_id=7) for i in range(1, 4)]
+
+        with patch.object(zapp, "get_current_user", return_value=viewer), \
+             patch.object(zapp, "get_feed_posts", return_value=[]), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_reels", return_value=(reels, False)) as get_reels:
+            html = self.client.get("/").data.decode()
+
+        get_reels.assert_called_once_with(7, limit=zapp.HOME_REEL_PREVIEW_LIMIT, page=1)
+        self.assertIn("<h2>Leaderboard</h2>", html)
+        self.assertNotIn("<h2>Community Highlights</h2>", html)
+        self.assertIn('data-home-reel-slides tabindex="0"', html)
+        self.assertIn('aria-label="Home reels"', html)
+        self.assertNotIn('data-home-reel-nav', html)
+        self.assertNotIn('data-home-reel-counter', html)
+
+    def test_home_media_preview_falls_back_to_demo_batch(self):
+        with zapp.app.test_request_context("/reels"), \
+             patch.object(zapp, "supabase", object()):
+            media = zapp.get_home_media_preview(7)
+
+        self.assertEqual(len(media), zapp.HOME_MEDIA_PREVIEW_LIMIT)
+        self.assertEqual(media[-1]["id"], f"demo-media-{zapp.HOME_MEDIA_PREVIEW_LIMIT}")
+
     def test_level_achievements_report_public_progress(self):
         profile = {"level": 5, "total_xp": 720}
         stats = {"posts": 1, "comments": 4, "followers": 2, "friends": 1}
@@ -1223,12 +1259,16 @@ class AppRouteTests(unittest.TestCase):
         with patch.object(zapp, "get_current_user", return_value=viewer), \
              patch.object(zapp, "get_explore_context", return_value=explore), \
              patch.object(zapp, "get_community_timeline_context", return_value=timeline) as timeline_context, \
-             patch.object(zapp, "get_community_highlights", return_value=[]):
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_home_reel_preview", return_value=[self.sample_reel()]) as home_reels:
             html = self.client.get("/community").data.decode()
 
         timeline_context.assert_called_once_with(viewer, None)
+        home_reels.assert_called_once_with(7)
         self.assertIn('data-active-tab="following"', html)
         self.assertIn("Follow people to fill this timeline", html)
+        self.assertIn('data-home-reel-panel', html)
+        self.assertIn('aria-label="Home reels"', html)
 
     def test_community_timeline_context_uses_three_feed_builders(self):
         viewer = {"id": 7}
@@ -1317,12 +1357,19 @@ class AppRouteTests(unittest.TestCase):
 
     def test_reels_renders_authenticated_page(self):
         viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
+        media_post = dict(self.sample_post(post_id=44), image_url="/static/assets/icon-512.png")
         with patch.object(zapp, "get_current_user", return_value=viewer), \
-             patch.object(zapp, "get_reels", return_value=([self.sample_reel()], False)):
+             patch.object(zapp, "get_reels", return_value=([self.sample_reel()], False)), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_home_media_preview", return_value=[media_post]) as media_preview:
             html = self.client.get("/reels").data.decode()
 
+        media_preview.assert_called_once_with(7)
         self.assertIn("Reels", html)
         self.assertIn('data-reels-feed', html)
+        self.assertIn('data-home-media-panel', html)
+        self.assertIn('aria-label="Non-reel media"', html)
+        self.assertNotIn('data-home-reel-panel', html)
         self.assertIn('mobile-reels-upload-cta', html)
         self.assertIn('mobile-reel-upload-action', html)
         self.assertIn("hello reel", html)
@@ -1331,7 +1378,9 @@ class AppRouteTests(unittest.TestCase):
     def test_reels_empty_real_feed_does_not_use_demo_when_table_ready(self):
         viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
         with patch.object(zapp, "get_current_user", return_value=viewer), \
-             patch.object(zapp, "get_reels", return_value=([], False)):
+             patch.object(zapp, "get_reels", return_value=([], False)), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_home_media_preview", return_value=[]):
             html = self.client.get("/reels").data.decode()
 
         self.assertIn("No real reels yet", html)
@@ -1340,7 +1389,9 @@ class AppRouteTests(unittest.TestCase):
     def test_reels_uses_demo_fallback_only_when_table_unavailable(self):
         viewer = {"id": 7, "username": "demo", "display_name": "Demo User", "profile_photo_url": ""}
         with patch.object(zapp, "get_current_user", return_value=viewer), \
-             patch.object(zapp, "get_reels", side_effect=RuntimeError("reels relation does not exist")):
+             patch.object(zapp, "get_reels", side_effect=RuntimeError("reels relation does not exist")), \
+             patch.object(zapp, "get_community_highlights", return_value=[]), \
+             patch.object(zapp, "get_home_media_preview", return_value=[]):
             html = self.client.get("/reels").data.decode()
 
         self.assertIn("Demo reel", html)
@@ -2396,6 +2447,8 @@ class AppRouteTests(unittest.TestCase):
                     "display_name": "Friend User",
                     "profile_photo_url": "",
                 }],
+                highlights=[],
+                home_reels=[self.sample_reel()],
             )
 
         self.assertIn('class="chat-unselected"', html)
@@ -2404,6 +2457,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn("People to message", html)
         self.assertIn("Start a new conversation", html)
         self.assertIn("/messages?u=demo", html)
+        self.assertIn('data-home-reel-panel', html)
 
     def test_settings_template_includes_account_delete_form(self):
         fake_user = {
@@ -2429,6 +2483,29 @@ class AppRouteTests(unittest.TestCase):
         self.assertIn('name="confirm_username"', html)
         self.assertIn('name="current_password"', html)
         self.assertIn("Delete account", html)
+
+    def test_settings_template_can_render_shared_right_rail(self):
+        fake_user = {
+            "id": 7,
+            "first_name": "Demo",
+            "last_name": "User",
+            "nickname": "demo",
+            "username": "demo",
+            "display_name": "Demo User",
+            "profile_photo_url": "",
+            "theme_color": "#1D9BF0",
+            "avatar_color": "#1D9BF0",
+            "bio": "",
+            "location": "",
+            "website": "",
+            "gender": "Male",
+            "birthday": "",
+        }
+        with zapp.app.test_request_context("/settings"):
+            html = zapp.render_template("settings.html", viewer=fake_user, highlights=[], home_reels=[self.sample_reel()])
+
+        self.assertIn('data-home-reel-panel', html)
+        self.assertIn('aria-label="Home reels"', html)
 
     def test_delete_message_removes_participant_message(self):
         class Result:

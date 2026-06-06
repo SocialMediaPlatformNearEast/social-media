@@ -60,7 +60,9 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "88"
+ASSET_VERSION = "92"
+HOME_REEL_PREVIEW_LIMIT = 12
+HOME_MEDIA_PREVIEW_LIMIT = 12
 
 GENDER_OPTIONS = GENDER_THEME
 SUPABASE_SOCIAL_PROVIDERS = [
@@ -1534,7 +1536,7 @@ def reels_table_not_ready(error):
     text = str(error).lower()
     return 'reels' in text and any(marker in text for marker in ['does not exist', 'schema cache', 'relation', 'not found'])
 
-def get_demo_reels():
+def get_demo_reels(count=5):
     demo_author = {
         'id': 0,
         'username': 'lvl',
@@ -1543,11 +1545,17 @@ def get_demo_reels():
         'level': 1,
     }
     demo_video_url = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4'
-    samples = [
-        ('demo-1', demo_video_url, 'Demo reel: a quick vertical-video preview for LvL.'),
-        ('demo-2', demo_video_url, 'Demo reel: upload your own short videos when storage is ready.'),
-        ('demo-3', demo_video_url, 'Demo reel: scroll, tap, like, and keep moving.'),
+    captions = [
+        'Demo reel: a quick vertical-video preview for LvL.',
+        'Demo reel: upload your own short videos when storage is ready.',
+        'Demo reel: scroll, tap, like, and keep moving.',
+        'Demo reel: your right rail keeps moving without leaving Home.',
+        'Demo reel: enough local samples to test the continuous scroll.',
     ]
+    samples = []
+    for index in range(max(count, 0)):
+        caption = captions[index] if index < len(captions) else f'Demo reel: local preview sample {index + 1} keeps the rail moving.'
+        samples.append((f'demo-{index + 1}', demo_video_url, caption))
     return [{
         'id': reel_id,
         'user_id': 0,
@@ -1568,6 +1576,51 @@ def get_demo_reels():
         'is_owner': False,
         'is_demo': True,
     } for reel_id, video_url, caption in samples]
+
+def get_home_reel_preview(viewer_id, limit=HOME_REEL_PREVIEW_LIMIT):
+    try:
+        home_reels_data, _ = get_reels(viewer_id, limit=limit, page=1)
+        if home_reels_data:
+            return home_reels_data
+    except Exception:
+        pass
+    return get_demo_reels(limit)
+
+def get_demo_media_previews(count=HOME_MEDIA_PREVIEW_LIMIT):
+    demo_author = {
+        'id': 0,
+        'username': 'lvl',
+        'display_name': 'LvL',
+        'profile_photo_url': url_for('static', filename='assets/icon-192.png'),
+        'level': 1,
+    }
+    captions = [
+        'Demo media: photo posts and image updates live here while Reels stay centered.',
+        'Demo media: a normal post preview sized for the right rail.',
+        'Demo media: browse image posts without leaving the Reels page.',
+        'Demo media: community moments in a quieter non-video format.',
+    ]
+    return [{
+        'id': f'demo-media-{index + 1}',
+        'image_url': url_for('static', filename='assets/icon-512.png'),
+        'content': captions[index] if index < len(captions) else f'Demo media: local post preview sample {index + 1}.',
+        'created_at': '',
+        'user': demo_author,
+        'like_count': 0,
+        'reply_count': 0,
+        'is_demo': True,
+    } for index in range(max(count, 0))]
+
+def get_home_media_preview(viewer_id, limit=HOME_MEDIA_PREVIEW_LIMIT):
+    try:
+        res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit * 3).execute()
+        rows = res.data if res and res.data else []
+        media_posts = [post for post in visible_post_filter(rows, viewer_id) if post.get('image_url')]
+        if media_posts:
+            return enrich_posts(media_posts[:limit], viewer_id)
+    except Exception:
+        pass
+    return get_demo_media_previews(limit)
 
 def visible_reel_filter(reels, viewer_id):
     if not reels:
@@ -2013,16 +2066,14 @@ def index():
         posts = []
         flash(handle_db_error(e, "An error occurred while loading posts."), "error")
 
-    home_reels = []
-    try:
-        home_reels_data, _ = get_reels(viewer['id'], limit=5, page=1)
-        home_reels = home_reels_data
-    except Exception:
-        pass
-    if not home_reels:
-        home_reels = get_demo_reels()
-
-    return render_template('index.html', viewer=viewer, posts=posts, mode=feed_mode, highlights=highlights, page=page, has_next=len(posts) == POSTS_PER_PAGE, home_reels=home_reels)
+    return render_template('index.html',
+                           viewer=viewer,
+                           posts=posts,
+                           mode=feed_mode,
+                           highlights=highlights,
+                           page=page,
+                           has_next=len(posts) == POSTS_PER_PAGE,
+                           home_reels=get_home_reel_preview(viewer['id']))
 
 @app.route('/reels')
 def reels():
@@ -2057,7 +2108,8 @@ def reels():
                            has_next=has_next,
                            table_ready=table_ready,
                            tab=tab,
-                           highlights=[])
+                           highlights=get_community_highlights(),
+                           home_media=get_home_media_preview(viewer['id']))
 
 @app.route('/api/reels')
 def api_reels():
@@ -3373,7 +3425,10 @@ def settings():
             except Exception as e:
                 flash(handle_db_error(e), "error")
 
-    return render_template('settings.html', viewer=viewer)
+    return render_template('settings.html',
+                           viewer=viewer,
+                           highlights=get_community_highlights(),
+                           home_reels=get_home_reel_preview(viewer['id']))
 
 @app.route('/delete_account', methods=['POST'])
 def delete_account():
@@ -3822,7 +3877,9 @@ def messages():
                            messages_list=messages_list,
                            suggested_communities=explore['communities'][:3],
                            message_trending_posts=explore['trending_posts'][:3],
-                           message_people=explore['popular_users'][:4])
+                           message_people=explore['popular_users'][:4],
+                           highlights=get_community_highlights(),
+                           home_reels=get_home_reel_preview(viewer['id']))
 
 @app.route('/api/messages/<username>')
 def api_messages(username):
@@ -3937,7 +3994,8 @@ def community():
                            active_tab=timeline_context['active_tab'],
                            timeline_feeds=timeline_context['feeds'],
                            timeline_counts=timeline_context['counts'],
-                           highlights=get_community_highlights())
+                           highlights=get_community_highlights(),
+                           home_reels=get_home_reel_preview(viewer['id']))
 
 @app.route('/communities/new', methods=['GET', 'POST'])
 def create_community():

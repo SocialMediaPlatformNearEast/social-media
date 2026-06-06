@@ -1,0 +1,44 @@
+<div class="home-media-panel panel" data-home-media-panel>
+  <div class="home-reel-panel-header">
+    <div>
+      <span class="panel-kicker">Media</span>
+      <h2>Posts</h2>
+    </div>
+    <a href="{{ url_for('index') }}" class="home-reel-see-all">See home →</a>
+  </div>
+  <div class="home-media-list" aria-label="Non-reel media">
+    {% for post in home_media %}
+      {% set media_author = post.user or {} %}
+      {% set media_href = url_for('index') if post.is_demo else url_for('post', id=post.id) %}
+      <a class="home-media-card" href="{{ media_href }}">
+        <span class="home-media-frame">
+          {% if post.image_url %}
+            <img src="{{ post.image_url }}" alt="" loading="lazy">
+          {% else %}
+            <span class="home-media-placeholder">Media</span>
+          {% endif %}
+        </span>
+        <span class="home-media-info">
+          <span class="home-reel-author">
+            <img class="avatar small-avatar" src="{{ media_author.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="">
+            <strong>{{ media_author.display_name or 'LvL' }}</strong>
+            {% if post.is_demo %}<em class="demo-badge">Demo</em>{% endif %}
+          </span>
+          {% if post.content %}
+            <span class="home-media-caption">{{ post.content | striptags }}</span>
+          {% endif %}
+          <span class="home-reel-counts">
+            <span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              {{ post.like_count or 0 }}
+            </span>
+            <span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+              {{ post.reply_count or 0 }}
+            </span>
+          </span>
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+</div>

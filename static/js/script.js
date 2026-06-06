@@ -1433,8 +1433,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const slides = Array.from(panel.querySelectorAll('[data-home-reel-slide]'));
         if (!slides.length) return;
 
-        const counter = panel.querySelector('[data-home-reel-counter]');
+        const slidesContainer = panel.querySelector('[data-home-reel-slides]');
         let current = 0;
+        let panelVisible = false;
 
         const getVideo = (slide) => slide.querySelector('[data-home-reel-video]');
         const getPlayBtn = (slide) => slide.querySelector('[data-home-reel-play]');
@@ -1453,18 +1454,24 @@ document.addEventListener('DOMContentLoaded', () => {
             icon.style.opacity = vid.paused ? '1' : '0';
         };
 
-        const activateSlide = (index) => {
+        const activateSlide = (index, options = {}) => {
+            const { scroll = false, autoplay = panelVisible } = options;
             slides.forEach((s, i) => {
                 s.classList.toggle('is-active', i === index);
                 if (i !== index) pauseSlide(s);
             });
             current = index;
-            if (counter) counter.textContent = `${current + 1} / ${slides.length}`;
 
             const activeSlide = slides[current];
+            if (scroll && slidesContainer) {
+                slidesContainer.scrollTo({
+                    top: activeSlide.offsetTop,
+                    behavior: 'smooth'
+                });
+            }
             const vid = getVideo(activeSlide);
             if (vid) {
-                vid.play().catch(() => {});
+                if (autoplay) vid.play().catch(() => {});
                 updatePlayIcon(activeSlide);
                 vid.addEventListener('play', () => updatePlayIcon(activeSlide), { once: false });
                 vid.addEventListener('pause', () => updatePlayIcon(activeSlide), { once: false });
@@ -1501,14 +1508,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        const prevBtn = panel.querySelector('[data-home-reel-prev]');
-        const nextBtn = panel.querySelector('[data-home-reel-next]');
-        if (prevBtn) prevBtn.addEventListener('click', () => activateSlide((current - 1 + slides.length) % slides.length));
-        if (nextBtn) nextBtn.addEventListener('click', () => activateSlide((current + 1) % slides.length));
+        if (slidesContainer) {
+            const slideObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting || entry.intersectionRatio < 0.55) return;
+                    const index = slides.indexOf(entry.target);
+                    if (index >= 0 && index !== current) {
+                        activateSlide(index, { autoplay: panelVisible });
+                    }
+                });
+            }, { root: slidesContainer, threshold: [0.55, 0.75] });
+            slides.forEach((slide) => slideObserver.observe(slide));
+        }
 
         // Auto-play first slide when visible via IntersectionObserver
         const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
+                panelVisible = entry.isIntersecting;
                 if (entry.isIntersecting) {
                     const vid = getVideo(slides[current]);
                     if (vid && vid.paused) vid.play().catch(() => {});
@@ -1519,7 +1535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { threshold: 0.3 });
         observer.observe(panel);
 
-        activateSlide(0);
+        activateSlide(0, { autoplay: false });
     }
 
     // Auto-focus composer if URL has compose=1
