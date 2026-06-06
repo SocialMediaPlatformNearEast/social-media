@@ -2497,10 +2497,13 @@ def oauth_callback():
     provider = normalize_oauth_provider(session.get('oauth_provider'))
     try:
         restore_oauth_code_verifier(supabase.auth)
-        response = supabase.auth.exchange_code_for_session({
+        exchange_params = {
             'auth_code': code,
             'redirect_to': oauth_redirect_url(),
-        })
+        }
+        if session.get('oauth_code_verifier'):
+            exchange_params['code_verifier'] = session['oauth_code_verifier']
+        response = supabase.auth.exchange_code_for_session(exchange_params)
         auth_user = response.user or (response.session.user if response.session else None)
         if not auth_user:
             raise RuntimeError("Supabase did not return a social login user.")
@@ -2526,6 +2529,7 @@ def oauth_callback():
         clear_oauth_flow_session()
         return redirect(url_for('oauth_onboarding'))
     except Exception as exc:
+        app.logger.exception("OAuth callback failed")
         clear_oauth_flow_session(include_pending=True)
         flash(handle_db_error(exc, "Social login could not be completed."), "error")
         return redirect(url_for('auth'))

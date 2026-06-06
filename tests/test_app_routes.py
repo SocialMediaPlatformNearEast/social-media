@@ -662,6 +662,7 @@ class AppRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.location.endswith("/"))
         self.assertEqual(fake.auth.exchange_params["auth_code"], "abc123")
+        self.assertEqual(fake.auth.exchange_params["code_verifier"], "stored-verifier")
         self.assertEqual(fake.auth._storage.items["supabase.auth.token-code-verifier"], "stored-verifier")
         self.assertEqual(fake.updated_payload["oauth_provider"], "google")
         with self.client.session_transaction() as sess:
