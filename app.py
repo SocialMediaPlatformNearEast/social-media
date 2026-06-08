@@ -2593,7 +2593,7 @@ def oauth_callback():
     except Exception as exc:
         app.logger.exception("OAuth callback failed")
         clear_oauth_flow_session(include_pending=True)
-        flash(handle_db_error(exc, "Social login could not be completed."), "error")
+        flash(f"Social login could not be completed: {str(exc)}", "error")
         return redirect(url_for('auth'))
 
 @app.route('/auth/oauth/onboarding', methods=['GET', 'POST'])
