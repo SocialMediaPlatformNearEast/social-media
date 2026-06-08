@@ -63,7 +63,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "92"
+ASSET_VERSION = "93"
 HOME_REEL_PREVIEW_LIMIT = 12
 HOME_MEDIA_PREVIEW_LIMIT = 12
 
@@ -1447,9 +1447,13 @@ def get_short_videos(limit=8, community_id=None):
 
 def get_trending_posts(viewer_id, limit=5):
     try:
-        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(50).execute()
         posts = posts_res.data if posts_res and posts_res.data else []
-        return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+        enriched = enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+        for p in enriched:
+            p['interaction_score'] = (p.get('like_count') or 0) + (p.get('comment_count') or 0) + (p.get('repost_count') or 0)
+        enriched.sort(key=lambda x: x['interaction_score'], reverse=True)
+        return enriched[:limit]
     except Exception:
         return []
 

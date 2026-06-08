@@ -163,28 +163,34 @@
           <h2>Trending Posts</h2>
             <div class="trends-list">
               {% for tp in trending_posts[:2] %}
-                <a class="trend-item" href="{{ url_for('post', id=tp.id) }}">
-                  <div class="trend-author">
-                    <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
-                    <strong>{{ (tp.user or {}).display_name }}</strong>
-                  </div>
-                  <div class="trend-snippet">
-                    {% if tp.content %}
-                      <p>{{ tp.content[:80] }}{% if tp.content|length > 80 %}...{% endif %}</p>
-                    {% endif %}
-                    {% if tp.media_url %}
-                      {% if tp.media_type == 'image' %}
-                        <img src="{{ tp.media_url }}" alt="Post image" class="trend-media">
-                      {% elif tp.media_type == 'video' %}
-                        <video src="{{ tp.media_url }}" class="trend-media" muted playsinline></video>
+                  <a class="trend-item" href="{{ url_for('post', id=tp.id) }}" style="display: block; padding: 12px; margin-bottom: 12px; background: var(--lvl-black-20); border: 1px solid var(--lvl-border); border-radius: 12px; text-decoration: none; transition: background 0.2s;">
+                    <div class="trend-author" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                      <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%;">
+                      <strong style="color: var(--lvl-text-primary); font-size: 14px;">{{ (tp.user or {}).display_name }}</strong>
+                    </div>
+                    <div class="trend-snippet" style="color: var(--lvl-text-secondary); font-size: 13px; line-height: 1.4; margin-bottom: 8px;">
+                      {% if tp.content %}
+                        <p style="margin: 0;">{{ tp.content[:80] }}{% if tp.content|length > 80 %}...{% endif %}</p>
                       {% endif %}
-                    {% endif %}
-                  </div>
-                  <div class="trend-meta">
-                    <span>👍 {{ tp.like_count or 0 }}</span>
-                    <span>💬 {{ tp.comment_count or 0 }}</span>
-                  </div>
-                </a>
+                      {% if tp.media_url %}
+                        {% if tp.media_url.endswith('.mp4') %}
+                           <video src="{{ tp.media_url }}" autoplay muted loop class="trend-media" style="width: 100%; max-height: 140px; border-radius: 8px; margin-top: 8px; object-fit: cover;"></video>
+                        {% else %}
+                           <img src="{{ tp.media_url }}" alt="Media" class="trend-media" style="width: 100%; max-height: 140px; border-radius: 8px; margin-top: 8px; object-fit: cover;">
+                        {% endif %}
+                      {% endif %}
+                    </div>
+                    <div class="trend-stats" style="display: flex; gap: 16px; color: var(--lvl-text-muted); font-size: 12px; align-items: center;">
+                      <span style="display: flex; align-items: center; gap: 4px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        {{ tp.like_count or 0 }}
+                      </span>
+                      <span style="display: flex; align-items: center; gap: 4px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                        {{ tp.comment_count or 0 }}
+                      </span>
+                    </div>
+                  </a>
               {% endfor %}
             </div>
         </div>
