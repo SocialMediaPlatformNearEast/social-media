@@ -1445,11 +1445,13 @@ def get_short_videos(limit=8, community_id=None):
     except Exception:
         return []
 
-def get_trending_posts(viewer_id, limit=5):
+def get_trending_posts(viewer_id, limit=2):
     try:
-        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(50).execute()
         posts = posts_res.data if posts_res and posts_res.data else []
-        return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+        enriched = enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
+        enriched.sort(key=lambda p: p.get('like_count', 0) + p.get('comment_count', 0) + p.get('repost_count', 0), reverse=True)
+        return enriched[:limit]
     except Exception:
         return []
 

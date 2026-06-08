@@ -161,21 +161,32 @@
       {% if show_trends and trending_posts %}
         <div class="community-trends panel">
           <h2>Trending Posts</h2>
-          <div class="trends-list">
-            {% for tp in trending_posts[:5] %}
-              <a class="trend-item" href="{{ url_for('post', id=tp.id) }}">
-                <div class="trend-author">
-                  <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
-                  <strong>{{ (tp.user or {}).display_name }}</strong>
-                </div>
-                <p class="trend-snippet">{{ tp.content[:60] }}{% if tp.content|length > 60 %}...{% endif %}</p>
-                <div class="trend-meta">
-                  <span>👍 {{ tp.like_count or 0 }}</span>
-                  <span>💬 {{ tp.comment_count or 0 }}</span>
-                </div>
-              </a>
-            {% endfor %}
-          </div>
+            <div class="trends-list">
+              {% for tp in trending_posts[:2] %}
+                <a class="trend-item" href="{{ url_for('post', id=tp.id) }}">
+                  <div class="trend-author">
+                    <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
+                    <strong>{{ (tp.user or {}).display_name }}</strong>
+                  </div>
+                  <div class="trend-snippet">
+                    {% if tp.content %}
+                      <p>{{ tp.content[:80] }}{% if tp.content|length > 80 %}...{% endif %}</p>
+                    {% endif %}
+                    {% if tp.media_url %}
+                      {% if tp.media_type == 'image' %}
+                        <img src="{{ tp.media_url }}" alt="Post image" class="trend-media">
+                      {% elif tp.media_type == 'video' %}
+                        <video src="{{ tp.media_url }}" class="trend-media" muted playsinline></video>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                  <div class="trend-meta">
+                    <span>👍 {{ tp.like_count or 0 }}</span>
+                    <span>💬 {{ tp.comment_count or 0 }}</span>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
         </div>
       {% endif %}
       {% if home_reels is defined and home_reels %}

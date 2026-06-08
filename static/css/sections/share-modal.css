@@ -21,7 +21,7 @@
 .share-modal-content {
   width: 100%;
   max-width: 400px;
-  background: var(--lvl-panel-bg);
+  background: var(--surface-panel);
   border-radius: 20px 20px 0 0;
   padding: 20px;
   animation: slideUp 0.3s ease forwards;

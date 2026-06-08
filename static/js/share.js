@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const receiverId = sendBtn.dataset.shareSend;
       const clipId = sendBtn.dataset.clipId;
       const url = window.location.origin + '/reels#reel-' + clipId;
+      const csrfToken = sendBtn.closest('.reel-card')?.querySelector('input[name="csrf_token"]')?.value || '';
       
       sendBtn.textContent = 'Sending...';
       sendBtn.disabled = true;
@@ -58,7 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/share/send', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
           },
           body: JSON.stringify({ receiver_id: receiverId, url: url })
         });

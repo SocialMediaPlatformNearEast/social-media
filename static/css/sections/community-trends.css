@@ -1,6 +1,11 @@
-.community-trends .trends-list { display: flex; flex-direction: column; gap: 12px; }
-.community-trends .trend-item { display: block; padding-bottom: 12px; border-bottom: 1px solid var(--lvl-border); text-decoration: none; color: inherit; }
-.community-trends .trend-item:last-child { border-bottom: none; }
-.community-trends .trend-author { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.community-trends .trend-snippet { margin: 0 0 8px 0; font-size: 0.9rem; color: var(--lvl-muted); overflow: hidden; text-overflow: ellipsis; }
-.community-trends .trend-meta { display: flex; gap: 12px; font-size: 0.8rem; font-weight: bold; color: var(--lvl-primary); }
+.community-trends .trends-list { display: flex; flex-direction: column; gap: 16px; }
+.community-trends .trend-item { display: flex; flex-direction: column; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 12px; border: 1px solid var(--lvl-border); text-decoration: none; color: inherit; transition: background 0.2s, transform 0.2s; }
+.community-trends .trend-item:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-2px); }
+.community-trends .trend-author { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.community-trends .trend-author strong { font-size: 0.95rem; }
+.community-trends .trend-snippet { margin: 0 0 10px 0; font-size: 0.9rem; color: var(--lvl-text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; opacity: 0.9; }
+.community-trends .trend-meta { display: flex; gap: 16px; font-size: 0.85rem; font-weight: 600; color: var(--lvl-muted); }
+.community-trends .trend-meta span { display: flex; align-items: center; gap: 4px; }
+
+.trend-media { width: 100%; border-radius: var(--radius-sm); margin-top: 8px; object-fit: cover; max-height: 150px; background: var(--lvl-black-20); }
+.trend-snippet p { margin-top: 0; }

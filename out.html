@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Login - LvL</title>
+  <link rel="manifest" href="/static/manifest.json?v=92">
+  <link rel="icon" href="/static/assets/icon-192.png?v=92" sizes="192x192" type="image/png">
+  <link rel="icon" href="/static/assets/icon-512.png?v=92" sizes="512x512" type="image/png">
+  <link rel="apple-touch-icon" href="/static/assets/icon-192.png?v=92">
+  <link rel="stylesheet" href="/static/css/styles.css?v=92">
+  <link rel="stylesheet" href="/static/css/gender.css?v=92">
+  <script src="/static/js/script.js?v=92" defer></script>
+</head>
+<body>
+
+<section class="install-prompt" data-install-prompt hidden aria-live="polite">
+  <div class="install-prompt-mark" aria-hidden="true">LvL</div>
+  <div class="install-prompt-copy">
+    <h2>Install LvL</h2>
+    <p data-install-message>Put LvL on your home screen for a faster app-like experience.</p>
+    <p class="install-manual-note" data-install-manual hidden>Use your browser menu and choose Install app or Add to Home Screen.</p>
+    <ol class="install-ios-steps" data-install-ios data-install-manual hidden>
+      <li>Tap Share in Safari.</li>
+      <li>Choose Add to Home Screen.</li>
+      <li>Open LvL from the new icon.</li>
+    </ol>
+  </div>
+  <div class="install-prompt-actions">
+    <button type="button" class="primary-button" data-install-action hidden>Install app</button>
+    <button type="button" class="outline-button" data-install-dismiss>Not now</button>
+  </div>
+</section>
+
+<main class="auth-layout">
+  <section class="auth-hero">
+    <div class="brand-lockup">
+      <img class="brand-mark brand-logo-large" src="/static/assets/icon-512.png?v=92" alt="LvL">
+    </div>
+    <h1>Level up every connection.</h1>
+    <p>Earn XP as you post, comment, like, and meet people. Build your profile rank, unlock stronger badges, and make every interaction count.</p>
+    <div class="auth-metrics">
+      <span>XP</span>
+      <span>Ranks</span>
+      <span>Badges</span>
+    </div>
+  </section>
+  <section class="auth-panel">
+    
+      
+    
+    
+    <div class="auth-tabs" role="tablist">
+      <button class="active" type="button" data-auth-tab="login">Login</button>
+      <button type="button" data-auth-tab="register">Register</button>
+    </div>
+
+    <div class="social-auth" aria-label="Supabase social login options">
+      <p>Continue securely with</p>
+      <div class="social-auth-grid">
+        
+          <a class="social-auth-button social-auth-google" href="/auth/oauth/google">
+            <span class="social-auth-icon" aria-hidden="true">G</span>
+            <span>Google</span>
+          </a>
+        
+      </div>
+      <small>Powered by Supabase Auth. New accounts finish nickname, birthday, and gender after approval.</small>
+    </div>
+
+    <div class="auth-divider"><span>Continue with email</span></div>
+    
+    <form class="auth-form active" data-auth-panel="login" action="/auth" method="post">
+      <input type="hidden" name="csrf_token" value="C2-2wXbjSyr0bFdeLLFxeP8KaeGB5xTPjavB8_D9JiA">
+      <input type="hidden" name="action" value="login">
+      <label>
+        Nickname or email
+        <input name="username" autocomplete="username" required>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <a class="auth-helper-link" href="/forgot-password">Forgot password?</a>
+      <button type="submit">Login</button>
+    </form>
+    
+    <form class="auth-form" data-auth-panel="register" action="/auth" method="post">
+      <input type="hidden" name="csrf_token" value="C2-2wXbjSyr0bFdeLLFxeP8KaeGB5xTPjavB8_D9JiA">
+      <input type="hidden" name="action" value="register">
+      <label>
+        First name
+        <input name="first_name" maxlength="60" autocomplete="given-name" required>
+      </label>
+      <label>
+        Last name
+        <input name="last_name" maxlength="60" autocomplete="family-name" required>
+      </label>
+      <label>
+        Nickname
+        <input name="nickname" pattern="[A-Za-z0-9_]{3,24}" minlength="3" maxlength="24" title="3-24 letters, numbers, or underscores." autocomplete="username" required>
+      </label>
+      <label>
+        Email
+        <input type="email" name="email" autocomplete="email" required>
+      </label>
+      <label>
+        Birthday
+        
+        <input type="date" name="birthday" min="1906-06-08" max="2012-06-08" autocomplete="bday" required>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+      </label>
+      <fieldset class="gender-field">
+        <legend>Gender</legend>
+        <div class="gender-options">
+          <label class="gender-option male-option">
+            <input type="radio" name="gender" value="Male" data-avatar-url="/static/assets/default-male-avatar.svg" data-theme-color="#E7E9EA" required>
+            <span><b aria-hidden="true">♂</b> Male</span>
+          </label>
+          <label class="gender-option female-option">
+            <input type="radio" name="gender" value="Female" data-avatar-url="/static/assets/default-female-avatar.svg" data-theme-color="#E7E9EA" required>
+            <span><b aria-hidden="true">♀</b> Female</span>
+          </label>
+        </div>
+        <div class="gender-preview" data-gender-preview hidden>
+          <img data-gender-avatar src="" alt="Selected default avatar">
+          <span data-gender-swatch aria-hidden="true"></span>
+        </div>
+      </fieldset>
+      <button type="submit">Create account</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>
