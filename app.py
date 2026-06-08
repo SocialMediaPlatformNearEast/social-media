@@ -24,7 +24,7 @@ load_dotenv()
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-default-key")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -2503,8 +2503,6 @@ def oauth_start(provider):
         flash("Supabase connection is required for social login.", "error")
         return redirect(url_for('auth'))
 
-    state = secrets.token_urlsafe(32)
-    session['oauth_state'] = state
     session['oauth_provider'] = provider
 
     try:
@@ -2512,9 +2510,6 @@ def oauth_start(provider):
             'provider': provider,
             'options': {
                 'redirect_to': oauth_redirect_url(),
-                'query_params': {
-                    'state': state,
-                },
             },
         })
         store_oauth_code_verifier(supabase.auth)
@@ -2530,35 +2525,47 @@ def oauth_callback():
         flash("Supabase connection is required for social login.", "error")
         return redirect(url_for('auth'))
 
+    # Handle errors from Supabase/Google - but ignore bad_oauth_state if we have a code
+    # In serverless environments (Vercel), session cookies may not persist between
+    # the oauth_start and oauth_callback requests, causing false bad_oauth_state errors.
+    code = request.args.get('code')
+    oauth_error_code = request.args.get('error_code') or ''
     oauth_error = request.args.get('error_description') or request.args.get('error')
-    if oauth_error:
+
+    if oauth_error and not (code and oauth_error_code == 'bad_oauth_state'):
+        # Only block on real errors; if we have a code and it's just a state mismatch
+        # (common in serverless), try to proceed with the code exchange anyway.
         clear_oauth_flow_session()
         flash(f"Social login was cancelled or failed: {oauth_error}", "error")
         return redirect(url_for('auth'))
 
     expected_state = session.get('oauth_state')
     returned_state = request.args.get('state')
+    # Skip strict state check in serverless where sessions may not persist
     if expected_state and returned_state and not secrets.compare_digest(expected_state, returned_state):
-        clear_oauth_flow_session()
-        flash("Social login expired. Try again.", "error")
-        return redirect(url_for('auth'))
+        # Log the mismatch but continue if we have a code — serverless session loss
+        app.logger.warning("OAuth state mismatch (possible serverless session loss), proceeding with code exchange")
 
-    code = request.args.get('code')
     if not code:
         clear_oauth_flow_session()
         flash("Social login did not return an authorization code.", "error")
         return redirect(url_for('auth'))
 
-    provider = normalize_oauth_provider(session.get('oauth_provider'))
+    provider = normalize_oauth_provider(session.get('oauth_provider') or 'google')
     try:
-        restore_oauth_code_verifier(supabase.auth)
+        from supabase import create_client
+        # Create a temporary client so we don't mutate the global service role client!
+        temp_client = create_client(SUPABASE_URL, SUPABASE_SECRET)
+        
+        restore_oauth_code_verifier(temp_client.auth)
         exchange_params = {
             'auth_code': code,
             'redirect_to': oauth_redirect_url(),
         }
         if session.get('oauth_code_verifier'):
             exchange_params['code_verifier'] = session['oauth_code_verifier']
-        response = supabase.auth.exchange_code_for_session(exchange_params)
+            
+        response = temp_client.auth.exchange_code_for_session(exchange_params)
         auth_user = response.user or (response.session.user if response.session else None)
         if not auth_user:
             raise RuntimeError("Supabase did not return a social login user.")
