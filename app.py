@@ -2104,7 +2104,7 @@ def reels():
         reels_list = get_demo_reels()
         has_next = False
 
-    return render_template('reels.html',
+    return render_template('clips.html',
                            viewer=viewer,
                            reels=reels_list,
                            page=page,
@@ -2187,7 +2187,7 @@ def reel_upload():
             else:
                 flash(handle_db_error(exc, "Could not upload that reel."), "error")
 
-    return render_template('reel_upload.html',
+    return render_template('clip_upload.html',
                            viewer=viewer,
                            communities=communities,
                            max_video_bytes=MAX_VIDEO_BYTES,
@@ -4246,3 +4246,47 @@ def post(id):
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+@app.route('/api/share/friends')
+def api_share_friends():
+    viewer = get_current_user()
+    if not viewer: return jsonify({'success': False})
+    
+    # get streak friends
+    streaks, ids = get_streak_friend_ids(viewer['id'])
+    
+    # get recent message receivers
+    res = supabase.table('messages').select('receiver_id').eq('sender_id', viewer['id']).order('created_at', desc=True).limit(50).execute()
+    recent = [row['receiver_id'] for row in res.data or []]
+    
+    combined = list(ids)
+    for r in recent:
+        if r not in combined:
+            combined.append(r)
+            
+    if not combined:
+        u_res = supabase.table('users').select('id,username,display_name,profile_photo_url').limit(10).execute()
+        return jsonify({'success': True, 'friends': u_res.data or []})
+        
+    u_res = supabase.table('users').select('id,username,display_name,profile_photo_url').in_('id', combined[:10]).execute()
+    users = {u['id']: u for u in u_res.data or []}
+    friends = [users[uid] for uid in combined[:10] if uid in users]
+    
+    return jsonify({'success': True, 'friends': friends})
+
+@app.route('/api/share/send', methods=['POST'])
+def api_share_send():
+    viewer = get_current_user()
+    if not viewer: return jsonify({'success': False})
+    
+    receiver_id = request.json.get('receiver_id')
+    url = request.json.get('url')
+    if not receiver_id or not url: return jsonify({'success': False})
+    
+    supabase.table('messages').insert({
+        'sender_id': viewer['id'],
+        'receiver_id': receiver_id,
+        'content': f"Check out this Clip: {url}"
+    }).execute()
+    
+    return jsonify({'success': True})

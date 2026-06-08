@@ -1,15 +1,15 @@
 {% extends "layout.html" %}
 {% set active_page = "reels" %}
 {% set show_highlights = False %}
-{% set title = "Upload Reel" %}
+{% set title = "Upload Clip" %}
 
 {% block content %}
 <section class="reel-upload-page">
   <header class="page-header compact">
     <div>
       <span class="panel-kicker">Create video</span>
-      <h1>Upload Reel</h1>
-      <p>Upload a short vertical clip for the Reels feed. Public reels can appear in For You, follower reels stay closer to your network, and community reels attach to a group.</p>
+      <h1>Upload Clip</h1>
+      <p>Upload a short vertical clip for the Clips feed. Public clips can appear in For You, follower clips stay closer to your network, and community clips attach to a group.</p>
     </div>
   </header>
 
@@ -43,7 +43,7 @@
           <option value="community">Community</option>
           <option value="private">Private</option>
         </select>
-        <small>Choose where the reel can be discovered after upload.</small>
+        <small>Choose where the clip can be discovered after upload.</small>
       </label>
 
       <label class="form-field" data-reel-community-field hidden>
@@ -68,7 +68,7 @@
 
     <div class="composer-footer">
       <a class="outline-button" href="{{ url_for('reels') }}">Cancel</a>
-      <button type="submit" class="post-submit-btn" data-reel-submit disabled>Upload reel</button>
+      <button type="submit" class="post-submit-btn" data-reel-submit disabled>Upload clip</button>
     </div>
   </form>
 </section>

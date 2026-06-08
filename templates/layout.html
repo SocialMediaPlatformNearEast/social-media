@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="{{ static_asset('css/styles.css') }}">
   <link rel="stylesheet" href="{{ static_asset('css/gender.css') }}">
   <script src="{{ static_asset('js/script.js') }}" defer></script>
+  <script src="{{ static_asset('js/share.js') }}" defer></script>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -46,11 +47,11 @@
           </span>
           <span class="nav-label sr-only">Home</span>
         </a>
-        <a class="{% if active_page == 'reels' %}active{% endif %}" href="{{ url_for('reels') }}" aria-label="Reels" title="Reels">
+        <a class="{% if active_page == 'reels' %}active{% endif %}" href="{{ url_for('reels') }}" aria-label="Clips" title="Clips">
           <span class="nav-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M5 3.5h14A2.5 2.5 0 0 1 21.5 6v12a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 18V6A2.5 2.5 0 0 1 5 3.5Zm0 2A.5.5 0 0 0 4.5 6v12a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5H5Zm4.5 3.1 6 3.4-6 3.4V8.6Z"/></svg>
           </span>
-          <span class="nav-label sr-only">Reels</span>
+          <span class="nav-label sr-only">Clips</span>
         </a>
         <a class="{% if active_page == 'community' %}active{% endif %}" href="{{ url_for('community') }}" aria-label="Community" title="Community">
           <span class="nav-icon" aria-hidden="true">
@@ -156,6 +157,25 @@
            <p class="community-highlight-empty">No community members yet.</p>
          {% endif %}
        </div>
+      {% if show_trends and trending_posts %}
+        <div class="community-trends panel">
+          <h2>Trending Posts</h2>
+          <div class="trends-list">
+            {% for tp in trending_posts[:5] %}
+              <a class="trend-item" href="{{ url_for('post', id=tp.id) }}">
+                <div class="trend-author">
+                  <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar">
+                  <strong>{{ (tp.user or {}).display_name }}</strong>
+                </div>
+                <p class="trend-snippet">{{ tp.content[:60] }}{% if tp.content|length > 60 %}...{% endif %}</p>
+                <div class="trend-meta">
+                  <span>👍 {{ tp.like_count or 0 }}</span>
+                  <span>💬 {{ tp.comment_count or 0 }}</span>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
       {% endif %}
       {% if home_reels is defined and home_reels %}
         {% include "_home_reel_panel.html" %}
@@ -180,11 +200,11 @@
     <span class="mobile-nav-label sr-only">Community</span>
   </a>
   {% set mobile_create_href = url_for('reel_upload') if active_page == 'reels' else url_for('index', compose=1) %}
-  {% set mobile_create_label = 'Upload reel' if active_page == 'reels' else 'Create post' %}
+  {% set mobile_create_label = 'Upload clip' if active_page == 'reels' else 'Create post' %}
   <a class="mobile-compose-action {% if active_page == 'reels' %}mobile-reel-upload-action{% endif %}" href="{{ mobile_create_href }}" aria-label="{{ mobile_create_label }}">+</a>
-  <a class="{% if active_page == 'reels' %}active{% endif %}" href="{{ url_for('reels') }}" aria-label="Reels">
+  <a class="{% if active_page == 'reels' %}active{% endif %}" href="{{ url_for('reels') }}" aria-label="Clips">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M5 3.5h14A2.5 2.5 0 0 1 21.5 6v12a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 18V6A2.5 2.5 0 0 1 5 3.5Zm0 2A.5.5 0 0 0 4.5 6v12a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5H5Zm4.5 3.1 6 3.4-6 3.4V8.6Z"/></svg>
-    <span class="mobile-nav-label sr-only">Reels</span>
+    <span class="mobile-nav-label sr-only">Clips</span>
   </a>
   <a class="{% if active_page == 'profile' or active_page == 'settings' %}active{% endif %}" href="{{ url_for('profile', username=viewer.username) }}" aria-label="Profile" data-mobile-profile-trigger aria-haspopup="menu" aria-controls="mobile-account-menu">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v2h16v-2c0-2.76-3.58-5-8-5Z"/></svg>

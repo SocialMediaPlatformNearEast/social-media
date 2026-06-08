@@ -1,0 +1,6 @@
+.community-trends .trends-list { display: flex; flex-direction: column; gap: 12px; }
+.community-trends .trend-item { display: block; padding-bottom: 12px; border-bottom: 1px solid var(--lvl-border); text-decoration: none; color: inherit; }
+.community-trends .trend-item:last-child { border-bottom: none; }
+.community-trends .trend-author { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.community-trends .trend-snippet { margin: 0 0 8px 0; font-size: 0.9rem; color: var(--lvl-muted); overflow: hidden; text-overflow: ellipsis; }
+.community-trends .trend-meta { display: flex; gap: 12px; font-size: 0.8rem; font-weight: bold; color: var(--lvl-primary); }
