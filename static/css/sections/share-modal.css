@@ -71,8 +71,8 @@
 }
 
 .share-send-btn {
-  background: var(--lvl-primary);
-  color: white;
+  background: #1da1f2;
+  color: #ffffff;
   border: none;
   border-radius: 20px;
   padding: 6px 16px;
@@ -81,6 +81,7 @@
 }
 
 .share-send-btn.sent {
-  background: var(--lvl-muted);
+  background: var(--lvl-border);
+  color: var(--text-secondary);
   cursor: default;
 }

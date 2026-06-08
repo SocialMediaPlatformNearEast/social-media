@@ -110,12 +110,13 @@
     </aside>
     <div class="share-modal-overlay" data-share-modal hidden>
       <div class="share-modal-content panel">
-        <div class="share-modal-header">
-          <strong>Send to</strong>
-          <button type="button" class="close-share-modal" data-close-share aria-label="Close">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-          </button>
-        </div>
+        <div class="share-modal-header" style="display: flex; align-items: center; gap: 10px; padding-bottom: 15px; border-bottom: 1px solid var(--lvl-border);">
+        <strong style="white-space: nowrap;">Send to</strong>
+        <input type="text" class="share-search-input" data-share-search placeholder="Search..." style="flex: 1; padding: 6px 12px; border-radius: 20px; border: 1px solid var(--lvl-border); background: var(--lvl-black-20); color: var(--lvl-text-primary);">
+        <button type="button" class="close-share-modal" data-close-share aria-label="Close">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
         <div class="share-friends-list" data-share-friends-list>
           <p class="loading-friends">Loading friends...</p>
         </div>

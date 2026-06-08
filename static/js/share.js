@@ -1,5 +1,55 @@
 
 document.addEventListener('DOMContentLoaded', () => {
+  function renderFriends(list, friends, clipId) {
+    if (friends && friends.length > 0) {
+      list.innerHTML = friends.map(f => `
+        <div class="share-friend-item">
+          <div class="share-friend-info">
+            <img src="${f.profile_photo_url || '/static/assets/default-male-avatar.svg'}" class="avatar small-avatar" alt="">
+            <span><strong>${f.display_name}</strong><br><small>@${f.username}</small></span>
+          </div>
+          <button type="button" class="share-send-btn" data-share-send="${f.id}" data-clip-id="${clipId}">Send</button>
+        </div>
+      `).join('');
+    } else {
+      list.innerHTML = '<p class="loading-friends">No users found.</p>';
+    }
+  }
+
+  let searchTimeout;
+  document.body.addEventListener('input', (e) => {
+    if (e.target.matches('.share-search-input')) {
+      const input = e.target;
+      const q = input.value.trim();
+      const modal = input.closest('[data-share-modal]');
+      const card = modal.closest('[data-clip-card]') || modal.closest('[data-reel-card]');
+      const clipId = card.dataset.clipId || card.dataset.reelId;
+      const list = modal.querySelector('[data-share-friends-list]');
+      
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(async () => {
+        if (!q) {
+          try {
+            list.innerHTML = '<p class="loading-friends">Loading...</p>';
+            const res = await fetch('/api/share/friends');
+            const data = await res.json();
+            renderFriends(list, data.friends, clipId);
+          } catch(err) {}
+          return;
+        }
+        
+        list.innerHTML = '<p class="loading-friends">Searching...</p>';
+        try {
+          const res = await fetch('/api/share/search?q=' + encodeURIComponent(q));
+          const data = await res.json();
+          renderFriends(list, data.friends, clipId);
+        } catch (err) {
+          list.innerHTML = '<p class="loading-friends">Error searching.</p>';
+        }
+      }, 300);
+    }
+  });
+
   // Share Modal Logic
   document.body.addEventListener('click', async (e) => {
     const trigger = e.target.closest('[data-share-modal-trigger]');
@@ -17,19 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const res = await fetch('/api/share/friends');
             const data = await res.json();
-            if (data.success && data.friends.length > 0) {
-              list.innerHTML = data.friends.map(f => `
-                <div class="share-friend-item">
-                  <div class="share-friend-info">
-                    <img src="${f.profile_photo_url || '/static/assets/default-male-avatar.svg'}" class="avatar small-avatar" alt="">
-                    <span><strong>${f.display_name}</strong><br><small>@${f.username}</small></span>
-                  </div>
-                  <button type="button" class="share-send-btn" data-share-send="${f.id}" data-clip-id="${clipId}">Send</button>
-                </div>
-              `).join('');
-            } else {
-              list.innerHTML = '<p class="loading-friends">No friends found to share with.</p>';
-            }
+            renderFriends(list, data.friends, clipId);
           } catch (err) {
             list.innerHTML = '<p class="loading-friends">Error loading friends.</p>';
           }

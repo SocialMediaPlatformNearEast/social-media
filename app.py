@@ -28,8 +28,8 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-default-key")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='None',
-    SESSION_COOKIE_SECURE=True
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.getenv("FLASK_ENV") == "production"
 )
 logging.basicConfig(level=logging.INFO)
 
@@ -1445,13 +1445,11 @@ def get_short_videos(limit=8, community_id=None):
     except Exception:
         return []
 
-def get_trending_posts(viewer_id, limit=2):
+def get_trending_posts(viewer_id, limit=5):
     try:
-        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(50).execute()
+        posts_res = supabase.table('posts').select(POST_SELECT_QUERY).is_('deleted_at', 'null').order('created_at', desc=True).limit(limit).execute()
         posts = posts_res.data if posts_res and posts_res.data else []
-        enriched = enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
-        enriched.sort(key=lambda p: p.get('like_count', 0) + p.get('comment_count', 0) + p.get('repost_count', 0), reverse=True)
-        return enriched[:limit]
+        return enrich_posts(visible_post_filter(posts, viewer_id), viewer_id)
     except Exception:
         return []
 
@@ -2557,7 +2555,7 @@ def oauth_callback():
     try:
         from supabase import create_client
         # Create a temporary client so we don't mutate the global service role client!
-        temp_client = create_client(url, key)
+        temp_client = create_client(SUPABASE_URL, SUPABASE_SECRET)
         
         restore_oauth_code_verifier(temp_client.auth)
         exchange_params = {
@@ -2595,7 +2593,7 @@ def oauth_callback():
     except Exception as exc:
         app.logger.exception("OAuth callback failed")
         clear_oauth_flow_session(include_pending=True)
-        flash(f"Social login could not be completed: {str(exc)}", "error")
+        flash(handle_db_error(exc, "Social login could not be completed."), "error")
         return redirect(url_for('auth'))
 
 @app.route('/auth/oauth/onboarding', methods=['GET', 'POST'])
@@ -4246,51 +4244,14 @@ def post(id):
         flash(handle_db_error(e), "error")
         return redirect(url_for('index'))
 
+@app.route('/api/share/search')
+def api_share_search():
+    viewer = get_current_user()
+    if not viewer: return jsonify({'success': False})
+    q = request.args.get('q', '').strip()
+    if not q: return jsonify({'success': True, 'friends': []})
+    res = supabase.table('users').select('id,username,display_name,profile_photo_url').ilike('username', f'%{q}%').limit(10).execute()
+    return jsonify({'success': True, 'friends': res.data or []})
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
-@app.route('/api/share/friends')
-def api_share_friends():
-    viewer = get_current_user()
-    if not viewer: return jsonify({'success': False})
-    
-    # get streak friends
-    streaks, ids = get_streak_friend_ids(viewer['id'])
-    
-    # get recent message receivers
-    res = supabase.table('messages').select('receiver_id').eq('sender_id', viewer['id']).order('created_at', desc=True).limit(50).execute()
-    recent = [row['receiver_id'] for row in res.data or []]
-    
-    combined = list(ids)
-    for r in recent:
-        if r not in combined:
-            combined.append(r)
-            
-    if not combined:
-        u_res = supabase.table('users').select('id,username,display_name,profile_photo_url').limit(10).execute()
-        return jsonify({'success': True, 'friends': u_res.data or []})
-        
-    u_res = supabase.table('users').select('id,username,display_name,profile_photo_url').in_('id', combined[:10]).execute()
-    users = {u['id']: u for u in u_res.data or []}
-    friends = [users[uid] for uid in combined[:10] if uid in users]
-    
-    return jsonify({'success': True, 'friends': friends})
-
-@app.route('/api/share/send', methods=['POST'])
-def api_share_send():
-    viewer = get_current_user()
-    if not viewer: return jsonify({'success': False})
-    
-    receiver_id = request.json.get('receiver_id')
-    url = request.json.get('url')
-    if not receiver_id or not url: return jsonify({'success': False})
-    
-    supabase.table('messages').insert({
-        'sender_id': viewer['id'],
-        'receiver_id': receiver_id,
-        'content': f"Check out this Clip: {url}"
-    }).execute()
-    
-    return jsonify({'success': True})
-
-# Force Vercel rebuild
