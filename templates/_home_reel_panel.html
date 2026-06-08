@@ -4,10 +4,10 @@
       <span class="panel-kicker">Videos</span>
       <h2>Clips</h2>
     </div>
-    <a href="{{ url_for('Clips') }}" class="home-reel-see-all">See all →</a>
+    <a href="{{ url_for('reels') }}" class="home-reel-see-all">See all →</a>
   </div>
   <div class="home-reel-slides" data-home-reel-slides tabindex="0" aria-label="Home Clips">
-    {% for reel in home_Clips %}
+    {% for reel in home_reels %}
     {% set reel_author = reel.author or reel.user or {} %}
     <div class="home-reel-slide{% if loop.first %} is-active{% endif %}"
          data-home-reel-slide
@@ -47,7 +47,7 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
             {{ reel.comment_count or 0 }}
           </span>
-          <a href="{{ url_for('Clips') }}{% if not reel.is_demo %}#reel-{{ reel.id }}{% endif %}" class="home-reel-open-link">Open</a>
+          <a href="{{ url_for('reels') }}{% if not reel.is_demo %}#reel-{{ reel.id }}{% endif %}" class="home-reel-open-link">Open</a>
         </div>
       </div>
     </div>
