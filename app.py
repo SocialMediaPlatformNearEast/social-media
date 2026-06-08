@@ -4248,6 +4248,37 @@ def post(id):
         flash(handle_db_error(e), "error")
         return redirect(url_for('index'))
 
+@app.route('/api/share/friends')
+def api_share_friends():
+    viewer = get_current_user()
+    if not viewer: return jsonify({'success': False})
+    # Fetch random 10 users as default friends for now (or top active)
+    res = supabase.table('users').select('id,username,display_name,profile_photo_url').neq('id', viewer['id']).limit(10).execute()
+    return jsonify({'success': True, 'friends': res.data or []})
+
+@app.route('/api/share/send', methods=['POST'])
+def api_share_send():
+    viewer = get_current_user()
+    if not viewer: return jsonify({'success': False, 'error': 'Not logged in'})
+    
+    data = request.json or {}
+    user_id = data.get('user_id')
+    clip_id = data.get('clip_id')
+    
+    if not user_id or not clip_id:
+        return jsonify({'success': False, 'error': 'Missing parameters'})
+        
+    try:
+        # Create a direct message with the shared post link
+        supabase.table('messages').insert({
+            'sender_id': viewer['id'],
+            'receiver_id': user_id,
+            'content': f"Check this out! /post/{clip_id}"
+        }).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/share/search')
 def api_share_search():
     viewer = get_current_user()
