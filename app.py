@@ -4290,3 +4290,5 @@ def api_share_send():
     }).execute()
     
     return jsonify({'success': True})
+
+# Force Vercel rebuild
