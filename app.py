@@ -2459,8 +2459,12 @@ def parse_reset_datetime(value):
 
 def get_password_reset_record(token_hash):
     if supabase:
-        res = supabase.table('password_reset_tokens').select('*').eq('token_hash', token_hash).is_('used_at', 'null').execute()
-        return res.data[0] if res and res.data else None
+        try:
+            res = supabase.table('password_reset_tokens').select('*').eq('token_hash', token_hash).is_('used_at', 'null').execute()
+            if res and res.data:
+                return res.data[0]
+        except Exception:
+            pass
     return PASSWORD_RESET_TOKENS.get(token_hash)
 
 def reset_record_is_valid(record):
@@ -2475,7 +2479,10 @@ def reset_record_is_valid(record):
 def mark_password_reset_used(record):
     used_at = datetime.now(timezone.utc).isoformat()
     if supabase and record.get('id'):
-        supabase.table('password_reset_tokens').update({'used_at': used_at}).eq('id', record['id']).execute()
+        try:
+            supabase.table('password_reset_tokens').update({'used_at': used_at}).eq('id', record['id']).execute()
+        except Exception:
+            pass
     else:
         record['used_at'] = used_at
 
@@ -4262,18 +4269,21 @@ def api_share_send():
     if not viewer: return jsonify({'success': False, 'error': 'Not logged in'})
     
     data = request.json or {}
-    user_id = data.get('user_id')
+    user_id = data.get('receiver_id') or data.get('user_id')
     clip_id = data.get('clip_id')
+    url = data.get('url')
     
-    if not user_id or not clip_id:
+    if not user_id:
         return jsonify({'success': False, 'error': 'Missing parameters'})
         
+    content = f"Check this out! {url}" if url else f"Check this out! /post/{clip_id}"
+    
     try:
         # Create a direct message with the shared post link
         supabase.table('messages').insert({
             'sender_id': viewer['id'],
             'receiver_id': user_id,
-            'content': f"Check this out! /post/{clip_id}"
+            'content': content
         }).execute()
         return jsonify({'success': True})
     except Exception as e:
