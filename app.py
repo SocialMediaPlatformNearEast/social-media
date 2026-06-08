@@ -2559,7 +2559,7 @@ def oauth_callback():
     try:
         from supabase import create_client
         # Create a temporary client so we don't mutate the global service role client!
-        temp_client = create_client(SUPABASE_URL, SUPABASE_SECRET)
+        temp_client = create_client(url, key)
         
         restore_oauth_code_verifier(temp_client.auth)
         exchange_params = {
