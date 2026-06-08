@@ -29,7 +29,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-default-key")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',
-    SESSION_COOKIE_SECURE=os.getenv("FLASK_ENV") == "production"
+    SESSION_COOKIE_SECURE=True
 )
 logging.basicConfig(level=logging.INFO)
 
