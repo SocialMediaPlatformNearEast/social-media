@@ -28,7 +28,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super-secret-default-key")
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SAMESITE='None',
     SESSION_COOKIE_SECURE=os.getenv("FLASK_ENV") == "production"
 )
 logging.basicConfig(level=logging.INFO)
