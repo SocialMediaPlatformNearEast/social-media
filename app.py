@@ -2104,7 +2104,7 @@ def reels():
         reels_list = get_demo_reels()
         has_next = False
 
-    return render_template('clips.html',
+    return render_template('reels.html',
                            viewer=viewer,
                            reels=reels_list,
                            page=page,
@@ -2187,7 +2187,7 @@ def reel_upload():
             else:
                 flash(handle_db_error(exc, "Could not upload that reel."), "error")
 
-    return render_template('clip_upload.html',
+    return render_template('reel_upload.html',
                            viewer=viewer,
                            communities=communities,
                            max_video_bytes=MAX_VIDEO_BYTES,
