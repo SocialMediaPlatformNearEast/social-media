@@ -31,6 +31,9 @@
         {% if notification.type == 'follow' %}👤{% endif %}
         {% if notification.type == 'repost' %}🔁{% endif %}
         {% if notification.type == 'comment' %}💬{% endif %}
+        {% if notification.type == 'comment_reply' %}💬{% endif %}
+        {% if notification.type == 'comment_like' %}❤️{% endif %}
+        {% if notification.type == 'comment_repost' %}🔁{% endif %}
         {% if notification.type == 'reel_comment' %}💬{% endif %}
         {% if notification.type == 'message' %}✉️{% endif %}
         {% if notification.type == 'friend_request' %}🤝{% endif %}
@@ -47,6 +50,9 @@
             {% elif notification.type == 'reel_like' %}liked your reel
             {% elif notification.type == 'repost' %}reposted your post
             {% elif notification.type == 'comment' %}commented on your post
+            {% elif notification.type == 'comment_reply' %}replied to your comment
+            {% elif notification.type == 'comment_like' %}liked your comment
+            {% elif notification.type == 'comment_repost' %}reposted your comment
             {% elif notification.type == 'reel_comment' %}commented on your reel
             {% elif notification.type == 'follow' %}followed you
             {% elif notification.type == 'friend_request' %}sent you a friend request

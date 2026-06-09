@@ -3057,6 +3057,17 @@ def add_comment():
             create_notification(owner_id, viewer['id'], 'comment', post_id=post_id)
             award_xp(owner_id, 'comment_received', 4, res.data[0]['id'] if res.data else None)
 
+        import re
+        mentions = set(re.findall(r'@([a-zA-Z0-9_]+)', comment))
+        for username in mentions:
+            if username.lower() == viewer['username'].lower():
+                continue
+            u_res = supabase.table('users').select('id').eq('username', username).execute()
+            if u_res.data:
+                target_id = u_res.data[0]['id']
+                if target_id != owner_id: # avoid double notification if they own the post
+                    create_notification(target_id, viewer['id'], 'comment_reply', post_id=post_id)
+
         flash("Comment posted.", "success")
     except Exception as e:
         flash(handle_db_error(e), "error")
@@ -3162,7 +3173,7 @@ def toggle_comment_like():
     if comment_id:
         try:
             comment_id_int = int(comment_id)
-            comment_res = supabase.table('comments').select('user_id').eq('id', comment_id_int).execute()
+            comment_res = supabase.table('comments').select('user_id, post_id').eq('id', comment_id_int).execute()
             if not comment_res.data:
                 raise ValueError("Comment not found")
             owner_id = comment_res.data[0]['user_id']
@@ -3182,7 +3193,7 @@ def toggle_comment_like():
                 award_xp(viewer['id'], 'like_given', 1, f"c{comment_id}")
 
                 if owner_id != viewer['id']:
-                    # We can use the existing 'like' notification or a new one. Using 'like' is fine, but we don't have comment_id in notifications.
+                    create_notification(owner_id, viewer['id'], 'comment_like', post_id=comment_res.data[0].get('post_id'))
                     award_xp(owner_id, 'like_received', 2, f"c{comment_id}:{viewer['id']}")
             count_res = supabase.table('comment_likes').select('comment_id', count='exact').eq('comment_id', comment_id_int).execute()
             count = count_res.count if count_res else 0
@@ -3206,7 +3217,7 @@ def toggle_comment_repost():
     if comment_id:
         try:
             comment_id_int = int(comment_id)
-            comment_res = supabase.table('comments').select('user_id').eq('id', comment_id_int).execute()
+            comment_res = supabase.table('comments').select('user_id, post_id').eq('id', comment_id_int).execute()
             if not comment_res.data:
                 raise ValueError("Comment not found")
             owner_id = comment_res.data[0]['user_id']
@@ -3224,6 +3235,9 @@ def toggle_comment_repost():
                 supabase.table('comment_reposts').insert({'user_id': viewer['id'], 'comment_id': comment_id_int}).execute()
                 reposted = True
                 award_xp(viewer['id'], 'post_reposted', 5, f"c{comment_id}")
+
+                if owner_id != viewer['id']:
+                    create_notification(owner_id, viewer['id'], 'comment_repost', post_id=comment_res.data[0].get('post_id'))
 
             count_res = supabase.table('comment_reposts').select('comment_id', count='exact').eq('comment_id', comment_id_int).execute()
             count = count_res.count if count_res else 0
