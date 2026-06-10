@@ -71,7 +71,7 @@
         {% if notification.post_id %}
           <a href="{{ url_for('post', id=notification.post_id) }}" class="notification-action">Open post</a>
         {% elif notification.reel_id %}
-          <a href="{{ notification.reel_url or (url_for('reels') ~ '#reel-' ~ notification.reel_id) }}" class="notification-action">Open reel</a>
+          <a href="{{ notification.reel_url or (url_for('reels') ~ '#reel-' ~ notification.reel_id) }}" class="notification-action">Open clip</a>
         {% elif notification.type == 'message' %}
           <a href="{{ notification.message_url or (url_for('messages', u=notification.actor_username) if notification.actor_username else url_for('messages')) }}" class="notification-action">Open message</a>
         {% elif notification.type == 'friend_request' and notification.friendship_status == 'pending' and notification.friendship_action_user_id != viewer.id %}

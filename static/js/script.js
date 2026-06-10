@@ -969,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!button) return;
             if (label) label.textContent = muted ? 'Muted' : 'Sound on';
             button.classList.toggle('active', !muted);
-            button.setAttribute('aria-label', muted ? 'Unmute reels' : 'Mute reels');
+            button.setAttribute('aria-label', muted ? 'Unmute clips' : 'Mute clips');
         };
 
         const applySoundPreference = (card) => {
