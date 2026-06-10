@@ -410,6 +410,203 @@
 .chat-unselected .message-discovery-grid {
   width: min(760px, 100%);
   margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-unselected .message-discovery-panel {
+  margin-inline: 0;
+}
+
+.community-dot {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: var(--radius-lg);
+  background: var(--community-color, var(--accent-color));
+  box-shadow: inset 0 1px 0 var(--lvl-white-22), 0 8px 22px color-mix(in srgb, var(--community-color, var(--accent-color)) 28%, transparent);
+}
+
+/* Mobile: force messages page to 100% viewport width, hide rails */
+@media (max-width: 1000px) {
+  .app-shell:has(.timeline-messages) {
+    display: block !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding-inline: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-shell:has(.timeline-messages) .left-rail-wrapper,
+  .app-shell:has(.timeline-messages) .right-rail-wrapper {
+    display: none !important;
+    width: 0 !important;
+  }
+
+  .timeline-messages {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Desktop: messages takes full available width */
+@media (min-width: 1001px) {
+  .app-shell:has(.timeline-messages) {
+    max-width: 100% !important;
+    grid-template-columns: auto 1fr 0 !important;
+  }
+
+  .app-shell:has(.timeline-messages) .right-rail-wrapper {
+    display: none !important;
+  }
+
+  .timeline-messages {
+    width: 100% !important;
+    max-width: none !important;
+    flex-basis: auto !important;
+    justify-self: stretch;
+    border-right: 0;
+  }
+
+  .messages-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+}
+
+@media (max-width: 1000px) {
+  .messages-container {
+    height: calc(100vh - 53px);
+  }
+  .conversations-sidebar {
+    width: 80px;
+  }
+  .sidebar-header h2, .conv-info, .new-message-btn {
+    display: none;
+  }
+  .conversations-list .avatar {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 760px) {
+  /*
+   * Flex-based layout instead of calc() height.
+   * timeline-messages fills (100dvh - bottom-nav), mobile-header shrinks
+   * to its natural height, messages-container takes the rest via flex:1.
+   */
+  .timeline-messages {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 64px); /* 64px = fixed mobile bottom nav */
+    overflow: hidden;
+  }
+
+  /* mobile-header inside timeline must not flex-grow */
+  .mobile-header {
+    flex-shrink: 0;
+  }
+
+  .messages-container {
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden;
+  }
+
+  .conversations-sidebar {
+    width: 76px;
+  }
+
+  /* Hide sidebar entirely when a chat is open — single-column on small phones */
+  @media (max-width: 480px) {
+    .messages-container:has(.messages-feed) .conversations-sidebar {
+      display: none;
+    }
+  }
+
+  .chat-header {
+    min-height: 58px;
+  }
+
+  .messages-feed {
+    padding-inline: 12px;
+  }
+
+  .message-bubble-wrapper {
+    max-width: 84%;
+  }
+
+  .chat-footer {
+    flex-shrink: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .timeline-messages {
+    height: calc(100dvh - 54px);
+  }
+
+  .messages-container {
+    flex: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .messages-feed {
+    padding-block: 10px;
+  }
+.send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.chat-unselected {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding: 32px 32px 40px;
+  text-align: center;
+}
+
+.send-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.chat-unselected .outline-button {
+  align-self: center;
+}
+
+.chat-window-unselected {
+  overflow: hidden;
+}
+
+.chat-unselected h2 {
+  font-size: 31px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.chat-unselected p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  max-width: 320px;
+}
+
+.chat-unselected .message-discovery-grid {
+  width: min(760px, 100%);
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .chat-unselected .message-discovery-panel {
@@ -562,3 +759,4 @@
     padding-block: 18px;
   }
 }
+.message-bubble a { color: inherit; text-decoration: underline; font-weight: 500; }

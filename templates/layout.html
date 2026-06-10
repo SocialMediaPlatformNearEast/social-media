@@ -143,16 +143,35 @@
        <div class="community-highlights panel">
          <h2>Leaderboard</h2>
          {% if highlights %}
+           <style>
+             .hide-scroll::-webkit-scrollbar { display: none !important; }
+             .hide-scroll { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+           </style>
+           <div class="hide-scroll" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
            {% for h in highlights %}
-             <a class="mini-profile community-highlight-row" href="{{ url_for('profile', username=h.username) }}">
-               <img class="avatar small-avatar community-highlight-avatar" src="{{ h.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" />
-               <div class="community-highlight-row-body">
-                 <strong>{{ h.display_name }}</strong>
-                 <span>@{{ h.username }}</span>
-               </div>
-               <span class="level-badge community-level-badge" style="--badge-color: {{ h.badge_color or theme_colors.muted }};" title="{{ level_title(h.level or 1) }}">LvL {{ h.level or 1 }}</span>
-             </a>
+             <div class="mini-profile community-highlight-row" style="cursor: default; align-items: center; margin-bottom: 12px;">
+               <a href="{{ url_for('profile', username=h.username) }}" style="display: flex; align-items: center; gap: 10px; flex: 1; text-decoration: none; color: inherit; min-width: 0;">
+                 <img class="avatar small-avatar community-highlight-avatar" src="{{ h.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="flex-shrink: 0; width: 40px; height: 40px;" />
+                 <div class="community-highlight-row-body" style="min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center;">
+                   <strong style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;">{{ h.display_name }}</strong>
+                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--text-secondary);">@{{ h.username }}</span>
+                     <span class="level-badge community-level-badge" style="--badge-color: {{ h.badge_color or theme_colors.muted }}; padding: 0px 6px; font-size: 10px; line-height: 16px; height: 16px;" title="{{ level_title(h.level or 1) }}">LvL {{ h.level or 1 }}</span>
+                   </div>
+                 </div>
+               </a>
+               {% if session.get('user_id') and session.get('user_id') != h.id %}
+               <form action="{{ url_for('toggle_follow') }}" method="post" class="ajax-action-form" data-action="follow" style="margin-left: auto; flex-shrink: 0;">
+                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                 <input type="hidden" name="target_id" value="{{ h.id }}">
+                 <button class="follow-chip {% if h.is_following %}active{% endif %}" type="submit">
+                   {{ 'Unfollow' if h.is_following else 'Follow' }}
+                 </button>
+               </form>
+               {% endif %}
+             </div>
            {% endfor %}
+           </div>
          {% else %}
            <p class="community-highlight-empty">No community members yet.</p>
          {% endif %}
@@ -161,8 +180,8 @@
       {% if show_trends and trending_posts %}
         <div class="community-trends panel">
           <h2>Trending Posts</h2>
-            <div class="trends-list">
-              {% for tp in trending_posts[:2] %}
+            <div class="trends-list hide-scroll" style="display: flex; flex-direction: column; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+              {% for tp in trending_posts %}
                   <a class="trend-item" href="{{ url_for('post', id=tp.id) }}" style="display: block; padding: 12px; margin-bottom: 12px; background: var(--lvl-black-20); border: 1px solid var(--lvl-border); border-radius: 12px; text-decoration: none; transition: background 0.2s;">
                     <div class="trend-author" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                       <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%;">

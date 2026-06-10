@@ -259,7 +259,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function initNewChatSearch() {
+        document.querySelectorAll('[data-new-chat-search]').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                const list = e.target.parentElement.nextElementSibling;
+                if (list && list.classList.contains('user-selection-list')) {
+                    list.querySelectorAll('.user-select-item').forEach(item => {
+                        const name = item.querySelector('strong')?.textContent.toLowerCase() || '';
+                        const handle = item.querySelector('span')?.textContent.toLowerCase() || '';
+                        if (name.includes(val) || handle.includes(val)) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                }
+            });
+        });
+    }
+
     function initNewChatPanel() {
+        initNewChatSearch();
         const panel = document.getElementById('new-chat-panel');
         const toggle = document.querySelector('[data-new-chat-toggle]');
         if (!panel || !toggle) return;
@@ -594,8 +615,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `
             : '';
 
+        let contentHtml = escapeHTML(message.content || '').replace(/\n/g, '<br>');
+        contentHtml = contentHtml.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
         wrapper.innerHTML = `
-            <div class="message-bubble" title="${escapeHTML(message.created_at || '')}">${escapeHTML(message.content || '').replace(/\n/g, '<br>')}</div>
+            <div class="message-bubble" title="${escapeHTML(message.created_at || '')}">${contentHtml}</div>
             <div class="message-meta">
                 <span class="message-time">${timeStr}</span>
                 ${deleteForm}
@@ -1246,7 +1269,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        window.requestAnimationFrame(() => activateCard(cards[0]));
+        window.requestAnimationFrame(() => {
+            let targetCard = cards[0];
+            if (window.location.hash) {
+                try {
+                    const hashId = window.location.hash.substring(1);
+                    const hashCard = feed.querySelector('#' + hashId) || feed.querySelector('[data-reel-id="' + hashId.replace('reel-', '') + '"]');
+                    if (hashCard) {
+                        targetCard = hashCard.closest('[data-reel-card]') || hashCard;
+                    }
+                } catch (e) {}
+            }
+            if (targetCard && targetCard !== cards[0]) {
+                scrollToCard(targetCard);
+            }
+            activateCard(targetCard);
+        });
     }
 
     async function loadReelComments(card, panel, toggleBtn) {

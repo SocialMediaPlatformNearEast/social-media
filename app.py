@@ -1412,8 +1412,12 @@ def unique_ids(rows, key):
 
 def get_community_highlights():
     try:
-        res = supabase.table('users').select('*').order('level', desc=True).limit(3).execute()
-        return merge_forced_level_users(res.data if res and res.data else [], limit=3)
+        res = supabase.table('users').select('*').order('level', desc=True).limit(20).execute()
+        users = merge_forced_level_users(res.data if res and res.data else [], limit=20)
+        viewer_id = session.get('user_id')
+        if viewer_id:
+            users = mark_following_state(filter_blocked_users(users, viewer_id, include_mutes=False), viewer_id)
+        return users
     except Exception:
         return []
 
@@ -1868,7 +1872,7 @@ def get_explore_context(viewer):
         pass
 
     context['popular_users'] = get_popular_users(viewer['id'], 5)
-    context['trending_posts'] = get_trending_posts(viewer['id'], 5)
+    context['trending_posts'] = get_trending_posts(viewer['id'], 20)
     context['communities'] = get_communities(6)
     context['metrics']['communities'] = len(context['communities'])
 
@@ -2092,6 +2096,8 @@ def reels():
     tab = request.args.get('tab', 'for_you')
     if tab not in {'for_you', 'following'}:
         tab = 'for_you'
+        
+    explore = get_explore_context(viewer)
     table_ready = True
     try:
         reels_list, has_next = get_reels(viewer['id'], limit=8, page=page, tab=tab)
@@ -2115,7 +2121,7 @@ def reels():
                            has_next=has_next,
                            table_ready=table_ready,
                            tab=tab,
-                           highlights=get_community_highlights(),
+                           trending_posts=explore.get('trending_posts', []),
                            home_media=get_home_media_preview(viewer['id']))
 
 @app.route('/api/reels')

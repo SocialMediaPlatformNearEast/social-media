@@ -171,7 +171,7 @@
                      {% endif %}
                    </a>
                  </div>
-              {% else %}{{ msg.content }}{% endif %}</div>
+              {% else %}{{ msg.content|urlize(target='_blank') }}{% endif %}</div>
             <div class="message-meta">
               <span class="message-time">{{ msg.created_at[11:16] }}</span>
               <form action="{{ url_for('delete_message') }}" method="post" class="message-delete-form">
@@ -257,6 +257,9 @@
 
         <div class="new-chat-section" id="new-chat-inline">
           <h3>Start a new conversation</h3>
+          <div style="margin-bottom: 12px;">
+            <input type="search" data-new-chat-search placeholder="Search users..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--lvl-black-20); color: var(--text-primary);">
+          </div>
           <div class="user-selection-list">
             {% if not all_users %}
               <p class="empty-conversations">No other users are available yet.</p>
@@ -288,6 +291,9 @@
       </div>
       <button type="button" class="new-chat-close" aria-label="Close new conversation panel" data-new-chat-close>x</button>
     </header>
+    <div style="padding: 12px 16px 0;">
+      <input type="search" data-new-chat-search placeholder="Search users..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--lvl-black-20); color: var(--text-primary);">
+    </div>
     <div class="user-selection-list">
       {% if not all_users %}
         <p class="empty-conversations">No other users are available yet.</p>
