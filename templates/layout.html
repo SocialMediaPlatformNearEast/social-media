@@ -143,11 +143,8 @@
        <div class="community-highlights panel">
          <h2>Leaderboard</h2>
          {% if highlights %}
-           <style>
-             .hide-scroll::-webkit-scrollbar { display: none !important; }
-             .hide-scroll { -ms-overflow-style: none !important; scrollbar-width: none !important; }
-           </style>
-           <div class="hide-scroll" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
+
+           <div class="custom-scrollbar" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
            {% for h in highlights %}
              <div class="mini-profile community-highlight-row" style="cursor: default; align-items: center; margin-bottom: 12px;">
                <a href="{{ url_for('profile', username=h.username) }}" style="display: flex; align-items: center; gap: 10px; flex: 1; text-decoration: none; color: inherit; min-width: 0;">
@@ -180,7 +177,7 @@
       {% if show_trends and trending_posts %}
         <div class="community-trends panel">
           <h2>Trending Posts</h2>
-            <div class="trends-list hide-scroll" style="display: flex; flex-direction: column; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+            <div class="trends-list custom-scrollbar" style="display: flex; flex-direction: column; max-height: 400px; overflow-y: auto; padding-right: 8px;">
               {% for tp in trending_posts %}
                   <a class="trend-item" href="{{ url_for('post', id=tp.id) }}" style="display: block; padding: 12px; margin-bottom: 12px; background: var(--lvl-black-20); border: 1px solid var(--lvl-border); border-radius: 12px; text-decoration: none; transition: background 0.2s;">
                     <div class="trend-author" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">

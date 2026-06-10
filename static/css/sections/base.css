@@ -418,4 +418,17 @@ a:hover {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.right-rail::-webkit-scrollbar {
+  display: none !important;
+}
+
+.custom-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+.custom-scrollbar::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
 }

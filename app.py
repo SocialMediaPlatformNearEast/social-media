@@ -63,7 +63,7 @@ VIDEO_CONTENT_TYPES = {
     'mov': 'video/quicktime',
     'm4v': 'video/x-m4v',
 }
-ASSET_VERSION = "93"
+ASSET_VERSION = "97"
 HOME_REEL_PREVIEW_LIMIT = 12
 HOME_MEDIA_PREVIEW_LIMIT = 12
 
@@ -3729,9 +3729,11 @@ def profile(username):
         if mode == 'liked':
             posts = enrich_posts(posts, viewer['id'])
 
-        level = max(1, profile_user.get('level', 1))
+        raw_level = profile_user.get('level')
+        level = max(1, int(raw_level) if raw_level is not None else 1)
         profile_banner = profile_banner_for_level(level)
-        total_xp = profile_user.get('total_xp', 0)
+        raw_xp = profile_user.get('total_xp')
+        total_xp = int(raw_xp) if raw_xp is not None else 0
         current_xp_req = xp_required_for_level(level)
         next_xp_req = xp_required_for_level(level + 1)
         progress = min(100, max(0, ((total_xp - current_xp_req) / max(1, next_xp_req - current_xp_req)) * 100))
@@ -3739,6 +3741,9 @@ def profile(username):
         summary = achievement_summary(achievements)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"PROFILE ROUTE ERROR: {e}", flush=True)
         flash(handle_db_error(e), "error")
         return redirect(url_for('index'))
 

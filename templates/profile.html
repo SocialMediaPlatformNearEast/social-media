@@ -150,31 +150,108 @@
       <a class="level-guide-link" href="{{ url_for('level_guide') }}">Open LvL Guide</a>
     </section>
 
-    <section class="profile-achievements-card" aria-label="Profile achievements">
-      <div class="profile-achievements-heading">
-        <div>
-          <span class="xp-kicker">Public progress</span>
-          <h2>Achievements</h2>
+    <style>
+      .premium-achievements-card {
+        margin-top: 24px;
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 0;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+      }
+      .premium-achievements-card:hover {
+        border-color: rgba(0, 240, 255, 0.25);
+        box-shadow: 0 12px 40px rgba(0, 240, 255, 0.08), inset 0 0 20px rgba(0, 240, 255, 0.03);
+      }
+      .premium-achievements-card summary::-webkit-details-marker { display: none; }
+      .premium-achievements-card[open] .achievement-caret { transform: rotate(180deg); color: var(--lvl-cyan, #00f0ff) !important; }
+      .premium-achievements-card[open] .premium-achievements-heading-btn {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.015);
+      }
+      .premium-achievements-heading-btn {
+        cursor: pointer;
+        list-style: none;
+        outline: none;
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.3s ease;
+      }
+      .premium-achievements-heading-btn:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .premium-achievements-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+        padding: 8px 18px;
+        border-radius: 30px;
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .premium-achievements-heading-btn:hover .premium-achievements-toggle {
+        background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(0,240,255,0.05));
+        border-color: rgba(0,240,255,0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,240,255,0.15);
+      }
+      .premium-achievements-toggle strong {
+        font-size: 15px;
+        color: var(--text-primary);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        transition: color 0.3s ease;
+      }
+      .premium-achievements-heading-btn:hover .premium-achievements-toggle strong {
+        color: var(--lvl-cyan, #00f0ff);
+      }
+      .achievement-grid-wrapper {
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.15);
+      }
+    </style>
+    <details class="premium-achievements-card" aria-label="Profile achievements">
+      <summary class="premium-achievements-heading-btn">
+        <div style="display: flex; align-items: center; gap: 18px; pointer-events: none;">
+          <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, var(--lvl-cyan, #00f0ff), #0066ff); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,240,255,0.3); border: 1px solid rgba(255,255,255,0.2);">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"><path d="M12 15l-3.5 2 1-4.5-3-3 4.5-.5L12 5l1 4.5 4.5.5-3 3 1 4.5-3.5-2z"></path></svg>
+          </div>
+          <div>
+            <span class="xp-kicker" style="font-size: 10px; color: var(--lvl-cyan, #00f0ff); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; display: block; margin-bottom: 4px; text-shadow: 0 0 8px rgba(0,240,255,0.4);">Public progress</span>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; color: #fff;">Achievements</h2>
+          </div>
         </div>
-        <strong>{{ achievement_summary.unlocked }} / {{ achievement_summary.total }}</strong>
+        <div class="premium-achievements-toggle">
+          <strong>{{ achievement_summary.unlocked }} / {{ achievement_summary.total }}</strong>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="achievement-caret" style="transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); color: rgba(255,255,255,0.6);"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </summary>
+      <div class="achievement-grid-wrapper">
+        <div class="achievement-grid" style="margin-top: 0;">
+          {% for achievement in achievements %}
+            <article class="achievement-card {% if achievement.unlocked %}unlocked{% else %}locked{% endif %}">
+              <div class="achievement-topline">
+                <span>{{ 'Unlocked' if achievement.unlocked else 'Locked' }}</span>
+                <b>{{ achievement.progress|round(0)|int }}%</b>
+              </div>
+              <strong>{{ achievement.name }}</strong>
+              <p>{{ achievement.description }}</p>
+              <div class="achievement-progress-track" aria-label="{{ achievement.name }} progress">
+                <i style="width: {{ achievement.progress }}%;"></i>
+              </div>
+              <small>{{ achievement.progress_label }}</small>
+            </article>
+          {% endfor %}
+        </div>
       </div>
-      <div class="achievement-grid">
-        {% for achievement in achievements %}
-          <article class="achievement-card {% if achievement.unlocked %}unlocked{% else %}locked{% endif %}">
-            <div class="achievement-topline">
-              <span>{{ 'Unlocked' if achievement.unlocked else 'Locked' }}</span>
-              <b>{{ achievement.progress|round(0)|int }}%</b>
-            </div>
-            <strong>{{ achievement.name }}</strong>
-            <p>{{ achievement.description }}</p>
-            <div class="achievement-progress-track" aria-label="{{ achievement.name }} progress">
-              <i style="width: {{ achievement.progress }}%;"></i>
-            </div>
-            <small>{{ achievement.progress_label }}</small>
-          </article>
-        {% endfor %}
-      </div>
-    </section>
+    </details>
   </div>
 
   <div class="segmented">

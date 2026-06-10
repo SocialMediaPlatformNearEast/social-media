@@ -1377,21 +1377,12 @@ button {
   overflow-x: hidden;
   border-left: 0;
   background: var(--lvl-black);
-  scrollbar-width: thin;
-  scrollbar-color: var(--lvl-scrollbar) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .right-rail.community-highlights::-webkit-scrollbar {
-  width: 8px;
-}
-
-.right-rail.community-highlights::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.right-rail.community-highlights::-webkit-scrollbar-thumb {
-  border-radius: var(--radius-pill);
-  background: var(--lvl-scrollbar);
+  display: none !important;
 }
 
 @media (max-width: 1280px) {

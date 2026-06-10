@@ -1,31 +1,31 @@
 /* LvL stylesheet manifest. Keep imports in this order to preserve cascade. */
-@import url("sections/base.css?v=92");
-@import url("sections/navigation.css?v=92");
-@import url("sections/feed.css?v=92");
-@import url("sections/feedback.css?v=92");
-@import url("sections/auth.css?v=92");
-@import url("sections/profile.css?v=92");
-@import url("sections/rewards.css?v=92");
-@import url("sections/messages.css?v=92");
-@import url("sections/settings.css?v=92");
-@import url("sections/notifications.css?v=92");
-@import url("sections/activity.css?v=92");
-@import url("sections/home.css?v=92");
-@import url("sections/message-discovery.css?v=92");
-@import url("sections/search.css?v=92");
-@import url("sections/legacy-polish.css?v=92");
-@import url("sections/community.css?v=92");
-@import url("sections/mobile-drawer.css?v=92");
-@import url("sections/design-system.css?v=92");
-@import url("sections/hardening.css?v=92");
-@import url("sections/profile-mobile.css?v=92");
-@import url("sections/community-timeline.css?v=92");
-@import url("sections/notification-badge.css?v=92");
-@import url("sections/reels.css?v=92");
-@import url("sections/mobile-navigation.css?v=92");
-@import url("sections/community-highlights.css?v=92");
-@import url("sections/home-reels.css?v=92");
-@import url("sections/streaks.css?v=92");
+@import url("sections/base.css?v=97");
+@import url("sections/navigation.css?v=97");
+@import url("sections/feed.css?v=97");
+@import url("sections/feedback.css?v=97");
+@import url("sections/auth.css?v=97");
+@import url("sections/profile.css?v=97");
+@import url("sections/rewards.css?v=97");
+@import url("sections/messages.css?v=97");
+@import url("sections/settings.css?v=97");
+@import url("sections/notifications.css?v=97");
+@import url("sections/activity.css?v=97");
+@import url("sections/home.css?v=97");
+@import url("sections/message-discovery.css?v=97");
+@import url("sections/search.css?v=97");
+@import url("sections/legacy-polish.css?v=97");
+@import url("sections/community.css?v=97");
+@import url("sections/mobile-drawer.css?v=97");
+@import url("sections/design-system.css?v=97");
+@import url("sections/hardening.css?v=97");
+@import url("sections/profile-mobile.css?v=97");
+@import url("sections/community-timeline.css?v=97");
+@import url("sections/notification-badge.css?v=97");
+@import url("sections/reels.css?v=97");
+@import url("sections/mobile-navigation.css?v=97");
+@import url("sections/community-highlights.css?v=97");
+@import url("sections/home-reels.css?v=97");
+@import url("sections/streaks.css?v=97");
 
 @import url('sections/share-modal.css');
 .share-modal-overlay {
@@ -194,9 +194,9 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  display: none;
+  display: none !important;
 }
 .custom-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
