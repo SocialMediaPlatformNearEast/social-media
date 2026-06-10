@@ -150,7 +150,12 @@
                <a href="{{ url_for('profile', username=h.username) }}" style="display: flex; align-items: center; gap: 10px; flex: 1; text-decoration: none; color: inherit; min-width: 0;">
                  <img class="avatar small-avatar community-highlight-avatar" src="{{ h.profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="flex-shrink: 0; width: 40px; height: 40px;" />
                  <div class="community-highlight-row-body" style="min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center;">
-                   <strong style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;">{{ h.display_name }}</strong>
+                   <strong style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
+                    {{ h.display_name }}
+                    {% if h.username in ['ikasfood', 'lvl'] %}
+                      <svg title="Official Account" viewBox="0 0 24 24" width="1.1em" height="1.1em" style="vertical-align: -0.2em; filter: drop-shadow(0 1px 3px rgba(0, 240, 255, 0.3));"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.79-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.758 2.75 1.875 3.45-.045.247-.074.5-.074.76 0 2.21 1.71 3.998 3.918 3.998.47 0 .92-.084 1.336-.25C9.182 21.585 10.49 22.5 12 22.5s2.816-.917 3.337-2.25c.416.165.866.25 1.336.25 2.21 0 3.918-1.79 3.918-4 0-.26-.028-.513-.074-.76 1.116-.7 1.875-1.99 1.875-3.45z" fill="var(--lvl-cyan, #00f0ff)"/><path d="M10.153 16.52l-3.385-3.385 1.31-1.31 2.075 2.076 5.672-5.672 1.31 1.31-6.982 6.98z" fill="#ffffff"/></svg>
+                    {% endif %}
+                  </strong>
                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
                      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--text-secondary);">@{{ h.username }}</span>
                      <span class="level-badge community-level-badge" style="--badge-color: {{ h.badge_color or theme_colors.muted }}; padding: 0px 6px; font-size: 10px; line-height: 16px; height: 16px;" title="{{ level_title(h.level or 1) }}">LvL {{ h.level or 1 }}</span>
@@ -182,7 +187,12 @@
                   <a class="trend-item" href="{{ url_for('post', id=tp.id) }}" style="display: block; padding: 12px; margin-bottom: 12px; background: var(--lvl-black-20); border: 1px solid var(--lvl-border); border-radius: 12px; text-decoration: none; transition: background 0.2s;">
                     <div class="trend-author" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                       <img class="avatar small-avatar" src="{{ (tp.user or {}).profile_photo_url or url_for('static', filename='assets/default-male-avatar.svg') }}" alt="Avatar" style="width: 24px; height: 24px; border-radius: 50%;">
-                      <strong style="color: var(--text-primary, #fff); font-size: 14px;">{{ (tp.user or {}).display_name }}</strong>
+                      <strong style="color: var(--text-primary, #fff); font-size: 14px; display: inline-flex; align-items: center; gap: 4px;">
+                        {{ (tp.user or {}).display_name }}
+                        {% if (tp.user or {}).username in ['ikasfood', 'lvl'] %}
+                          <svg title="Official Account" viewBox="0 0 24 24" width="1.1em" height="1.1em" style="vertical-align: -0.2em; filter: drop-shadow(0 1px 3px rgba(0, 240, 255, 0.3));"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.79-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.758 2.75 1.875 3.45-.045.247-.074.5-.074.76 0 2.21 1.71 3.998 3.918 3.998.47 0 .92-.084 1.336-.25C9.182 21.585 10.49 22.5 12 22.5s2.816-.917 3.337-2.25c.416.165.866.25 1.336.25 2.21 0 3.918-1.79 3.918-4 0-.26-.028-.513-.074-.76 1.116-.7 1.875-1.99 1.875-3.45z" fill="var(--lvl-cyan, #00f0ff)"/><path d="M10.153 16.52l-3.385-3.385 1.31-1.31 2.075 2.076 5.672-5.672 1.31 1.31-6.982 6.98z" fill="#ffffff"/></svg>
+                        {% endif %}
+                      </strong>
                     </div>
                     <div class="trend-snippet" style="color: var(--text-secondary, #aaa); font-size: 13px; line-height: 1.4; margin-bottom: 8px;">
                       {% if tp.content %}

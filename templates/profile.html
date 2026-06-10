@@ -71,7 +71,12 @@
     
     <div class="profile-names">
       <h1>
-        <span class="profile-display-name">{{ profile.display_name }}</span>
+        <span class="profile-display-name" style="display: inline-flex; align-items: center; gap: 6px;">
+          {{ profile.display_name }}
+          {% if profile.username in ['ikasfood', 'lvl'] %}
+            <svg title="Official Account" viewBox="0 0 24 24" width="1.1em" height="1.1em" style="vertical-align: -0.2em; filter: drop-shadow(0 1px 3px rgba(0, 240, 255, 0.3));"><path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.998-3.918-3.998-.47 0-.92.084-1.336.25C14.818 2.415 13.51 1.5 12 1.5s-2.816.917-3.337 2.25c-.416-.165-.866-.25-1.336-.25-2.21 0-3.918 1.79-3.918 4 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.46.758 2.75 1.875 3.45-.045.247-.074.5-.074.76 0 2.21 1.71 3.998 3.918 3.998.47 0 .92-.084 1.336-.25C9.182 21.585 10.49 22.5 12 22.5s2.816-.917 3.337-2.25c.416.165.866.25 1.336.25 2.21 0 3.918-1.79 3.918-4 0-.26-.028-.513-.074-.76 1.116-.7 1.875-1.99 1.875-3.45z" fill="var(--lvl-cyan, #00f0ff)"/><path d="M10.153 16.52l-3.385-3.385 1.31-1.31 2.075 2.076 5.672-5.672 1.31 1.31-6.982 6.98z" fill="#ffffff"/></svg>
+          {% endif %}
+        </span>
         <span class="level-badge" style="--badge-color: {{ profile.badge_color or theme_colors.muted }};" title="{{ level_title(profile.level or 1) }}">LvL {{ profile.level or 1 }}</span>
       </h1>
       <p class="handle">@{{ profile.username }}</p>
