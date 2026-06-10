@@ -3063,6 +3063,17 @@ def add_comment():
             create_notification(owner_id, viewer['id'], 'comment', post_id=post_id)
             award_xp(owner_id, 'comment_received', 4, res.data[0]['id'] if res.data else None)
 
+        import re
+        mentions = set(re.findall(r'@([a-zA-Z0-9_]+)', comment))
+        for username in mentions:
+            if username.lower() == viewer['username'].lower():
+                continue
+            u_res = supabase.table('users').select('id').eq('username', username).execute()
+            if u_res.data:
+                target_id = u_res.data[0]['id']
+                if target_id != owner_id: # avoid double notification if they own the post
+                    create_notification(target_id, viewer['id'], 'comment_reply', post_id=post_id)
+
         flash("Comment posted.", "success")
     except Exception as e:
         flash(handle_db_error(e), "error")
@@ -3155,6 +3166,95 @@ def toggle_repost():
     if request.form.get('ajax') == '1':
         return jsonify({'success': True, 'reposted': reposted, 'count': count})
     return redirect(safe_redirect_url())
+
+@app.route('/toggle_comment_like', methods=['POST'])
+def toggle_comment_like():
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+
+    comment_id = request.form.get('comment_id')
+    liked = False
+    count = 0
+    if comment_id:
+        try:
+            comment_id_int = int(comment_id)
+            comment_res = supabase.table('comments').select('user_id, post_id').eq('id', comment_id_int).execute()
+            if not comment_res.data:
+                raise ValueError("Comment not found")
+            owner_id = comment_res.data[0]['user_id']
+            if interaction_blocked(viewer['id'], owner_id):
+                if request.form.get('ajax') == '1':
+                    return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+                flash("You cannot interact with this user.", "error")
+                return redirect(safe_redirect_url())
+
+            res = supabase.table('comment_likes').select('*').eq('user_id', viewer['id']).eq('comment_id', comment_id_int).execute()
+            if res.data:
+                supabase.table('comment_likes').delete().eq('user_id', viewer['id']).eq('comment_id', comment_id_int).execute()
+                liked = False
+            else:
+                supabase.table('comment_likes').insert({'user_id': viewer['id'], 'comment_id': comment_id_int}).execute()
+                liked = True
+                award_xp(viewer['id'], 'like_given', 1, f"c{comment_id}")
+
+                if owner_id != viewer['id']:
+                    create_notification(owner_id, viewer['id'], 'comment_like', post_id=comment_res.data[0].get('post_id'))
+                    award_xp(owner_id, 'like_received', 2, f"c{comment_id}:{viewer['id']}")
+            count_res = supabase.table('comment_likes').select('comment_id', count='exact').eq('comment_id', comment_id_int).execute()
+            count = count_res.count if count_res else 0
+        except Exception as e:
+            if request.form.get('ajax') == '1':
+                return jsonify({'success': False, 'error': handle_db_error(e)}), 400
+            flash(handle_db_error(e), "error")
+    if request.form.get('ajax') == '1':
+        return jsonify({'success': True, 'liked': liked, 'count': count})
+    return redirect(safe_redirect_url())
+
+@app.route('/toggle_comment_repost', methods=['POST'])
+def toggle_comment_repost():
+    viewer = get_current_user()
+    if not viewer:
+        return redirect(url_for('auth'))
+
+    comment_id = request.form.get('comment_id')
+    reposted = False
+    count = 0
+    if comment_id:
+        try:
+            comment_id_int = int(comment_id)
+            comment_res = supabase.table('comments').select('user_id, post_id').eq('id', comment_id_int).execute()
+            if not comment_res.data:
+                raise ValueError("Comment not found")
+            owner_id = comment_res.data[0]['user_id']
+            if interaction_blocked(viewer['id'], owner_id):
+                if request.form.get('ajax') == '1':
+                    return jsonify({'success': False, 'error': 'You cannot interact with this user.'}), 403
+                flash("You cannot interact with this user.", "error")
+                return redirect(safe_redirect_url())
+
+            res = supabase.table('comment_reposts').select('*').eq('user_id', viewer['id']).eq('comment_id', comment_id_int).execute()
+            if res.data:
+                supabase.table('comment_reposts').delete().eq('user_id', viewer['id']).eq('comment_id', comment_id_int).execute()
+                reposted = False
+            else:
+                supabase.table('comment_reposts').insert({'user_id': viewer['id'], 'comment_id': comment_id_int}).execute()
+                reposted = True
+                award_xp(viewer['id'], 'post_reposted', 5, f"c{comment_id}")
+
+                if owner_id != viewer['id']:
+                    create_notification(owner_id, viewer['id'], 'comment_repost', post_id=comment_res.data[0].get('post_id'))
+
+            count_res = supabase.table('comment_reposts').select('comment_id', count='exact').eq('comment_id', comment_id_int).execute()
+            count = count_res.count if count_res else 0
+        except Exception as e:
+            if request.form.get('ajax') == '1':
+                return jsonify({'success': False, 'error': handle_db_error(e)}), 400
+            flash(handle_db_error(e), "error")
+    if request.form.get('ajax') == '1':
+        return jsonify({'success': True, 'reposted': reposted, 'count': count})
+    return redirect(safe_redirect_url())
+
 
 @app.route('/toggle_follow', methods=['POST'])
 def toggle_follow():
@@ -3790,10 +3890,17 @@ def attach_shared_posts(messages_list):
     if not messages_list:
         return messages_list
     post_ids = []
+    reel_ids = []
     for msg in messages_list:
-        match = re.search(r'/post/(\d+)', msg.get('content', ''))
-        if match:
-            post_ids.append(int(match.group(1)))
+        content = msg.get('content', '')
+        
+        post_match = re.search(r'/post/(\d+)', content)
+        if post_match:
+            post_ids.append(int(post_match.group(1)))
+            
+        reel_match = re.search(r'/reels#reel-(\d+)', content)
+        if reel_match:
+            reel_ids.append(int(reel_match.group(1)))
 
     if post_ids:
         try:
@@ -3806,6 +3913,20 @@ def attach_shared_posts(messages_list):
                     msg['shared_post'] = posts_by_id.get(int(match.group(1)))
         except Exception as e:
             app.logger.error(f"Error attaching shared posts: {e}")
+
+    if reel_ids:
+        try:
+            # We must use reels_user_id_fkey or just user:users(*) depending on schema, let's use user:users!reels_user_id_fkey(*) as seen in get_reels()
+            r_res = supabase.table('reels').select('*, user:users!reels_user_id_fkey(*)').in_('id', list(set(reel_ids))).execute()
+            apply_forced_user_levels(r_res.data if r_res and r_res.data else [])
+            reels_by_id = {r['id']: r for r in r_res.data} if r_res and r_res.data else {}
+            for msg in messages_list:
+                match = re.search(r'/reels#reel-(\d+)', msg.get('content', ''))
+                if match:
+                    msg['shared_reel'] = reels_by_id.get(int(match.group(1)))
+        except Exception as e:
+            app.logger.error(f"Error attaching shared reels: {e}")
+
     return messages_list
 
 def mark_message_thread_read(viewer_id, other_user_id):
@@ -4251,8 +4372,31 @@ def post(id):
 
         post_data = enrich_posts(post_res.data, viewer['id'])[0]
 
-        com_res = supabase.table('comments').select('*, user:users(*)').eq('post_id', id).order('created_at', desc=False).execute()
+        try:
+            com_res = supabase.table('comments').select('*, user:users!comments_user_id_fkey(*), comment_likes(count), comment_reposts(count)').eq('post_id', id).order('created_at', desc=False).execute()
+        except Exception:
+            com_res = supabase.table('comments').select('*, user:users!comments_user_id_fkey(*)').eq('post_id', id).order('created_at', desc=False).execute()
+
         comments = apply_forced_user_levels(com_res.data if com_res and com_res.data else [])
+        
+        viewer_liked_comment_ids = set()
+        viewer_reposted_comment_ids = set()
+        try:
+            comment_ids = [c['id'] for c in comments]
+            if comment_ids:
+                l_res = supabase.table('comment_likes').select('comment_id').eq('user_id', viewer['id']).in_('comment_id', comment_ids).execute()
+                viewer_liked_comment_ids = {r['comment_id'] for r in l_res.data} if l_res and l_res.data else set()
+                r_res = supabase.table('comment_reposts').select('comment_id').eq('user_id', viewer['id']).in_('comment_id', comment_ids).execute()
+                viewer_reposted_comment_ids = {r['comment_id'] for r in r_res.data} if r_res and r_res.data else set()
+        except Exception:
+            pass
+
+        for comment in comments:
+            comment['like_count'] = nested_count(comment.get('comment_likes'))
+            comment['repost_count'] = nested_count(comment.get('comment_reposts'))
+            comment['viewer_liked'] = comment['id'] in viewer_liked_comment_ids
+            comment['viewer_reposted'] = comment['id'] in viewer_reposted_comment_ids
+
         hidden_commenter_ids = blocked_user_ids_for_viewer(viewer['id'], [comment.get('user_id') for comment in comments], include_mutes=False)
         comments = [comment for comment in comments if comment.get('user_id') not in hidden_commenter_ids]
 

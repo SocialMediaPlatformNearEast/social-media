@@ -2,11 +2,11 @@
   <div class="home-reel-panel-header">
     <div>
       <span class="panel-kicker">Videos</span>
-      <h2>Clips</h2>
+      <h2>Reels</h2>
     </div>
     <a href="{{ url_for('reels') }}" class="home-reel-see-all">See all →</a>
   </div>
-  <div class="home-reel-slides" data-home-reel-slides tabindex="0" aria-label="Home Clips">
+  <div class="home-reel-slides" data-home-reel-slides tabindex="0" aria-label="Home reels">
     {% for reel in home_reels %}
     {% set reel_author = reel.author or reel.user or {} %}
     <div class="home-reel-slide{% if loop.first %} is-active{% endif %}"

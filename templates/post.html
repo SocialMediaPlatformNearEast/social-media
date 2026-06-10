@@ -118,6 +118,33 @@
           <div class="post-body">
             {{ comment.comment | linkify_mentions }}
           </div>
+          <div class="post-actions" style="margin-top: 8px;">
+            <button type="button" class="reply-btn post-action-button" onclick="const ta = document.querySelector('.comment-composer textarea'); ta.value = '@{{ comment.user.username }} ' + ta.value.replace(/^@{{ comment.user.username }}\s/, ''); ta.focus();" aria-label="Reply to comment" title="Reply">
+              <span class="post-action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M4 4h16v12H7.8L4 19.35V4Zm2 2v8.93L7.04 14H18V6H6Z"/></svg>
+              </span>
+            </button>
+            <form action="{{ url_for('toggle_comment_repost') }}" method="post" class="ajax-action-form" data-action="repost">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="comment_id" value="{{ comment.id }}">
+              <button type="submit" class="post-action-button {% if comment.viewer_reposted %}active repost-active{% endif %}" aria-label="Repost comment" title="Repost">
+                <span class="post-action-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 7h8.59l-2.3-2.29L14.7 3.3 19.41 8l-4.7 4.7-1.42-1.41L15.59 9H7a3 3 0 0 0-3 3v1H2v-1a5 5 0 0 1 5-5Zm10 10H8.41l2.3 2.29L9.3 20.7 4.59 16l4.7-4.7 1.42 1.41L8.41 15H17a3 3 0 0 0 3-3v-1h2v1a5 5 0 0 1-5 5Z"/></svg>
+                </span>
+                <strong>{{ comment.repost_count }}</strong>
+              </button>
+            </form>
+            <form action="{{ url_for('toggle_comment_like') }}" method="post" class="ajax-action-form" data-action="like">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="comment_id" value="{{ comment.id }}">
+              <button type="submit" class="post-action-button {% if comment.viewer_liked %}active like-active{% endif %}" aria-label="Like comment" title="Like">
+                <span class="post-action-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M2 21h4V9H2v12Zm20-11.5A2.5 2.5 0 0 0 19.5 7H14l.8-3.8.03-.26c0-.31-.13-.62-.35-.84L13.38 1 6.8 7.58C6.3 8.08 6 8.78 6 9.5V19a2 2 0 0 0 2 2h8.75c.82 0 1.55-.5 1.86-1.26l3.02-7.05c.24-.57.37-1.18.37-1.8V9.5Z"/></svg>
+                </span>
+                <strong>{{ comment.like_count }}</strong>
+              </button>
+            </form>
+          </div>
         </div>
       </article>
     {% endfor %}
